@@ -19,11 +19,11 @@ export class AudioPlayer extends Player {
             })
 
             this.#audio.addEventListener('timeupdate', e => {
-                if (this.observer) this.observer.ontimeupdate();
+                if (this.observer) this.observer.ontimeupdate(this.currentTime);
             })
 
             this.#audio.addEventListener('ended', () => {
-                if (this.observer) this.observer.onstop();
+                if (this.observer) this.observer.onstop(this.currentTime);
             });
 
             this.#audio.addEventListener('error', e => {
@@ -39,9 +39,8 @@ export class AudioPlayer extends Player {
     load(url) {
         return new Promise((resolve, reject) => {
             this.#audio.src = url;
-            super.load();
             this.seek(0);
-            resolve();
+            resolve(super.load(url));
         })
     }
 

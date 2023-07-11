@@ -1,9 +1,11 @@
 import { FileCache } from "./files/filecache";
 import { PathMan } from "./files/pathman";
 import { AudioPlayer } from "./player/audio-player";
+import { PlayerObserver } from "./player/player-observer";
 import { dialog } from "./ui/dialog";
 import { filelist } from "./ui/filelist";
 import { navbar } from "./ui/navbar";
+import * as playerBar from "./ui/player-bar";
 import { $ } from "./utils";
 
 export class JMBoxApp {
@@ -84,6 +86,18 @@ export class JMBoxApp {
     }
 
     initializeListeners() {
+
+        const observer = new PlayerObserver();
+        observer.onload = url => {
+            playerBar.setDuration(this.player.duration);
+        }
+        observer.ontimeupdate = time => {
+            playerBar.setDuration(this.player.duration);
+            playerBar.setProgress(this.player.currentTime);
+            playerBar.setBufferLength(this.player.bufferLength);
+        }
+        
+        this.player.setObserver(observer);
 
         filelist.onlist = name => {
             this.pathman.add(name);
