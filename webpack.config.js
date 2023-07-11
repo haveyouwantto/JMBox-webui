@@ -1,5 +1,7 @@
 const path = require("path");
 const HtmlWebpackPlugin = require("html-webpack-plugin");
+const TerserPlugin = require("terser-webpack-plugin");
+const OptimizeCssAssetsPlugin = require("optimize-css-assets-webpack-plugin");
 
 module.exports = {
   entry: "./src/index.js",
@@ -7,26 +9,37 @@ module.exports = {
     path: path.resolve(__dirname, "dist"),
     filename: "bundle.js",
   },
-  plugins:[
+  plugins: [
     new HtmlWebpackPlugin({
-      template : 'resources/index.html'
+      template: 'resources/index.html',
+      favicon :'resources/favicon.ico',
+      inject: 'body'
     })
   ],
-  module:{
-    rules:[
+  optimization: {
+    minimize: true,
+    minimizer: [new TerserPlugin(),
+      new OptimizeCssAssetsPlugin()]
+  },
+  module: {
+    rules: [
       {
         test: /\.js$/i,
-        exclude :/node_modules/,
-        use:{
-          loader:"babel-loader",
-          options:{
-             presets:["@babel/preset-env"]
+        exclude: /node_modules/,
+        use: {
+          loader: "babel-loader",
+          options: {
+            presets: ["@babel/preset-env"]
           }
         }
       },
       {
         test: /\.css$/,
-        use :["style-loader", "css-loader"]
+        use: ["style-loader", "css-loader"]
+      },
+      {
+        test: /\*\.json$/,
+        type: "asset/resource"
       }
     ]
   }
