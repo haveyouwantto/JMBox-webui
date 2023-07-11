@@ -1,0 +1,300 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>JMBox</title>
+
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no" />
+    <meta name="theme-color" id="meta-theme-color" content="#00796b" />
+    <meta name="description" content="JMBox MIDI Player">
+
+    <link rel="stylesheet" href="style.css" />
+    <link rel="stylesheet" href="waterfall.css" />
+
+    <link rel="icon" href="favicon.ico" />
+    <link rel="manifest" href="manifest.json">
+
+</head>
+
+<body>
+    <!-- Element to respond click event -->
+    <div id="collapse" class="hidden"></div>
+
+    <!-- Top Bar -->
+    <div class="nav" id="head">
+
+        <!-- Left -->
+        <div class="headerLeft">
+            <button id="back" class="icon menu-button round hidden">&#57347; </button>
+            <div id="title">JMBox</div>
+        </div>
+
+        <!-- Right -->
+        <div class="headerRight">
+            <button id="home" class="icon menu-button round hidden">&#57348;</button>
+            <button id="menu" class="icon menu-button round">&#57349;</button>
+        </div>
+
+    </div>
+
+    <!-- Top Menu -->
+
+    <div class="menu shadow no-select" id="topMenu">
+        <button id="refresh" class="menu-item button-flash">
+            <icon>&#57360;</icon>
+            <locale key="menu.refresh">Refresh</locale>
+        </button>
+
+        <button id="open-settings-button" class="menu-item button-flash">
+            <icon>&#57367;</icon>
+            <locale key="menu.settings">Settings</locale>
+        </button>
+        <button id="about-button" class="menu-item button-flash">
+            <icon>&#57352;</icon>
+            <locale key="menu.about">About</locale>
+        </button>
+        <button id="language-button" class="menu-item button-flash">
+            <icon>&#57369;</icon>
+            <locale key="menu.languages">Languages</locale>
+        </button>
+    </div>
+
+    <!-- Player control -->
+    <div id="bar" class="shadow">
+        <div id="progress" class="slider">
+            <div id="bufferedtime"></div>
+            <div id="playtime" class="slider-inner"></div>
+        </div>
+        <div id="controls">
+            <button id="controlsLeft" class="bottom-button">
+                <div id="songTitle"></div>
+            </button>
+            <div id="controlsMiddle">
+                <button id="prev" class="icon round bottom-button controls">&#57346;</button>
+                <button id="play" class="icon round bottom-button controls">&#57344;</button>
+                <button id="next" class="icon round bottom-button controls">&#57345;</button>
+                <div id="time">
+                    <div id="timeDisplay">00:00</div>
+                    <div class="seperater">/</div>
+                    <div id="durationDisplay">00:00</div>
+                </div>
+            </div>
+            <div id="controlsRight">
+                <a class="icon round" id="volume-icon">&#57365;</a>
+                <div id="volume" class="slider">
+                    <div id="volume-inner" class="slider-inner"></div>
+                </div>
+                <button id="playMode" class="icon round bottom-button controls">&#11122;</button>
+                <button id="bottomMenuBtn" class="icon round bottom-button">&#57349;</button>
+            </div>
+        </div>
+        <audio autoplay id="audio"></audio>
+        <!--<a id="loop" class="icon button shadow colored">&#11119;</a>-->
+    </div>
+
+    <!-- Bottom Menu -->
+    <div class="bottom-menu shadow no-select" id="bottomMenu">
+        <a id="wav" class="menu-item button-flash">
+            <icon>&#57353;</icon>
+            <locale key="menu.audio-file">Audio File</locale>
+        </a>
+        <a id="mid" class="menu-item button-flash">
+            <icon>&#57354;</icon>
+            <locale key="menu.midi-file">MIDI File</locale>
+        </a>
+        <button id="locate" class="menu-item button-flash">
+            <icon>&#57351;</icon>
+            <locale key="menu.locate">Locate File</locale>
+        </button>
+        <button id="midiInfo" class="menu-item button-flash">
+            <icon>&#57352;</icon>
+            <locale key="menu.midi-info">MIDI Info</locale>
+        </button>
+        <button id="playModeAlt" class="menu-item button-flash">
+            <icon>&#57355;</icon>
+            <locale key="menu.play-mode">Single</locale>
+        </button>
+        <button id="replay" class="menu-item button-flash">
+            <icon>&#57360;</icon>
+            <locale key="menu.replay">Replay</locale>
+        </button>
+    </div>
+
+    <!-- Waterfall -->
+    <div id="waterfall" class="hidden">
+        <canvas id="canvas"></canvas>
+        <div id="lyrics" class="shadow"></div>
+    </div>
+
+    <!-- Files -->
+    <div id="content"></div>
+
+
+    <!-- Settings -->
+    <dialog id="settings-dialog" class="shadow">
+        <div class="title">
+            <locale key="settings.title">Settings</locale>
+        </div>
+
+        <div class="dialog-container">
+            <section class="dialog-section" id="general-section">
+                <locale class="dialog-subtitle" key="settings.general">General</locale>
+                <button id="dark" class="dialog-item button-flash">
+                    <icon>&#57350;</icon>
+                    <locale key="settings.general.dark-mode">Dark Mode</locale>
+                    <select id="dark-select" class="right">
+                        <option class="locale" value="unset" key="settings.general.dark.unset">
+                            Follow system
+                        </option>
+                        <option class="locale" value="force-light" key="settings.general.dark.light">
+                            Light
+                        </option>
+                        <option class="locale" value="force-dark" key="settings.general.dark.dark">
+                            Dark
+                        </option>
+                    </select>
+                </button>
+                <button id="showInfo" class="dialog-item button-flash">
+                    <icon>&#57352;</icon>
+                    <locale key="settings.general.show-info">Show file information</locale>
+                    <icon class="right" checker>&#57362;</icon>
+                </button>
+                <a class="dialog-item">
+                    <icon>&#57373;</icon>
+                    <locale key="settings.general.sort">Order</locale>
+                    <select id="sort-select" class="right">
+                        <option class="locale" value="sortName" key="settings.general.sort.name">
+                            A-Z
+                        </option>
+                        <option class="locale" value="-sortName" key="settings.general.sort.name.reverse">
+                            Z-A
+                        </option>
+                        <option class="locale" value="sortSize" key="settings.general.sort.size">
+                            Smallest
+                        </option>
+                        <option class="locale" value="-sortSize" key="settings.general.sort.size.reverse">
+                            Largest
+                        </option>
+                        <option class="locale" value="sortMtime" key="settings.general.sort.mtime">
+                            Earliest
+                        </option>
+                        <option class="locale" value="-sortMtime" key="settings.general.sort.mtime.reverse">
+                            Latest
+                        </option>
+                    </select>
+                </a>
+            </section>
+
+            <section class="dialog-section" id="player-section">
+                <locale class="dialog-subtitle" key="settings.players">Players</locale>
+                <button id="audioPlayer" class="dialog-item button-flash">
+                    <icon>&#57361;</icon>
+                    <locale key="settings.players.audio">Browser Audio</locale>
+                    <icon class="right radio" checker>&#57362;</icon>
+                </button>
+                <button id="picoAudioPlayer" class="dialog-item button-flash">
+                    <icon>&#57364;</icon>
+                    <locale key="settings.players.picoaudio">PicoAudio Synthesizer</locale>
+                    <icon class="right radio" checker>&#57362;</icon>
+                </button>
+            </section>
+
+            <section class="dialog-section" id="audio-section">
+                <locale class="dialog-subtitle" key="settings.audio">Browser Audio</locale>
+                <button id="midiSrc" class="dialog-item button-flash">
+                    <icon>&#57354;</icon>
+                    <locale key="settings.audio.midi-src">Use MIDI as source</locale>
+                    <icon class="right" checker>&#57362;</icon>
+                </button>
+            </section>
+
+            <section class="dialog-section" id="picoaudio-section">
+                <locale class="dialog-subtitle" key="settings.picoaudio">PicoAudio</locale>
+                <button id="waveType" class="dialog-item button-flash">
+                    <icon>&#57353;</icon>
+                    <locale key="settings.picoaudio.wave-type">Use better waveform</locale>
+                    <icon class="right" checker>&#57362;</icon>
+                </button>
+                <button id="picoAudioMIDI" class="dialog-item button-flash">
+                    <icon>&#57370;</icon>
+                    <locale key="settings.picoaudio.web-midi">Use Web MIDI Output</locale>
+                    <icon class="right" checker>&#57362;</icon>
+                </button>
+                <a id="picoAudioMIDIDevice" class="dialog-item">
+                    <icon>&#57368;</icon>
+                    <locale key="settings.picoaudio.midi-devices">MIDI Device</locale><select id="devices"
+                        class="right"></select>
+                </a>
+                <a id="picoAudioMIDILatency" class="dialog-item">
+                    <icon>&#57368;</icon>
+                    <locale key="settings.picoaudio.midi-latency">MIDI Output Latency</locale>
+                    <input class="right" id="midiLatency" type="number" min="50" max="1500" step="10"
+                        value="100"></input>
+                </a>
+            </section>
+
+            <section class="dialog-section">
+                <locale class="dialog-subtitle" key="settings.piano-roll">Piano Roll</locale>
+                <a id="spanDurationSetting" class="dialog-item">
+                    <icon>&#57367;</icon>
+                    <locale key="settings.piano-roll.span-duration">Span Duration</locale>
+                    <input class="right" id="spanDuration" type="number" min="0" max="10" step="0.1" value="4"></input>
+                </a>
+                <a id="maxNoteDurationSetting" class="dialog-item">
+                    <icon>&#57367;</icon>
+                    <locale key="settings.piano-roll.max-note-duration">Max Note Duration</locale>
+                    <input class="right" id="maxNoteDuration" type="number" min="1" max="60" step="1"
+                        value="30"></input>
+                </a>
+                <button id="noteTransparency" class="dialog-item button-flash">
+                    <icon>&#57367;</icon>
+                    <locale key="settings.piano-roll.note-transparency">Note translucence to velocity</locale>
+                    <icon class="right" checker>&#57362;</icon>
+                </button>
+                <button id="highlightNotes" class="dialog-item button-flash">
+                    <icon>&#57367;</icon>
+                    <locale key="settings.piano-roll.highlight-playing-notes">Highlight playing notes</locale>
+                    <icon class="right" checker>&#57362;</icon>
+                </button>
+                <button id="prefmon" class="dialog-item button-flash">
+                    <icon>&#57367;</icon>
+                    <locale key="settings.piano-roll.prefmon">Performance Monitor</locale>
+                    <icon class="right" checker>&#57362;</icon>
+                </button>
+                <button id="showLyrics" class="dialog-item button-flash">
+                    <icon>&#57367;</icon>
+                    <locale key="settings.piano-roll.show-lyrics">Show Lyrics</locale>
+                    <icon class="right" checker>&#57362;</icon>
+                </button>
+                <a id="lyricsEncoding" class="dialog-item">
+                    <icon>&#57367;</icon>
+                    <locale key="settings.piano-roll.lyrics-encoding">Lyrics Encoding</locale>
+                    <input type="text" size="8" class="right"></input>
+                </a>
+            </section>
+        </div>
+        <div class="dialog-button-container">
+            <button class="dialog-button" id="close-settings-button">
+                <locale key="settings.close-btn">Close</locale>
+            </button>
+        </div>
+
+    </dialog>
+    <dialog id="common-dialog" class="shadow">
+        <div class="title">Dialog</div>
+        <div class="dialog-container"></div>
+        <div class="dialog-button-container">
+            <button class="dialog-button" id="close-dialog-button">
+                <locale key="dialog.close-btn">Close</locale>
+            </button>
+        </div>
+    </dialog>
+
+
+    <script>
+        const version = "Alpha 1.5";
+    </script>
+    <script src="bundle.js"></script>
+</body>
+
+</html>

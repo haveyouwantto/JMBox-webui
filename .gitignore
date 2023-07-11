@@ -1,0 +1,30 @@
+# Dependency directories
+node_modules
+
+# Environment files
+.env
+
+# Build output
+build
+dist
+
+# Log files
+*.log
+
+# Editor/IDE files
+.vscode
+.idea
+*.iml
+
+# macOS-specific files
+.DS_Store
+
+# Windows-specific files
+Thumbs.db
+
+# Compiled binary addons
+build/Release
+
+# Cache directories
+.cache
+.npm
