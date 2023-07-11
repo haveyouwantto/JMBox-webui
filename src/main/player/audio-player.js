@@ -23,7 +23,7 @@ export class AudioPlayer extends Player {
             })
 
             this.#audio.addEventListener('ended', () => {
-                if (this.observer) this.observer.onstop(this.currentTime);
+                if (this.observer) this.observer.onended();
             });
 
             this.#audio.addEventListener('error', e => {

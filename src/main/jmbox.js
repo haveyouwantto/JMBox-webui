@@ -6,6 +6,7 @@ import { dialog } from "./ui/dialog";
 import { filelist } from "./ui/filelist";
 import { navbar } from "./ui/navbar";
 import * as playerBar from "./ui/player-bar";
+import { PlayerAdapter } from "./player/player-adapter";
 import { $ } from "./utils";
 
 export class JMBoxApp {
@@ -91,13 +92,24 @@ export class JMBoxApp {
         observer.onload = url => {
             playerBar.setDuration(this.player.duration);
         }
+        observer.onplay = () => {
+            playerBar.setPaused(false);
+        }
+        observer.onpause = () => {
+            playerBar.setPaused(true);
+        }
         observer.ontimeupdate = time => {
             playerBar.setDuration(this.player.duration);
             playerBar.setProgress(this.player.currentTime);
             playerBar.setBufferLength(this.player.bufferLength);
         }
+        const adapter = new PlayerAdapter();
+        adapter.play = () => {this.player.play()}
+        adapter.pause = () => {this.player.pause()}
+        adapter.seek = percentage => {this.player.seekPercentage(percentage)}
         
         this.player.setObserver(observer);
+        playerBar.setPlayerAdapter(adapter);
 
         filelist.onlist = name => {
             this.pathman.add(name);

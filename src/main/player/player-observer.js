@@ -5,6 +5,7 @@ export class PlayerObserver {
         this.onpause = (time) => null;
         this.onseek = (duration) => null;
         this.onstop = (time) => null;
+        this.onended = () => null;
         this.onerror = (e) => null;
         this.onloopchange = (volume) => null;
         this.onvolumechange = (volume) => null;
