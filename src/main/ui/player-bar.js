@@ -67,3 +67,11 @@ playButton.addEventListener('click', togglePause);
 progressBar.addEventListener('click', e => {
     playerAdapter.seek(e.clientX / progressBar.clientWidth);
 });
+
+nextButton.addEventListener('click', e => {
+    playerAdapter.next();
+})
+
+prevButton.addEventListener('click', e => {
+    playerAdapter.prev();
+});

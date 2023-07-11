@@ -7,6 +7,7 @@ import { filelist } from "./ui/filelist";
 import { navbar } from "./ui/navbar";
 import * as playerBar from "./ui/player-bar";
 import { PlayerAdapter } from "./player/player-adapter";
+import { Playlist } from "./player/playlist";
 import { $ } from "./utils";
 
 export class JMBoxApp {
@@ -17,6 +18,7 @@ export class JMBoxApp {
         this.pathman = new PathMan();
         this.cache = new FileCache();
         this.player = new AudioPlayer($("#audio"));
+        this.playlist = new Playlist([]);
 
         this.initializeListeners();
     }
@@ -83,7 +85,14 @@ export class JMBoxApp {
     updateList(path, result, back = false) {
         console.log(path, result);
         filelist.setFilelist(result);
-        filelist.load();
+
+        this.playlist = new Playlist(filelist.load());
+    }
+
+    play(name){
+        const url = "http://192.168.2.33:60752/api/play" + this.pathman.getPath() + "/" + encodeURIComponent(name);
+        this.player.load(url).then(this.player.play());
+        this.playlist.setPlaying(name);
     }
 
     initializeListeners() {
@@ -103,9 +112,12 @@ export class JMBoxApp {
             playerBar.setProgress(this.player.currentTime);
             playerBar.setBufferLength(this.player.bufferLength);
         }
+
         const adapter = new PlayerAdapter();
         adapter.play = () => {this.player.play()}
         adapter.pause = () => {this.player.pause()}
+        adapter.next = () => {this.play(this.playlist.next())}
+        adapter.prev = () => {this.play(this.playlist.prev())}
         adapter.seek = percentage => {this.player.seekPercentage(percentage)}
         
         this.player.setObserver(observer);
@@ -117,8 +129,7 @@ export class JMBoxApp {
         }
 
         filelist.onplay = name => {
-            const url = "http://192.168.2.33:60752/api/play" + this.pathman.getPath() + "/" + encodeURIComponent(name);
-            this.player.load(url).then(this.player.play());
+            this.play(name);
         }
 
         navbar.onback = () => {

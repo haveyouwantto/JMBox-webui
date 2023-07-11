@@ -3,7 +3,6 @@ import { $ } from "../utils";
 
 class FileList {
     #content = $("#content");
-    #files = [];
     #filelist = [];
 
     constructor() {
@@ -19,6 +18,7 @@ class FileList {
     }
 
     load() {
+        const files =[];
         this.#content.innerHTML = '';
 
         this.#filelist.sort(this.sortFunc);
@@ -40,7 +40,7 @@ class FileList {
             } else {
                 icon.innerText = "\ue00a";
                 file.addEventListener('click',()=>this.onplay(element.name));
-                this.#files.push(element.name);
+                files.push(element.name);
             }
             fileName.appendChild(document.createTextNode(element.name))
             file.appendChild(fileName);
@@ -66,6 +66,7 @@ class FileList {
 
             this.#content.appendChild(file);
         }
+        return files;
     }
 }
 
