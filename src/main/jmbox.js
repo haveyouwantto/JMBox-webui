@@ -9,6 +9,7 @@ import * as playerBar from "./ui/player-bar";
 import { PlayerAdapter } from "./player/player-adapter";
 import { Playlist } from "./player/playlist";
 import { $ } from "./utils";
+import { saveSettings, settings } from "./settings";
 
 export class JMBoxApp {
     constructor() {
@@ -21,6 +22,7 @@ export class JMBoxApp {
         this.playlist = new Playlist([]);
 
         this.initializeListeners();
+        this.initializeSettings();
     }
 
     setName(name) {
@@ -93,6 +95,7 @@ export class JMBoxApp {
         const url = "http://192.168.2.33:60752/api/play" + this.pathman.getPath() + "/" + encodeURIComponent(name);
         this.player.load(url).then(this.player.play());
         this.playlist.setPlaying(name);
+        playerBar.setSongName(name);
     }
 
     initializeListeners() {
@@ -109,6 +112,8 @@ export class JMBoxApp {
         }
         observer.onvolumechange = volume => {
             playerBar.setVolume(Math.sqrt(volume));
+            settings.volume = volume;
+            saveSettings();
         }
         observer.ontimeupdate = time => {
             playerBar.setDuration(this.player.duration);
@@ -148,6 +153,6 @@ export class JMBoxApp {
     }
 
     initializeSettings() {
-
+        this.player.volume = settings.volume;
     }
 }

@@ -90,3 +90,7 @@ volumeControl.addEventListener('pointermove', e => {
 volumeControl.addEventListener('click', e => {
     playerAdapter.setVolume(e.offsetX / volumeControl.clientWidth);
 });
+
+export function setSongName(name) {
+    songTitle.textContent = name;
+}
