@@ -82,7 +82,7 @@ export class AudioPlayer extends Player {
     }
 
     set loop(value) {
-        super.loop(value);
+        super.loop = value;
         this.#audio.loop = value;
     }
 
@@ -91,7 +91,7 @@ export class AudioPlayer extends Player {
     }
 
     set volume(value) {
-        super.volume(value);
+        super.volume = value;
         this.#audio.volume = value;
     }
 

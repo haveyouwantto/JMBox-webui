@@ -89,7 +89,7 @@ export class JMBoxApp {
         this.playlist = new Playlist(filelist.load());
     }
 
-    play(name){
+    play(name) {
         const url = "http://192.168.2.33:60752/api/play" + this.pathman.getPath() + "/" + encodeURIComponent(name);
         this.player.load(url).then(this.player.play());
         this.playlist.setPlaying(name);
@@ -107,6 +107,9 @@ export class JMBoxApp {
         observer.onpause = () => {
             playerBar.setPaused(true);
         }
+        observer.onvolumechange = volume => {
+            playerBar.setVolume(Math.sqrt(volume));
+        }
         observer.ontimeupdate = time => {
             playerBar.setDuration(this.player.duration);
             playerBar.setProgress(this.player.currentTime);
@@ -114,12 +117,13 @@ export class JMBoxApp {
         }
 
         const adapter = new PlayerAdapter();
-        adapter.play = () => {this.player.play()}
-        adapter.pause = () => {this.player.pause()}
-        adapter.next = () => {this.play(this.playlist.next())}
-        adapter.prev = () => {this.play(this.playlist.prev())}
-        adapter.seek = percentage => {this.player.seekPercentage(percentage)}
-        
+        adapter.play = () => { this.player.play() }
+        adapter.pause = () => { this.player.pause() }
+        adapter.next = () => { this.play(this.playlist.next()) }
+        adapter.prev = () => { this.play(this.playlist.prev()) }
+        adapter.setVolume = volume => { this.player.volume = Math.pow(volume, 2) }
+        adapter.seek = percentage => { this.player.seekPercentage(percentage) }
+
         this.player.setObserver(observer);
         playerBar.setPlayerAdapter(adapter);
 
@@ -141,5 +145,9 @@ export class JMBoxApp {
             this.pathman.home();
             this.list();
         }
+    }
+
+    initializeSettings() {
+
     }
 }

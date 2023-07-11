@@ -111,7 +111,7 @@ export class Player {
      */
     set volume(value) {
         // Implementation for setting the volume level of the audio
-        if (this.volume) this.observer.onvolumechange(value);
+        if (this.observer) this.observer.onvolumechange(value);
     }
 
     /**

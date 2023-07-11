@@ -75,3 +75,18 @@ nextButton.addEventListener('click', e => {
 prevButton.addEventListener('click', e => {
     playerAdapter.prev();
 });
+
+
+export function setVolume(percentage) {
+    volumeControlInner.style.width = (percentage * 100) + "%";
+}
+
+volumeControl.addEventListener('pointermove', e => {
+    if (e.buttons > 0) {
+        playerAdapter.setVolume(e.offsetX / volumeControl.clientWidth);
+    }
+});
+
+volumeControl.addEventListener('click', e => {
+    playerAdapter.setVolume(e.offsetX / volumeControl.clientWidth);
+});
