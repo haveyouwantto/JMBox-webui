@@ -92,8 +92,7 @@ export class JMBoxApp {
 
         filelist.onplay = name => {
             const url = "http://192.168.2.33:60752/api/play" + this.pathman.getPath() + "/" + encodeURIComponent(name);
-            this.player.load(url);
-            this.player.play();
+            this.player.load(url).then(this.player.play());
         }
 
         navbar.onback = () => {

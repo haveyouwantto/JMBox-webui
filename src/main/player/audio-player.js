@@ -1,93 +1,102 @@
-export class AudioPlayer {
+import { Player } from "./player";
+
+let audioInit = false;
+export class AudioPlayer extends Player {
     #audio;
-    
-    constructor(audioElement){
+
+    constructor(audioElement) {
+        super();
         this.#audio = audioElement;
-    }
-    /**
-     * Loads a url
-     * @param {string} url 
-     * @param {Function} callback
-     */
-    load (url, callback, error) {
-        this.#audio.src = url;
-        this.seek(0);
-        callback();
+
+
+        if (!audioInit) {
+            this.#audio.addEventListener('pause', e => {
+                this.pause();
+            });
+
+            this.#audio.addEventListener('play', e => {
+                this.play();
+            })
+
+            this.#audio.addEventListener('timeupdate', e => {
+                if (this.observer) this.observer.ontimeupdate();
+            })
+
+            this.#audio.addEventListener('ended', () => {
+                if (this.observer) this.observer.onstop();
+            });
+
+            this.#audio.addEventListener('error', e => {
+                if (this.audio.src != 'null:' && this.observer) {
+                    this.observer.onerror(e);
+                }
+            })
+
+            audioInit = true;
+        }
     }
 
-    /**
-     * Play the audio
-     */
-    play (){
+    load(url) {
+        return new Promise((resolve, reject) => {
+            this.#audio.src = url;
+            super.load();
+            this.seek(0);
+            resolve();
+        })
+    }
+
+    play() {
+        super.play();
         this.#audio.play();
     }
 
-    /**
-     * Pause the audio
-     */
-    pause  () {
+    pause() {
+        super.pause();
         this.#audio.pause();
     }
 
-    /**
-     * Gets audio duration
-     * @returns duration in seconds
-     */
-    duration () {
+    get duration() {
         return this.#audio.duration;
     }
 
-    /**
-     * Gets current audio progress
-     * @returns progress in seconds
-     */
-    currentTime() {
+    get currentTime() {
         return this.#audio.currentTime;
     }
 
-    /**
-     * Seek audio in seconds
-     * @param {float} seconds 
-     */
-    seek  (seconds) {
+    seek(seconds) {
+        super.seek();
         this.#audio.currentTime = seconds;
     }
 
-    /**
-     * Seek audio by percentage
-     * @param {float} percentage 
-     */
-    seekPercentage  (percentage) {
-        this.seek(this.#audio.duration * percentage);
-    }
-
-    stop  () {
+    stop() {
+        super.stop();
         this.pause();
         this.#audio.src = "null:"
     }
 
-    isPaused () {
+    get paused() {
         return this.#audio.paused;
     }
 
-    setLoop  (loop) {
-        this.#audio.loop = loop;
+    get loop() {
+        return this.#audio.loop;
     }
 
-    getVolume  () {
+    set loop(value) {
+        super.loop(value);
+        this.#audio.loop = value;
+    }
+
+    get volume() {
         return this.#audio.volume;
     }
 
-    setVolume (volume) {
-        this.#audio.volume = volume;
+    set volume(value) {
+        super.volume(value);
+        this.#audio.volume = value;
     }
 
-    replay () {
-        this.seek(0);
-        this.play();
-    }
-
-    getBuffer(){
+    get bufferLength() {
         for (let i = 0; i < this.#audio.buffered.length; i++) {
             let endTime = this.#audio.buffered.end(i);
             if (endTime > this.#audio.currentTime) {
@@ -97,37 +106,4 @@ export class AudioPlayer {
         return 0;
     }
 
-    // if (!audioInit) {
-    //     this.audio.addEventListener('pause', e => {
-    //         this.pause();
-    //     });
-
-    //     this.audio.addEventListener('play', e => {
-    //         this.play();
-    //     })
-
-    //     this.audio.addEventListener('timeupdate', e => {
-    //         updatePlayback();
-    //         for (let i = 0; i < this.audio.buffered.length; i++) {
-    //             let endTime = this.audio.buffered.end(i);
-    //             if (endTime > this.audio.currentTime) {
-    //                 updateBuffer(endTime, this.audio.duration);
-    //                 break;
-    //             }
-    //         }
-    //     })
-
-    //     this.audio.addEventListener('ended', onended);
-
-    //     this.audio.addEventListener('error', e => {
-    //         if (this.audio.src != 'null:') {
-    //             let dialog = new Dialog();
-    //             dialog.setTitle(getLocale("player.failed"));
-    //             dialog.addText(getLocale("player.failed.description"));
-    //             dialog.setVisible(true);
-    //         }
-    //     })
-
-    //     audioInit = true;
-    // }
 }
