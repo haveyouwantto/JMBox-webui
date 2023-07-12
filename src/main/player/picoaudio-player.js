@@ -38,11 +38,13 @@ export default class PicoAudioPlayer extends Player {
     }
 
     play() {
+        this.listener.on('timeupdate', this.currentTime);
         super.play();
         if (this.ended) this.seek(0);
         this.#paused = false;
         picoAudio.play();
-        // this.intervalId = setInterval(updatePlayback, 50);
+
+        this.#intervalId = setInterval(() => { this.listener.on('timeupdate', this.currentTime) }, 50);
         /*
         if (this.silent == null && settings.webmidi) {
             this.silent = picoAudio.context.createConstantSource();
@@ -58,9 +60,10 @@ export default class PicoAudioPlayer extends Player {
         this.#lastPausedTime = this.currentTime;
         this.#paused = true;
         picoAudio.pause();
-        /*
-        clearInterval(this.intervalId);
 
+        clearInterval(this.#intervalId);
+
+        /*
         if (this.silent != null) {
             this.silent.stop();
             this.silent.disconnect(picoAudio.context.destination);

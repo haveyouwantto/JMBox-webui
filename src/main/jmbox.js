@@ -121,7 +121,7 @@ export class JMBoxApp {
 
         this.player.setEventListener('timeupdate', time => {
             playerBar.setDuration(this.player.duration);
-            playerBar.setProgress(this.player.currentTime);
+            playerBar.setProgress(time);
             playerBar.setBufferLength(this.player.bufferLength);
         });
 

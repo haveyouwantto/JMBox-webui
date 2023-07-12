@@ -15,7 +15,6 @@ export function loadMIDI(url) {
         const parsedData = picoAudio.parseSMF(data);
         smfData = parsedData;
         try {
-            console.log(0)
             picoAudio.setData(parsedData);
             return Promise.resolve(parsedData);
         } catch (error) {
