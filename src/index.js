@@ -8,3 +8,5 @@ const app = new JMBoxApp('http://192.168.2.33:60752/');
 
 app.info();
 app.list(true);
+
+window.app = app;

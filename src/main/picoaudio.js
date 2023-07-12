@@ -24,6 +24,8 @@ export function loadMIDI(url) {
     });
 }
 
+window.picoAudio = picoAudio;
+
 export default picoAudio;
 
 export { smfData };
