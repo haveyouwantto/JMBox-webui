@@ -1,11 +1,11 @@
-import { FileCache } from "./files/filecache";
-import { PathMan } from "./files/pathman";
-import { AudioPlayer } from "./player/audio-player";
+import FileCache from "./files/filecache";
+import PathMan from "./files/pathman";
+import AudioPlayer from "./player/audio-player";
 import * as dialog from "./ui/dialog";
 import { filelist } from "./ui/filelist";
 import { navbar } from "./ui/navbar";
 import * as playerBar from "./ui/player-bar";
-import { Playlist } from "./player/playlist";
+import Playlist from "./player/playlist";
 import { $ } from "./utils";
 import { saveSettings, settings } from "./settings";
 
@@ -17,7 +17,7 @@ export class JMBoxApp {
 
         this.pathman = new PathMan();
         this.cache = new FileCache();
-        this.player = new AudioPlayer($("#audio"));
+        this.player = new AudioPlayer();
         this.playlist = new Playlist([]);
 
         this.initializeListeners();

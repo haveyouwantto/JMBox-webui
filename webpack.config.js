@@ -14,7 +14,7 @@ module.exports = {
   plugins: [
     new HtmlWebpackPlugin({
       template: 'resources/index.html',
-      favicon :'resources/favicon.ico',
+      favicon: 'resources/favicon.ico',
       inject: 'body'
     }),
     new CopyWebpackPlugin({
@@ -31,8 +31,7 @@ module.exports = {
   ],
   optimization: {
     minimize: true,
-    minimizer: [new TerserPlugin(),
-      new CssMinifier()]
+    minimizer: [new TerserPlugin(), new CssMinifier()]
   },
   module: {
     rules: [

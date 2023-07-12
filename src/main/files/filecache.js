@@ -1,4 +1,4 @@
-export class FileCache {
+export default class FileCache {
     #cacheDict = {};
 
     get (path) {

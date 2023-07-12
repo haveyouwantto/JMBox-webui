@@ -22,7 +22,7 @@ export function extractLyrics(midiData, encoding = "UTF-8") {
 
 
 
-export class LrcDisplayer {
+export default class LrcDisplayer {
     constructor() {
         this.lyrics = [];
         this.index = 0;

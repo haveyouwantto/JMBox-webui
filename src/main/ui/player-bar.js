@@ -1,4 +1,4 @@
-import { EventListener } from "../event-listener";
+import EventListener from "../event-listener";
 import { $, formatTime } from "../utils";
 
 const progressBar = $("#progress");

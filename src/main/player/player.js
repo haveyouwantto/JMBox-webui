@@ -1,6 +1,6 @@
-import { EventListener } from "../event-listener";
+import EventListener from "../event-listener";
 
-export class Player {
+export default class Player {
     constructor() {
         this.listener = new EventListener();
     }

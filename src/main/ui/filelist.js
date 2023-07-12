@@ -1,5 +1,5 @@
 import { sortName } from "../sorting";
-import { EventListener } from "../event-listener";
+import EventListener from "../event-listener";
 import { $, toSI } from "../utils";
 
 class FileList {

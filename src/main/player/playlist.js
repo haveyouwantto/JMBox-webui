@@ -1,16 +1,16 @@
-export class Playlist{
+export default class Playlist {
     #list = [];
     #index = 0;
-    constructor(list){
+    constructor(list) {
         this.#list = list;
     }
 
-    setPlaying(name){
+    setPlaying(name) {
         this.#index = this.#list.indexOf(name);
         return this.#index;
     }
 
-    next(){
+    next() {
         this.#index++;
         if (this.#index >= this.#list.length) {
             this.#index = 0;
@@ -18,10 +18,10 @@ export class Playlist{
         return this.#list[this.#index];
     }
 
-    prev(){
+    prev() {
         this.#index--;
-        if (this.#index <0){
-            this.#index = this.#list.length-1;
+        if (this.#index < 0) {
+            this.#index = this.#list.length - 1;
         }
         return this.#list[this.#index];
     }

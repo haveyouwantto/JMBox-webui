@@ -1,5 +1,5 @@
 import { $ } from "../utils";
-import { EventListener } from "../event-listener";
+import EventListener from "../event-listener";
 
 class NavBar {
     #nav = $('#head');

@@ -1,4 +1,4 @@
-export class PathMan {
+export default class PathMan {
     #stack = [];
 
     add(dir) {

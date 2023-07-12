@@ -1,4 +1,4 @@
-export class EventListener {
+export default class EventListener {
     #events;
     constructor() {
         this.#events = {};

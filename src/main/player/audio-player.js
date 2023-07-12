@@ -1,12 +1,13 @@
-import { Player } from "./player";
+import Player from "./player";
+import { $ } from "../utils";
 
 let audioInit = false;
-export class AudioPlayer extends Player {
+export default class AudioPlayer extends Player {
     #audio;
 
-    constructor(audioElement) {
+    constructor() {
         super();
-        this.#audio = audioElement;
+        this.#audio = $("#audio");
 
 
         if (!audioInit) {
@@ -19,16 +20,16 @@ export class AudioPlayer extends Player {
             })
 
             this.#audio.addEventListener('timeupdate', e => {
-                 this.listener.on('timeupdate',this.currentTime);
+                this.listener.on('timeupdate', this.currentTime);
             })
 
             this.#audio.addEventListener('ended', () => {
-                 this.listener.on('ended');
+                this.listener.on('ended');
             });
 
             this.#audio.addEventListener('error', e => {
                 if (this.audio.src != 'null:') {
-                    this.listener.on('error',e);
+                    this.listener.on('error', e);
                 }
             })
 
