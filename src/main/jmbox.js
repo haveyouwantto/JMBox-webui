@@ -8,6 +8,7 @@ import * as playerBar from "./ui/player-bar";
 import Playlist from "./player/playlist";
 import { $ } from "./utils";
 import { saveSettings, settings } from "./settings";
+import PicoAudioPlayer from "./player/picoaudio-player";
 
 export class JMBoxApp {
     constructor(baseUrl) {
@@ -17,7 +18,7 @@ export class JMBoxApp {
 
         this.pathman = new PathMan();
         this.cache = new FileCache();
-        this.player = new AudioPlayer();
+        this.player = new PicoAudioPlayer();
         this.playlist = new Playlist([]);
 
         this.initializeListeners();
@@ -92,8 +93,8 @@ export class JMBoxApp {
     }
 
     play(name) {
-        const url = this.baseUrl + "api/play" + this.pathman.getPath() + "/" + encodeURIComponent(name);
-        this.player.load(url).then(this.player.play());
+        const path = this.pathman.getPath() + "/" + encodeURIComponent(name);
+        this.player.loadPath(this.baseUrl, path).then(() => this.player.play());
         this.playlist.setPlaying(name);
         playerBar.setSongName(name);
     }

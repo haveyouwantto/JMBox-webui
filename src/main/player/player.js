@@ -15,6 +15,10 @@ export default class Player {
         this.listener.on('load', url);
     }
 
+    loadPath(baseUrl, path) {
+
+    }
+
     /**
      * Play the audio
      */
@@ -78,6 +82,14 @@ export default class Player {
     get paused() {
         // Implementation for getting the paused state of the audio
         // Return true if the audio is paused, false otherwise
+    }
+
+    /**
+     * Returns true if the audio ended
+     * @returns {boolean} ended
+     */
+    get ended() {
+        return this.currentTime >= this.duration;
     }
 
     /**

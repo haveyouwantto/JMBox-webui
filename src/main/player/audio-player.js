@@ -45,6 +45,10 @@ export default class AudioPlayer extends Player {
         })
     }
 
+    loadPath(baseUrl, path) {
+        return this.load(baseUrl + "api/play" + path)
+    }
+
     play() {
         super.play();
         this.#audio.play();

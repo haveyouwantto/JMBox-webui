@@ -9,7 +9,7 @@ export default class EventListener {
         }
     }
 
-    setEventListener(eventName, listener){
+    setEventListener(eventName, listener) {
         this.#events[eventName] = listener;
     }
 }
