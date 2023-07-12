@@ -2,7 +2,11 @@ import { JMBoxApp } from "./main/jmbox";
 import '../resources/style.css';
 import '../resources/waterfall.css';
 
-const app = new JMBoxApp('http://192.168.43.1:60752/');
+import { picoAudio } from "./main/picoaudio";
+
+const app = new JMBoxApp('http://192.168.2.33:60752/');
 
 app.info();
 app.list(true);
+
+console.log(picoAudio)
