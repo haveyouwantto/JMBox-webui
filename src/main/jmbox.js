@@ -10,9 +10,10 @@ import { $ } from "./utils";
 import { saveSettings, settings } from "./settings";
 
 export class JMBoxApp {
-    constructor() {
+    constructor(baseUrl) {
         this.serverName = "JMBox";
         this.themeColor = "#00796b";
+        this.baseUrl = baseUrl;
 
         this.pathman = new PathMan();
         this.cache = new FileCache();
@@ -42,7 +43,7 @@ export class JMBoxApp {
     }
 
     info() {
-        fetch('http://192.168.2.33:60752/api/info').then(r => r.json()).then(result => {
+        fetch(this.baseUrl + 'api/info').then(r => r.json()).then(result => {
             this.setName(result.serverName);
             this.setThemeColor(result.themeColor);
         });
@@ -62,7 +63,7 @@ export class JMBoxApp {
         const path = this.pathman.getPath();
 
         if (this.cache.get(path) == null || ignoreCache) {
-            return fetch("http://192.168.2.33:60752/api/list" + path)
+            return fetch(this.baseUrl + "api/list" + path)
                 .then(response => {
                     if (response.ok) {
                         return response.json();
@@ -85,12 +86,13 @@ export class JMBoxApp {
     updateList(path, result, back = false) {
         console.log(path, result);
         filelist.setFilelist(result);
+        filelist.showInfo = settings.showInfo;
 
         this.playlist = new Playlist(filelist.load());
     }
 
     play(name) {
-        const url = "http://192.168.2.33:60752/api/play" + this.pathman.getPath() + "/" + encodeURIComponent(name);
+        const url = this.baseUrl + "api/play" + this.pathman.getPath() + "/" + encodeURIComponent(name);
         this.player.load(url).then(this.player.play());
         this.playlist.setPlaying(name);
         playerBar.setSongName(name);
@@ -101,71 +103,75 @@ export class JMBoxApp {
         this.player.setEventListener('load', url => {
             playerBar.setDuration(this.player.duration);
         });
-        
+
         this.player.setEventListener('play', () => {
             playerBar.setPaused(false);
         });
-        
+
         this.player.setEventListener('pause', () => {
             playerBar.setPaused(true);
         });
-        
+
         this.player.setEventListener('volumechange', volume => {
             playerBar.setVolume(Math.sqrt(volume));
             settings.volume = volume;
             saveSettings();
         });
-        
+
         this.player.setEventListener('timeupdate', time => {
             playerBar.setDuration(this.player.duration);
             playerBar.setProgress(this.player.currentTime);
             playerBar.setBufferLength(this.player.bufferLength);
         });
-        
+
 
         playerBar.setEventListener('play', () => {
             this.player.play();
         });
-        
+
         playerBar.setEventListener('pause', () => {
             this.player.pause();
         });
-        
+
         playerBar.setEventListener('next', () => {
             this.play(this.playlist.next());
         });
-        
+
         playerBar.setEventListener('prev', () => {
             this.play(this.playlist.prev());
         });
-        
+
         playerBar.setEventListener('volumechange', volume => {
             this.player.volume = Math.pow(volume, 2);
         });
-        
+
         playerBar.setEventListener('seek', percentage => {
             this.player.seekPercentage(percentage);
         });
-        
 
-        filelist.onlist = name => {
+
+        filelist.setEventListener('list', name => {
             this.pathman.add(name);
             this.list();
-        }
+        })
 
-        filelist.onplay = name => {
+        filelist.setEventListener('play', name => {
             this.play(name);
-        }
+        })
 
-        navbar.onback = () => {
+        navbar.setEventListener('back',  () => {
             this.pathman.remove();
             this.list();
-        }
+        })
 
-        navbar.onhome = () => {
+        navbar.setEventListener('home',  () => {
             this.pathman.home();
             this.list();
-        }
+        })
+
+        navbar.setEventListener('menuitem',func=>{
+            console.log(func);
+        })
     }
 
     initializeSettings() {

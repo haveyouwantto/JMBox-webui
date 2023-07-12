@@ -1,16 +1,17 @@
 import { sortName } from "../sorting";
-import { $ } from "../utils";
+import { EventListener } from "../event-listener";
+import { $, toSI } from "../utils";
 
 class FileList {
     #content = $("#content");
     #filelist = [];
+    #events;
 
     constructor() {
         this.sortFunc = sortName;
         this.showInfo = false;
         this.reversed = false;
-        this.onlist = name => null;
-        this.onplay = name => null;
+        this.#events = new EventListener();
     }
 
     setFilelist(filelist) {
@@ -36,10 +37,10 @@ class FileList {
             fileName.appendChild(icon);
             if (element.isDir) {
                 icon.innerText = "\ue016";
-                file.addEventListener('click',()=>this.onlist(element.name));
+                file.addEventListener('click',()=>this.#events.on("list",element.name));
             } else {
                 icon.innerText = "\ue00a";
-                file.addEventListener('click',()=>this.onplay(element.name));
+                file.addEventListener('click',()=>this.#events.on("play",element.name));
                 files.push(element.name);
             }
             fileName.appendChild(document.createTextNode(element.name))
@@ -66,7 +67,12 @@ class FileList {
 
             this.#content.appendChild(file);
         }
+        document.documentElement.scrollTo(0,0);
         return files;
+    }
+
+    setEventListener(event, listener) {
+        this.#events.setEventListener(event, listener);
     }
 }
 

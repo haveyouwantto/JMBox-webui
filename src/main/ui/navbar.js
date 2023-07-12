@@ -1,4 +1,5 @@
 import { $ } from "../utils";
+import { EventListener } from "../event-listener";
 
 class NavBar {
     #nav = $('#head');
@@ -11,21 +12,26 @@ class NavBar {
     #menuBtn = this.#nav.querySelector("#menu");
     #menu = $("#topMenu");
 
+    #events;
     constructor() {
+        this.#events = new EventListener();
 
-        this.onback = () => { };
-        this.onhome = () => { };
+        this.#backBtn.addEventListener('click', () => { this.#events.on('back') });
+        this.#homeBtn.addEventListener('click', () => { this.#events.on('home') });
 
-        this.#backBtn.addEventListener('click', () => { this.onback() });
-        this.#homeBtn.addEventListener('click', () => { this.onhome() });
-
-        this.#menuBtn.addEventListener('click',()=> {
+        this.#menuBtn.addEventListener('click', () => {
             this.setMenuVisibility(true);
         });
 
 
-        this.#collapse.addEventListener('click', ()=> {
+        this.#collapse.addEventListener('click', () => {
             this.setMenuVisibility(false);
+        });
+
+        this.#menu.querySelectorAll('button').forEach(element => {
+            element.addEventListener('click', () => {
+                this.#events.on('menuitem', element.getAttribute('func'));
+            })
         });
     }
 
@@ -66,6 +72,10 @@ class NavBar {
 
     isMenuVisible() {
         return this.#menu.classList.contains('menu-visible');
+    }
+
+    setEventListener(event, listener) {
+        this.#events.setEventListener(event, listener);
     }
 }
 
