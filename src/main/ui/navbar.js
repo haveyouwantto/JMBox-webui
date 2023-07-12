@@ -31,6 +31,7 @@ class NavBar {
         this.#menu.querySelectorAll('button').forEach(element => {
             element.addEventListener('click', () => {
                 this.#events.on('menuitem', element.getAttribute('func'));
+                this.setMenuVisibility(false);
             })
         });
     }

@@ -149,6 +149,18 @@ export class JMBoxApp {
             this.player.seekPercentage(percentage);
         });
 
+        playerBar.setEventListener('menuitem',func=>{
+            console.log(func);
+            switch (func) {
+                case 'replay':
+                    this.player.replay();
+                    break;
+            
+                default:
+                    break;
+            }
+        })
+
 
         filelist.setEventListener('list', name => {
             this.pathman.add(name);
@@ -171,6 +183,14 @@ export class JMBoxApp {
 
         navbar.setEventListener('menuitem',func=>{
             console.log(func);
+            switch (func) {
+                case 'refresh':
+                    this.list();
+                    break;
+            
+                default:
+                    break;
+            }
         })
     }
 

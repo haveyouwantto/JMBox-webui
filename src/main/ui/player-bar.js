@@ -22,6 +22,10 @@ const playModeAltButton = $("#playModeAlt");
 const altIcon = playModeAltButton.querySelector('icon');
 const altText = playModeAltButton.querySelector('locale');
 
+const bottomMenuBtn = $("#bottomMenuBtn");
+const bottomMenu = $("#bottomMenu");
+const collapse = $("#collapse");
+
 let currentDuration = 0;
 let playerAdapter = new EventListener();
 let paused = true;
@@ -94,3 +98,31 @@ volumeControl.addEventListener('click', e => {
 export function setSongName(name) {
     songTitle.textContent = name;
 }
+
+
+function setBottomMenuVisible(visible) {
+    if (visible) {
+        bottomMenu.classList.add('bottom-menu-visible');
+        bottomMenu.classList.remove('bottom-menu-hidden');
+        collapse.classList.remove('hidden');
+    } else {
+        bottomMenu.classList.remove('bottom-menu-visible');
+        bottomMenu.classList.add('bottom-menu-hidden');
+        collapse.classList.add('hidden')
+    }
+}
+
+bottomMenuBtn.addEventListener('click',()=>{
+    setBottomMenuVisible(true);
+})
+
+collapse.addEventListener('click', () => {
+    setBottomMenuVisible(false);
+});
+
+bottomMenu.querySelectorAll('button').forEach(element => {
+    element.addEventListener('click', () => {
+        playerAdapter.on('menuitem', element.getAttribute('func'));
+        setBottomMenuVisible(false);
+    })
+});
