@@ -1,60 +1,58 @@
 import { $ } from "../utils";
 
-class Dialog {
-    #dialog = $("#common-dialog");
-    #closeDialogButton = $("#close-dialog-button");
-    #dialogTitle = this.#dialog.querySelector('.title');
-    #dialogContent = this.#dialog.querySelector('.dialog-container');
 
-    constructor() {
-        this.#dialogContent.innerHTML = '';
-
-        this.#dialog.addEventListener('animationend', function () {
-            if (this.#dialog.classList.contains('fade-out')) {
-                this.#dialog.classList.remove('fade-out')
-                this.#dialog.close();
-            }
-        });
+const dialog = $("#common-dialog");
+const closeDialogButton = $("#close-dialog-button");
+const dialogTitle = dialog.querySelector('.title');
+const dialogContent = dialog.querySelector('.dialog-container');
 
 
-        this.#closeDialogButton.addEventListener('click', () => {
-            this.#dialog.classList.add('fade-out');
-        });
+dialog.addEventListener('animationend', function () {
+    if (dialog.classList.contains('fade-out')) {
+        dialog.classList.remove('fade-out')
+        dialog.close();
     }
+});
 
-    setTitle(text) {
-        this.#dialogTitle.innerText = text;
-    }
 
-    setTitleElement(e) {
-        this.#dialogTitle.innerHTML = '';
-        this.#dialogTitle.appendChild(e);
-    }
+closeDialogButton.addEventListener('click', () => {
+    dialog.classList.add('fade-out');
+});
 
-    addElement(e) {
-        this.#dialogContent.appendChild(e);
-    }
+export function clear(){
+    dialogTitle.innerText = '';
+    dialogContent.innerHTML = '';
+}
 
-    addText(text) {
-        this.addElement(Dialog.createDialogItem(text));
-    }
+export function setTitle(text) {
+    dialogTitle.innerText = text;
+}
 
-    setVisible(visible) {
-        if (visible) {
-            this.#dialog.showModal();
-        } else {
-            this.#dialog.classList.add('fade-out')
-        }
-    }
+export function setTitleElement(e) {
+    dialogTitle.innerHTML = '';
+    dialogTitle.appendChild(e);
+}
 
-    static createDialogItem(content, button = false) {
-        let a = document.createElement(button ? 'button' : 'a');
-        a.classList.add('dialog-item');
-        if (content != null)
-            a.innerHTML = content;
-        return a;
+export function addElement(e) {
+    dialogContent.appendChild(e);
+}
+
+export function addText(text) {
+    this.addElement(createDialogItem(text));
+}
+
+export function setVisible(visible) {
+    if (visible) {
+        dialog.showModal();
+    } else {
+        dialog.classList.add('fade-out')
     }
 }
 
-const dialog = new Dialog();
-export { dialog };
+export function createDialogItem(content, button = false) {
+    let a = document.createElement(button ? 'button' : 'a');
+    a.classList.add('dialog-item');
+    if (content != null)
+        a.innerHTML = content;
+    return a;
+}

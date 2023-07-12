@@ -1,7 +1,7 @@
 import { FileCache } from "./files/filecache";
 import { PathMan } from "./files/pathman";
 import { AudioPlayer } from "./player/audio-player";
-import { dialog } from "./ui/dialog";
+import * as dialog from "./ui/dialog";
 import { filelist } from "./ui/filelist";
 import { navbar } from "./ui/navbar";
 import * as playerBar from "./ui/player-bar";
@@ -149,13 +149,13 @@ export class JMBoxApp {
             this.player.seekPercentage(percentage);
         });
 
-        playerBar.setEventListener('menuitem',func=>{
+        playerBar.setEventListener('menuitem', func => {
             console.log(func);
             switch (func) {
                 case 'replay':
                     this.player.replay();
                     break;
-            
+
                 default:
                     break;
             }
@@ -171,23 +171,29 @@ export class JMBoxApp {
             this.play(name);
         })
 
-        navbar.setEventListener('back',  () => {
+        navbar.setEventListener('back', () => {
             this.pathman.remove();
             this.list();
         })
 
-        navbar.setEventListener('home',  () => {
+        navbar.setEventListener('home', () => {
             this.pathman.home();
             this.list();
         })
 
-        navbar.setEventListener('menuitem',func=>{
+        navbar.setEventListener('menuitem', func => {
             console.log(func);
             switch (func) {
                 case 'refresh':
                     this.list();
                     break;
-            
+                case 'about':
+                    dialog.clear();
+                    dialog.setTitle('Test');
+                    dialog.addText('This is a test dialog.');
+                    dialog.setVisible(true);
+                    break;
+
                 default:
                     break;
             }
