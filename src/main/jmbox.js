@@ -5,6 +5,7 @@ import * as dialog from "./ui/dialog";
 import { filelist } from "./ui/filelist";
 import { navbar } from "./ui/navbar";
 import * as playerBar from "./ui/player-bar";
+import * as waterfall from './ui/waterfall'
 import Playlist from "./player/playlist";
 import { $ } from "./utils";
 import { saveSettings, settings } from "./settings";
@@ -19,6 +20,7 @@ export class JMBoxApp {
         this.pathman = new PathMan();
         this.cache = new FileCache();
         this.player = new PicoAudioPlayer();
+        waterfall.setPlayer(this.player)
         this.playlist = new Playlist([]);
 
         this.initializeListeners();
@@ -160,6 +162,10 @@ export class JMBoxApp {
                 default:
                     break;
             }
+        })
+        
+        playerBar.setEventListener('titleclicked',()=>{
+            waterfall.toggle();
         })
 
 

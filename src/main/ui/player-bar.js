@@ -126,3 +126,7 @@ bottomMenu.querySelectorAll('button').forEach(element => {
         setBottomMenuVisible(false);
     })
 });
+
+controlsLeft.addEventListener('click', e => {
+    playerAdapter.on('titleclicked');
+})
