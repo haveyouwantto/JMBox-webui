@@ -4,6 +4,7 @@ export default class EventListener {
         this.#events = {};
     }
     on(eventName, eventData) {
+        // console.log(eventName,eventData)
         if (this.#events[eventName]) {
             this.#events[eventName](eventData);
         }

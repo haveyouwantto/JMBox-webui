@@ -25,4 +25,8 @@ export default class Playlist {
         }
         return this.#list[this.#index];
     }
+
+    isLast(){
+        return this.#index == this.#list.length - 1;
+    }
 }

@@ -109,10 +109,12 @@ export class JMBoxApp {
 
         this.player.setEventListener('play', () => {
             playerBar.setPaused(false);
+            waterfall.startAnimation();
         });
 
         this.player.setEventListener('pause', () => {
             playerBar.setPaused(true);
+            waterfall.endAnimation();
         });
 
         this.player.setEventListener('volumechange', volume => {
@@ -126,6 +128,26 @@ export class JMBoxApp {
             playerBar.setProgress(time);
             playerBar.setBufferLength(this.player.bufferLength);
         });
+
+        this.player.setEventListener('ended', () => {
+            switch (settings.playMode) {
+                case 0:
+                    this.player.pause();
+                    break;
+                case 2:
+                    if (this.playlist.isLast()) {
+                        this.player.pause();
+                    } else {
+                        this.play(this.playlist.next());
+                    }
+                    break;
+                case 3:
+                    this.play(this.playlist.next());
+                    break;
+                default:
+                    break;
+            }
+        })
 
 
         playerBar.setEventListener('play', () => {
@@ -163,9 +185,22 @@ export class JMBoxApp {
                     break;
             }
         })
-        
-        playerBar.setEventListener('titleclicked',()=>{
+
+        playerBar.setEventListener('titleclick', () => {
             waterfall.toggle();
+        })
+
+        playerBar.setEventListener('playmodechange', mode => {
+            switch (mode) {
+                case 1:
+                    this.player.loop = true;
+                    break
+                case 0:
+                case 2:
+                case 3:
+                    this.player.loop = false;
+                    break
+            }
         })
 
 

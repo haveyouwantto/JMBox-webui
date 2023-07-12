@@ -1,5 +1,6 @@
 import EventListener from "../event-listener";
 import { $, formatTime } from "../utils";
+import { settings, saveSettings } from "../settings";
 
 const progressBar = $("#progress");
 const progressBarInner = $("#playtime");
@@ -112,7 +113,7 @@ function setBottomMenuVisible(visible) {
     }
 }
 
-bottomMenuBtn.addEventListener('click',()=>{
+bottomMenuBtn.addEventListener('click', () => {
     setBottomMenuVisible(true);
 })
 
@@ -128,5 +129,39 @@ bottomMenu.querySelectorAll('button').forEach(element => {
 });
 
 controlsLeft.addEventListener('click', e => {
-    playerAdapter.on('titleclicked');
+    console.log(1)
+    playerAdapter.on('titleclick');
 })
+
+export function setPlayModeIcon(mode) {
+    switch (mode) {
+        case 0:
+            playModeButton.innerText = '\ue00b';
+            altIcon.innerText = '\ue00b';
+            break;
+        case 1:
+            playModeButton.innerText = '\ue00c';
+            altIcon.innerText = '\ue00c';
+            break;
+        case 2:
+            playModeButton.innerText = '\ue00d';
+            altIcon.innerText = '\ue00d';
+            break;
+        case 3:
+            playModeButton.innerText = '\ue00e';
+            altIcon.innerText = '\ue00e';
+            break;
+        default:
+            break;
+    }
+}
+setPlayModeIcon(settings.playMode);
+
+
+playModeButton.addEventListener('click', e => {
+    settings.playMode++;
+    if (settings.playMode == 4) settings.playMode = 0;
+    playerAdapter.on('playmodechange', settings.playMode);
+    setPlayModeIcon(settings.playMode);
+    saveSettings();
+});

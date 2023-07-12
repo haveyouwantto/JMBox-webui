@@ -30,6 +30,7 @@ export default class PicoAudioPlayer extends Player {
     }
 
     load(url) {
+        this.stop();
         return loadMIDI(url);
     }
 
@@ -96,7 +97,7 @@ export default class PicoAudioPlayer extends Player {
     stop() {
         super.stop();
         picoAudio.stop();
-        // clearInterval(this.intervalId);
+        clearInterval(this.#intervalId);
     }
 
     get paused() {
