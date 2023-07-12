@@ -1,6 +1,8 @@
+import { EventListener } from "../event-listener";
+
 export class Player {
     constructor() {
-        this.observer = null;
+        this.listener = new EventListener();
     }
     /**
      * Loads a url
@@ -10,7 +12,7 @@ export class Player {
     load(url) {
         // Implementation for loading the URL
         // Call the callback function once the URL is loaded successfully
-        if (this.observer) this.observer.onload(url);
+        this.listener.on('load', url);
     }
 
     /**
@@ -18,7 +20,7 @@ export class Player {
      */
     play() {
         // Implementation for playing the audio
-        if (this.observer) this.observer.onplay(this.currentTime);
+        this.listener.on('play', this.currentTime);
     }
 
     /**
@@ -26,7 +28,7 @@ export class Player {
      */
     pause() {
         // Implementation for pausing the audio
-        if (this.observer) this.observer.onpause(this.currentTime);
+        this.listener.on('pause', this.currentTime);
     }
 
     /**
@@ -53,7 +55,7 @@ export class Player {
      */
     seek(seconds) {
         // Implementation for seeking the audio to the specified seconds
-        if (this.observer) this.observer.onseek(seconds);
+        this.listener.on('seek', seconds);
     }
 
     /**
@@ -66,7 +68,7 @@ export class Player {
 
     stop() {
         // Implementation for stopping the audio playback
-        if (this.observer) this.observer.onstop();
+        this.listener.on('stop');
     }
 
     /**
@@ -93,7 +95,7 @@ export class Player {
      */
     set loop(value) {
         // Implementation for setting the loop state of the audio
-        if (this.observer) this.observer.onloopchange(value);
+        this.listener.on('loopchange', value);
     }
 
     /**
@@ -111,7 +113,7 @@ export class Player {
      */
     set volume(value) {
         // Implementation for setting the volume level of the audio
-        if (this.observer) this.observer.onvolumechange(value);
+        this.listener.on('volumechange', value);
     }
 
     /**
@@ -131,7 +133,7 @@ export class Player {
         // Return the buffer length
     }
 
-    setObserver(observer) {
-        this.observer = observer;
+    setEventListener(event, listener) {
+        this.listener.setEventListener(event, listener);
     }
 }

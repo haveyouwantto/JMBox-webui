@@ -1,4 +1,4 @@
-import { PlayerAdapter } from "../player/player-adapter";
+import { EventListener } from "../event-listener";
 import { $, formatTime } from "../utils";
 
 const progressBar = $("#progress");
@@ -23,7 +23,7 @@ const altIcon = playModeAltButton.querySelector('icon');
 const altText = playModeAltButton.querySelector('locale');
 
 let currentDuration = 0;
-let playerAdapter = new PlayerAdapter();
+let playerAdapter = new EventListener();
 let paused = true;
 
 export function setProgress(currentTime) {
@@ -50,30 +50,30 @@ export function setPaused(value) {
     paused = value;
 }
 
-export function setPlayerAdapter(adapter){
-    playerAdapter = adapter;
+export function setEventListener(event, listener) {
+    playerAdapter.setEventListener(event, listener);
 }
 
 function togglePause() {
     if (paused) {
-        playerAdapter.play();
+        playerAdapter.on('play');
     } else {
-        playerAdapter.pause();
+        playerAdapter.on('pause');
     }
 }
 
 playButton.addEventListener('click', togglePause);
 
 progressBar.addEventListener('click', e => {
-    playerAdapter.seek(e.clientX / progressBar.clientWidth);
+    playerAdapter.on('seek', e.clientX / progressBar.clientWidth);
 });
 
 nextButton.addEventListener('click', e => {
-    playerAdapter.next();
+    playerAdapter.on('next');
 })
 
 prevButton.addEventListener('click', e => {
-    playerAdapter.prev();
+    playerAdapter.on('prev');
 });
 
 
@@ -83,12 +83,12 @@ export function setVolume(percentage) {
 
 volumeControl.addEventListener('pointermove', e => {
     if (e.buttons > 0) {
-        playerAdapter.setVolume(e.offsetX / volumeControl.clientWidth);
+        playerAdapter.on('volumechange', e.offsetX / volumeControl.clientWidth);
     }
 });
 
 volumeControl.addEventListener('click', e => {
-    playerAdapter.setVolume(e.offsetX / volumeControl.clientWidth);
+    playerAdapter.on('volumechange', e.offsetX / volumeControl.clientWidth);
 });
 
 export function setSongName(name) {

@@ -1,7 +1,7 @@
 const path = require("path");
 const HtmlWebpackPlugin = require("html-webpack-plugin");
 const TerserPlugin = require("terser-webpack-plugin");
-const OptimizeCssAssetsPlugin = require("optimize-css-assets-webpack-plugin");
+const CssMinifier = require("css-minimizer-webpack-plugin");
 
 module.exports = {
   entry: "./src/index.js",
@@ -19,7 +19,7 @@ module.exports = {
   optimization: {
     minimize: true,
     minimizer: [new TerserPlugin(),
-      new OptimizeCssAssetsPlugin()]
+      new CssMinifier()]
   },
   module: {
     rules: [

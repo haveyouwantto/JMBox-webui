@@ -1,12 +1,10 @@
 import { FileCache } from "./files/filecache";
 import { PathMan } from "./files/pathman";
 import { AudioPlayer } from "./player/audio-player";
-import { PlayerObserver } from "./player/player-observer";
 import { dialog } from "./ui/dialog";
 import { filelist } from "./ui/filelist";
 import { navbar } from "./ui/navbar";
 import * as playerBar from "./ui/player-bar";
-import { PlayerAdapter } from "./player/player-adapter";
 import { Playlist } from "./player/playlist";
 import { $ } from "./utils";
 import { saveSettings, settings } from "./settings";
@@ -100,37 +98,55 @@ export class JMBoxApp {
 
     initializeListeners() {
 
-        const observer = new PlayerObserver();
-        observer.onload = url => {
+        this.player.setEventListener('load', url => {
             playerBar.setDuration(this.player.duration);
-        }
-        observer.onplay = () => {
+        });
+        
+        this.player.setEventListener('play', () => {
             playerBar.setPaused(false);
-        }
-        observer.onpause = () => {
+        });
+        
+        this.player.setEventListener('pause', () => {
             playerBar.setPaused(true);
-        }
-        observer.onvolumechange = volume => {
+        });
+        
+        this.player.setEventListener('volumechange', volume => {
             playerBar.setVolume(Math.sqrt(volume));
             settings.volume = volume;
             saveSettings();
-        }
-        observer.ontimeupdate = time => {
+        });
+        
+        this.player.setEventListener('timeupdate', time => {
             playerBar.setDuration(this.player.duration);
             playerBar.setProgress(this.player.currentTime);
             playerBar.setBufferLength(this.player.bufferLength);
-        }
+        });
+        
 
-        const adapter = new PlayerAdapter();
-        adapter.play = () => { this.player.play() }
-        adapter.pause = () => { this.player.pause() }
-        adapter.next = () => { this.play(this.playlist.next()) }
-        adapter.prev = () => { this.play(this.playlist.prev()) }
-        adapter.setVolume = volume => { this.player.volume = Math.pow(volume, 2) }
-        adapter.seek = percentage => { this.player.seekPercentage(percentage) }
-
-        this.player.setObserver(observer);
-        playerBar.setPlayerAdapter(adapter);
+        playerBar.setEventListener('play', () => {
+            this.player.play();
+        });
+        
+        playerBar.setEventListener('pause', () => {
+            this.player.pause();
+        });
+        
+        playerBar.setEventListener('next', () => {
+            this.play(this.playlist.next());
+        });
+        
+        playerBar.setEventListener('prev', () => {
+            this.play(this.playlist.prev());
+        });
+        
+        playerBar.setEventListener('volumechange', volume => {
+            this.player.volume = Math.pow(volume, 2);
+        });
+        
+        playerBar.setEventListener('seek', percentage => {
+            this.player.seekPercentage(percentage);
+        });
+        
 
         filelist.onlist = name => {
             this.pathman.add(name);

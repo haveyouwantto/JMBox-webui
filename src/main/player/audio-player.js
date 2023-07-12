@@ -19,16 +19,16 @@ export class AudioPlayer extends Player {
             })
 
             this.#audio.addEventListener('timeupdate', e => {
-                if (this.observer) this.observer.ontimeupdate(this.currentTime);
+                 this.listener.on('timeupdate',this.currentTime);
             })
 
             this.#audio.addEventListener('ended', () => {
-                if (this.observer) this.observer.onended();
+                 this.listener.on('ended');
             });
 
             this.#audio.addEventListener('error', e => {
-                if (this.audio.src != 'null:' && this.observer) {
-                    this.observer.onerror(e);
+                if (this.audio.src != 'null:') {
+                    this.listener.on('error',e);
                 }
             })
 
