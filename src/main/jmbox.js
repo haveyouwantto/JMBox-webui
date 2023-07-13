@@ -11,7 +11,7 @@ import { $ } from "./utils";
 import { loadSettings, saveSettings, settings } from "./settings";
 import PicoAudioPlayer from "./player/picoaudio-player";
 import { localeInit } from "./locale";
-import { aboutDialog, languageDialog } from "./ui/quick-dialog";
+import { aboutDialog, languageDialog, midiInfoDialog, playModeSelectionDialog } from "./ui/quick-dialog";
 
 export class JMBoxApp {
     constructor(baseUrl) {
@@ -103,6 +103,22 @@ export class JMBoxApp {
         playerBar.setSongName(name);
     }
 
+    setPlayMode(mode) {
+        switch (mode) {
+            case 1:
+                this.player.loop = true;
+                break
+            case 0:
+            case 2:
+            case 3:
+                this.player.loop = false;
+                break
+        }
+        playerBar.setPlayModeIcon(mode)
+        settings.playMode = mode;
+        saveSettings();
+    }
+
     initializeListeners() {
 
         this.player.setEventListener('load', url => {
@@ -140,11 +156,11 @@ export class JMBoxApp {
                     if (this.playlist.isLast()) {
                         this.player.pause();
                     } else {
-                        this.play(this.playlist.next());
+                        this.play(this.playlist.next().name);
                     }
                     break;
                 case 3:
-                    this.play(this.playlist.next());
+                    this.play(this.playlist.next().name);
                     break;
                 default:
                     break;
@@ -161,11 +177,11 @@ export class JMBoxApp {
         });
 
         playerBar.setEventListener('next', () => {
-            this.play(this.playlist.next());
+            this.play(this.playlist.next().name);
         });
 
         playerBar.setEventListener('prev', () => {
-            this.play(this.playlist.prev());
+            this.play(this.playlist.prev().name);
         });
 
         playerBar.setEventListener('volumechange', volume => {
@@ -182,6 +198,19 @@ export class JMBoxApp {
                 case 'replay':
                     this.player.replay();
                     break;
+                case 'midi info':
+                    try{
+                        midiInfoDialog(this.playlist.current());
+                    }catch(e){
+                        
+                    }
+                    break;
+                case 'play mode':
+                    playModeSelectionDialog().then(mode => {
+                        this.setPlayMode(mode);
+                        playerBar.setPlayModeIcon(mode);
+                    });
+                    break;
 
                 default:
                     break;
@@ -192,18 +221,7 @@ export class JMBoxApp {
             waterfall.toggle();
         })
 
-        playerBar.setEventListener('playmodechange', mode => {
-            switch (mode) {
-                case 1:
-                    this.player.loop = true;
-                    break
-                case 0:
-                case 2:
-                case 3:
-                    this.player.loop = false;
-                    break
-            }
-        })
+        playerBar.setEventListener('playmodechange', mode => this.setPlayMode)
 
 
         filelist.setEventListener('list', name => {
@@ -245,7 +263,6 @@ export class JMBoxApp {
     }
 
     initializeSettings() {
-        loadSettings();
         localeInit();
         this.player.volume = settings.volume;
     }

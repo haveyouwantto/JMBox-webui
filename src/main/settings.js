@@ -79,3 +79,5 @@ export function saveSettings() {
 export {settings}
 
 window.settings = settings;
+
+loadSettings();

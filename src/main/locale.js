@@ -11,7 +11,6 @@ const localeList = {
 };
 
 export async function localeInit() {
-    console.log(1)
     // 检查用户的语言设置
     let lang;
 

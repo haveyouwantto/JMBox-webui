@@ -41,7 +41,7 @@ class FileList {
             } else {
                 icon.innerText = "\ue00a";
                 file.addEventListener('click',()=>this.#events.on("play",element.name));
-                files.push(element.name);
+                files.push(element);
             }
             fileName.appendChild(document.createTextNode(element.name))
             file.appendChild(fileName);

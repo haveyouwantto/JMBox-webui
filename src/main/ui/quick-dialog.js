@@ -1,5 +1,7 @@
 import { getLocale, createLocaleItem, localeList, setLocale } from '../locale';
+import { smfData } from '../picoaudio';
 import { saveSettings } from '../settings';
+import { formatTime, toSI } from '../utils';
 import version from '../version';
 import * as dialog from './dialog'
 
@@ -43,5 +45,56 @@ export function languageDialog() {
         });
         dialog.addElement(item);
     }
+    dialog.setVisible(true);
+}
+
+
+
+export function playModeSelectionDialog() {
+    return new Promise((resolve, reject) => {
+        dialog.clear();
+        dialog.setTitle(getLocale('menu.play-mode'));
+
+        let texts = ['menu.play-mode.single', 'menu.play-mode.single-looped', 'menu.play-mode.list', 'menu.play-mode.list-looped']
+
+        for (let i = 0; i < 4; i++) {
+            let item = dialog.createDialogItem(null, true);
+            item.classList.add('button-flash');
+
+            let check = document.createElement('icon');
+            if (i == settings.playMode) {
+                check.innerText = '\ue01c';
+                check.classList.add('icon-checked');
+            } else {
+                check.innerText = '\ue01b';
+            }
+            item.appendChild(check);
+
+            // let icon = document.createElement('icon');
+            // icon.innerText = icons[i];
+            // item.appendChild(icon);
+            item.appendChild(createLocaleItem(texts[i]));
+            item.addEventListener('click', e => {
+                dialog.setVisible(false);
+                return resolve(i);
+            });
+
+            dialog.addElement(item);
+        }
+        dialog.setVisible(true);
+    })
+}
+
+export function midiInfoDialog(data) {
+    dialog.clear();
+    dialog.setTitle(getLocale("midi-info.title"));
+
+    let notes = smfData.channels.reduce((prev, cur) => prev + cur.notes.length, 0);
+
+    dialog.addText(getLocale("midi-info.name") + ": " + data.name);
+    dialog.addText(getLocale("midi-info.size") + ": " + toSI(data.size, true) + "B");
+    dialog.addText(getLocale("midi-info.last-modified") + ": " + new Date(data.date).toLocaleString());
+    dialog.addText(getLocale("midi-info.duration") + ": " + formatTime(smfData.lastEventTime));
+    dialog.addText(getLocale("midi-info.notes") + ": " + notes);
     dialog.setVisible(true);
 }

@@ -6,8 +6,15 @@ export default class Playlist {
     }
 
     setPlaying(name) {
-        this.#index = this.#list.indexOf(name);
-        return this.#index;
+        for (let i = 0; i < this.#list.length; i++) {
+            const element = this.#list[i];
+            if (element.name == name) {
+                this.#index = i;
+                return i;
+            }
+        }
+        this.#index = -1;
+        return -1;
     }
 
     next() {
@@ -26,7 +33,11 @@ export default class Playlist {
         return this.#list[this.#index];
     }
 
-    isLast(){
+    isLast() {
         return this.#index == this.#list.length - 1;
+    }
+
+    current() {
+        return this.#list[this.#index];
     }
 }

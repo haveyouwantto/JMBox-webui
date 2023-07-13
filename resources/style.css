@@ -801,6 +801,10 @@ html::-webkit-scrollbar-track {
         align-items: stretch;
     }
 
+    dialog {
+        max-width: 80%;
+    }
+
     dialog[open] {
         animation-duration: 250ms;
     }
@@ -900,6 +904,7 @@ html::-webkit-scrollbar-track {
     }
 
     dialog {
+        max-width: 100%;
         max-height: 100%;
     }
 }
