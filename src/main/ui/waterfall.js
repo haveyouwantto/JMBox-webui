@@ -64,12 +64,16 @@ export function setVisible(value) {
     }
 }
 
+function isVisible(){
+    return waterfall.classList.contains('open');
+}
+
 export function toggle() {
-    setVisible(waterfall.classList.contains('hidden'));
+    setVisible(!isVisible());
 }
 
 export function startAnimation() {
-    if (animationId == null && waterfall.classList.contains('open')) {
+    if (animationId == null && isVisible()) {
         lastDrawTime = performance.now();
         // if (settings.showLyrics) lrc.seek(player.currentTime());
         animationId = requestAnimationFrame(draw);
@@ -364,7 +368,7 @@ function draw() {
         if (player.paused) {
             endAnimation();
         } else {
-            requestAnimationFrame(draw);
+            animationId = requestAnimationFrame(draw);
         }
     }
 }
