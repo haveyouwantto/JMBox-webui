@@ -11,6 +11,7 @@ import { $ } from "./utils";
 import { loadSettings, saveSettings, settings } from "./settings";
 import PicoAudioPlayer from "./player/picoaudio-player";
 import { localeInit } from "./locale";
+import { aboutDialog } from "./ui/quick-dialog";
 
 export class JMBoxApp {
     constructor(baseUrl) {
@@ -231,10 +232,7 @@ export class JMBoxApp {
                     this.list();
                     break;
                 case 'about':
-                    dialog.clear();
-                    dialog.setTitle('Test');
-                    dialog.addText('This is a test dialog.');
-                    dialog.setVisible(true);
+                    aboutDialog();
                     break;
 
                 default:
