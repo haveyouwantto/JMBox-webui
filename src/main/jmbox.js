@@ -101,7 +101,7 @@ export class JMBoxApp {
     }
 
     play(name) {
-        const path = this.pathman.getPath() + "/" + encodeURIComponent(name);
+        const path = this.playlist.path + "/" + encodeURIComponent(name);
         this.player.loadPath(this.baseUrl, path).then(() => this.player.play());
         this.playlist.setPlaying(name);
         playerBar.setSongName(name);
