@@ -93,7 +93,7 @@ export class JMBoxApp {
         return new Promise((resolve, reject) => {
             console.log(path, result);
             filelist.setFilelist(result);
-            filelist.showInfo = settings.showInfo;
+            location.hash = path;
 
             this.cwd = new Playlist(path, filelist.load());
             resolve();
@@ -200,13 +200,17 @@ export class JMBoxApp {
             console.log(func);
             switch (func) {
                 case 'locate':
-                    if (this.playlist.path == this.pathman.getPath()) {
-                        filelist.highlight(this.playlist.current().name, true);
-                    } else {
-                        this.pathman.setPath(this.playlist.path);
-                        this.list().then(() => {
-                            filelist.highlight(this.playlist.current().name);
-                        });
+                    try {
+                        if (this.playlist.path == this.pathman.getPath()) {
+                            filelist.highlight(this.playlist.current().name, true);
+                        } else {
+                            this.pathman.setPath(this.playlist.path);
+                            this.list().then(() => {
+                                filelist.highlight(this.playlist.current().name);
+                            });
+                        }
+                    } catch (e) {
+
                     }
                     break;
                 case 'midi info':

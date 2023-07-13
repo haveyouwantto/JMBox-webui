@@ -1,6 +1,7 @@
 import { sortName } from "../sorting";
 import EventListener from "../event-listener";
 import { $, toSI } from "../utils";
+import { settings } from "../settings";
 
 class FileList {
     #content = $("#content");
@@ -9,7 +10,6 @@ class FileList {
 
     constructor() {
         this.sortFunc = sortName;
-        this.showInfo = false;
         this.reversed = false;
         this.#events = new EventListener();
     }
@@ -46,7 +46,7 @@ class FileList {
             fileName.appendChild(document.createTextNode(element.name))
             file.appendChild(fileName);
 
-            if (this.showInfo) {
+            if (settings.showInfo) {
                 let props = document.createElement('div');
                 props.classList.add('fileprops');
 
