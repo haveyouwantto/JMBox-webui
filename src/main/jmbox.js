@@ -11,7 +11,7 @@ import { $ } from "./utils";
 import { loadSettings, saveSettings, settings } from "./settings";
 import PicoAudioPlayer from "./player/picoaudio-player";
 import { localeInit } from "./locale";
-import { aboutDialog } from "./ui/quick-dialog";
+import { aboutDialog, languageDialog } from "./ui/quick-dialog";
 
 export class JMBoxApp {
     constructor(baseUrl) {
@@ -233,6 +233,9 @@ export class JMBoxApp {
                     break;
                 case 'about':
                     aboutDialog();
+                    break;
+                case 'languages':
+                    languageDialog();
                     break;
 
                 default:

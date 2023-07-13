@@ -82,3 +82,5 @@ export function createLocaleItem(key) {
     locale.innerText = getLocale(key);
     return locale;
 }
+
+export { localeList };
