@@ -8,8 +8,9 @@ import * as playerBar from "./ui/player-bar";
 import * as waterfall from './ui/waterfall'
 import Playlist from "./player/playlist";
 import { $ } from "./utils";
-import { saveSettings, settings } from "./settings";
+import { loadSettings, saveSettings, settings } from "./settings";
 import PicoAudioPlayer from "./player/picoaudio-player";
+import { localeInit } from "./locale";
 
 export class JMBoxApp {
     constructor(baseUrl) {
@@ -243,6 +244,8 @@ export class JMBoxApp {
     }
 
     initializeSettings() {
+        loadSettings();
+        localeInit();
         this.player.volume = settings.volume;
     }
 }

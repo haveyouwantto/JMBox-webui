@@ -38,7 +38,7 @@ export function addElement(e) {
 }
 
 export function addText(text) {
-    this.addElement(createDialogItem(text));
+    addElement(createDialogItem(text));
 }
 
 export function setVisible(visible) {

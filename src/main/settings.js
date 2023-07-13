@@ -28,7 +28,7 @@ const settings = {};
 /**
  * Load configurations from disk
  */
-function loadSettings() {
+export function loadSettings() {
     const localStorage = window.localStorage;
     for (const key in defaultValue) {
         if (Object.hasOwnProperty.call(defaultValue, key)) {
@@ -78,4 +78,4 @@ export function saveSettings() {
 
 export {settings}
 
-loadSettings();
+window.settings = settings;
