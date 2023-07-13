@@ -23,6 +23,7 @@ export class JMBoxApp {
         this.cache = new FileCache();
         this.player = new PicoAudioPlayer();
         waterfall.setPlayer(this.player)
+        this.cwd = new Playlist([]);
         this.playlist = new Playlist([]);
 
         this.initializeListeners();
@@ -89,11 +90,14 @@ export class JMBoxApp {
     }
 
     updateList(path, result, back = false) {
-        console.log(path, result);
-        filelist.setFilelist(result);
-        filelist.showInfo = settings.showInfo;
+        return new Promise((resolve, reject) => {
+            console.log(path, result);
+            filelist.setFilelist(result);
+            filelist.showInfo = settings.showInfo;
 
-        this.playlist = new Playlist(filelist.load());
+            this.cwd = new Playlist(path, filelist.load());
+            resolve();
+        })
     }
 
     play(name) {
@@ -195,14 +199,21 @@ export class JMBoxApp {
         playerBar.setEventListener('menuitem', func => {
             console.log(func);
             switch (func) {
-                case 'replay':
-                    this.player.replay();
+                case 'locate':
+                    if (this.playlist.path == this.pathman.getPath()) {
+                        filelist.highlight(this.playlist.current().name, true);
+                    } else {
+                        this.pathman.setPath(this.playlist.path);
+                        this.list().then(() => {
+                            filelist.highlight(this.playlist.current().name);
+                        });
+                    }
                     break;
                 case 'midi info':
-                    try{
+                    try {
                         midiInfoDialog(this.playlist.current());
-                    }catch(e){
-                        
+                    } catch (e) {
+
                     }
                     break;
                 case 'play mode':
@@ -210,6 +221,9 @@ export class JMBoxApp {
                         this.setPlayMode(mode);
                         playerBar.setPlayModeIcon(mode);
                     });
+                    break;
+                case 'replay':
+                    this.player.replay();
                     break;
 
                 default:
@@ -230,6 +244,7 @@ export class JMBoxApp {
         })
 
         filelist.setEventListener('play', name => {
+            this.playlist = this.cwd;
             this.play(name);
         })
 

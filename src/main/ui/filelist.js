@@ -19,7 +19,7 @@ class FileList {
     }
 
     load() {
-        const files =[];
+        const files = [];
         this.#content.innerHTML = '';
 
         this.#filelist.sort(this.sortFunc);
@@ -37,10 +37,10 @@ class FileList {
             fileName.appendChild(icon);
             if (element.isDir) {
                 icon.innerText = "\ue016";
-                file.addEventListener('click',()=>this.#events.on("list",element.name));
+                file.addEventListener('click', () => this.#events.on("list", element.name));
             } else {
                 icon.innerText = "\ue00a";
-                file.addEventListener('click',()=>this.#events.on("play",element.name));
+                file.addEventListener('click', () => this.#events.on("play", element.name));
                 files.push(element);
             }
             fileName.appendChild(document.createTextNode(element.name))
@@ -67,12 +67,19 @@ class FileList {
 
             this.#content.appendChild(file);
         }
-        document.documentElement.scrollTo(0,0);
+        document.documentElement.scrollTo(0, 0);
         return files;
     }
 
     setEventListener(event, listener) {
         this.#events.setEventListener(event, listener);
+    }
+
+    highlight(file, smooth = false) {
+        let element = this.#content.querySelector(".file[value=\"" + file + "\"]");
+        element.classList.remove('file-locate');
+        element.scrollIntoView({ block: "center", behavior: smooth ? 'smooth' : 'instant' });
+        element.classList.add('file-locate');
     }
 }
 

@@ -1,7 +1,9 @@
 export default class Playlist {
-    #list = [];
+    #path;
+    #list ;
     #index = 0;
-    constructor(list) {
+    constructor(path, list) {
+        this.#path = path;
         this.#list = list;
     }
 
@@ -39,5 +41,9 @@ export default class Playlist {
 
     current() {
         return this.#list[this.#index];
+    }
+
+    get path(){
+        return this.#path;
     }
 }
