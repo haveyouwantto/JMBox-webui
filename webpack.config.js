@@ -33,6 +33,9 @@ module.exports = {
     minimize: true,
     minimizer: [new TerserPlugin(), new CssMinifier()]
   },
+  devServer:{
+    static:"./dist"
+  },
   module: {
     rules: [
       {
