@@ -28,10 +28,11 @@ export class JMBoxApp {
         this.cwd = null;
         this.playlist = null;
         this.midiDevices = null;
+        this.initialized = false;
 
         this.initializeListeners();
         loadSettings();
-        localeInit();
+        this.initialized = true;
     }
 
     setName(name) {
@@ -364,11 +365,11 @@ export class JMBoxApp {
                     setDarkMode(e.value);
                     break
                 case "showInfo":
-                    this.list();
+                    if (this.initialized) this.list();
                     break
                 case "sortFunc":
                     filelist.setSortFunc(e.value);
-                    this.list();
+                    if (this.initialized) this.list();
                     break
                 case "player":
                     this.createPlayer(e.value);
