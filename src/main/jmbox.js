@@ -14,7 +14,7 @@ import { localeInit, setLocale } from "./locale";
 import { aboutDialog, languageDialog, midiInfoDialog, playModeSelectionDialog } from "./ui/quick-dialog";
 import { setDarkMode } from "./ui/ui-etc";
 import picoAudio from "./picoaudio";
-import { setSettingsDialogVisible } from "./ui/settings-dialog";
+import { setSettingsDialogVisible, updateSettingsUI } from "./ui/settings-dialog";
 
 export class JMBoxApp {
     constructor(baseUrl) {
@@ -290,6 +290,13 @@ export class JMBoxApp {
                 case "dark":
                     setDarkMode(e.value);
                     break
+                case "showInfo":
+                    this.list();
+                    break
+                case "sortFunc":
+                    filelist.setSortFunc(e.value);
+                    this.list();
+                    break
                 case "playMode":
                     playerBar.setPlayModeIcon(e.value);
                     break;
@@ -304,6 +311,7 @@ export class JMBoxApp {
                     else setLocale(e.value);
                     break;
             }
+            updateSettingsUI(e.key, e.value);
         });
     }
 }

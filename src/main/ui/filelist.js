@@ -3,6 +3,8 @@ import EventListener from "../event-listener";
 import { $, toSI } from "../utils";
 import { settings } from "../settings";
 
+import * as sorting from "../sorting"
+
 class FileList {
     #content = $("#content");
     #filelist = [];
@@ -16,6 +18,16 @@ class FileList {
 
     setFilelist(filelist) {
         this.#filelist = filelist;
+    }
+
+    setSortFunc(func) {
+        if (func.startsWith("-")) {
+            func = func.substr(1);
+            this.reversed = true;
+        } else {
+            this.reversed = false;
+        }
+        this.sortFunc = sorting[func];
     }
 
     load() {
