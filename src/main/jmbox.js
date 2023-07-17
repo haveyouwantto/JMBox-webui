@@ -1,6 +1,5 @@
 import FileCache from "./files/filecache";
 import PathMan from "./files/pathman";
-import AudioPlayer from "./player/audio-player";
 import * as dialog from "./ui/dialog";
 import { filelist } from "./ui/filelist";
 import { navbar } from "./ui/navbar";
@@ -9,7 +8,6 @@ import * as waterfall from './ui/waterfall'
 import Playlist from "./player/playlist";
 import { $ } from "./utils";
 import { editSetting, loadSettings, settingChangeListener, settings } from "./settings";
-import PicoAudioPlayer from "./player/picoaudio-player";
 import { localeInit, setLocale } from "./locale";
 import { aboutDialog, languageDialog, midiInfoDialog, playModeSelectionDialog } from "./ui/quick-dialog";
 import { setDarkMode } from "./ui/ui-etc";

@@ -1,6 +1,6 @@
-import { getLocale, createLocaleItem, localeList, setLocale } from '../locale';
+import { getLocale, createLocaleItem, localeList } from '../locale';
 import { smfData } from '../picoaudio';
-import { editSetting, saveSettings } from '../settings';
+import { editSetting } from '../settings';
 import { formatTime, toSI } from '../utils';
 import version from '../version';
 import * as dialog from './dialog'
