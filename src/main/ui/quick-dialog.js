@@ -1,7 +1,7 @@
 import { getLocale, createLocaleItem, localeList } from '../locale';
 import { smfData } from '../picoaudio';
 import { editSetting } from '../settings';
-import { formatTime, toSI } from '../utils';
+import { $, formatTime, toSI, updateChecker } from '../utils';
 import version from '../version';
 import * as dialog from './dialog'
 
@@ -22,22 +22,66 @@ export function aboutDialog() {
 }
 
 export function languageDialog() {
+
     dialog.clear();
     dialog.setTitleElement(createLocaleItem('languages.title'));
 
+    function updateRadioButton(e, val) {
+        const radio = e.querySelector('icon');
+        if (val) {
+            radio.innerText = '\ue01c';
+            radio.classList.add('icon-checked');
+        } else {
+            radio.innerText = '\ue01b';
+            radio.classList.remove('icon-checked');
+        }
+    }
+
     let item = dialog.createDialogItem(null, true);
     item.classList.add('button-flash');
+    item.classList.add('language-selection');
+    let check = document.createElement('icon');
+    if (settings.language == 'auto') {
+        check.innerText = '\ue01c';
+        check.classList.add('icon-checked');
+        check.setAttribute('checker', '');
+    } else {
+        check.innerText = '\ue01b';
+    }
+    item.appendChild(check);
+
     item.appendChild(createLocaleItem('languages.auto'));
+
     item.addEventListener('click', e => {
         editSetting('language', 'auto');
+        $(`button.language-selection`).forEach(e1 => {
+            updateRadioButton(e1, e1 == item)
+        })
     });
     dialog.addElement(item);
 
     for (let language in localeList) {
-        let item = dialog.createDialogItem(localeList[language], true);
+        let item = dialog.createDialogItem(null, true);
+
+        let check = document.createElement('icon');
+        if (language == settings.language) {
+            check.innerText = '\ue01c';
+            check.classList.add('icon-checked');
+            check.setAttribute('checker', '');
+        } else {
+            check.innerText = '\ue01b';
+        }
+        item.appendChild(check);
+
+        item.appendChild(createLocaleItem(localeList[language]));
+
         item.classList.add('button-flash');
+        item.classList.add('language-selection');
         item.addEventListener('click', e => {
             editSetting('language', language);
+            $(`button.language-selection`).forEach(e1 => {
+                updateRadioButton(e1, e1 == item)
+            })
         });
         dialog.addElement(item);
     }
