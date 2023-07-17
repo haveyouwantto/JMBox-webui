@@ -30,9 +30,13 @@ class FileList {
         this.sortFunc = sorting[func];
     }
 
+    clear() {
+        this.#content.innerHTML = '';
+    }
+
     load() {
         const files = [];
-        this.#content.innerHTML = '';
+        this.clear();
 
         this.#filelist.sort(this.sortFunc);
         if (this.reversed) this.#filelist.reverse();
