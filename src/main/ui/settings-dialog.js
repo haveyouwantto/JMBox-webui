@@ -32,6 +32,11 @@ $("*[setting]").forEach(element => {
                 editSetting(key, !settings[key]);
             });
             break
+        case "radio":
+            element.addEventListener('click', e => {
+                editSetting(key, element.getAttribute('value'));
+            });
+            break
         case "dropDown":
             const select = element.querySelector('select');
             select.addEventListener('change', e => {
@@ -61,6 +66,11 @@ export function updateSettingsUI(key, value) {
             case "toggle":
                 updateChecker(e.element, value);
                 break
+            case "radio":
+                $(`button[setting=radio][key=${key}]`).forEach(e => {
+                    updateChecker(e, value == e.getAttribute('value'))
+                })
+                break
             case "dropDown":
                 const select = e.element.querySelector('select');
                 select.value = value;
@@ -68,6 +78,10 @@ export function updateSettingsUI(key, value) {
             case "spinner":
                 const input = e.element.querySelector('input');
                 input.value = value;
+                break
+            case "string":
+                const input2 = e.element.querySelector('input');
+                input2.value = value;
                 break
         }
     }
