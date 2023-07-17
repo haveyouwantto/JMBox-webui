@@ -11,7 +11,7 @@ import { editSetting, loadSettings, settingChangeListener, settings } from "./se
 import { localeInit, setLocale } from "./locale";
 import { aboutDialog, languageDialog, midiInfoDialog, playModeSelectionDialog } from "./ui/quick-dialog";
 import { setDarkMode } from "./ui/ui-etc";
-import picoAudio, { smfData } from "./picoaudio";
+import picoAudio, { loadMIDI, smfData } from "./picoaudio";
 import { setDropDownItems, setSettingItemEnabled, setSettingsDialogVisible, updateSettingsItem } from "./ui/settings-dialog";
 import players from "./player/player-registry";
 import PicoAudioPlayer from "./player/picoaudio-player";
@@ -111,6 +111,15 @@ export class JMBoxApp {
         const path = this.playlist.path + "/" + encodeURIComponent(name);
         this.playlist.setPlaying(name);
         playerBar.setSongName(name);
+        document.title = this.serverName + " - " + name;
+
+        if ('mediaSession' in navigator) {
+            navigator.mediaSession.metadata.title = name;
+        }
+
+        playerBar.setMIDIDownload(this.baseUrl, path);
+
+        if (!(this.player instanceof PicoAudioPlayer)) loadMIDI(this.baseUrl + "api/midi" + path);
         return this.player.loadPath(this.baseUrl, path);
     }
 
@@ -197,8 +206,6 @@ export class JMBoxApp {
                 this.player.loop = false;
                 break
         }
-        playerBar.setPlayModeIcon(mode)
-        editSetting('playMode', mode);
     }
 
     setWebMIDI() {
@@ -292,10 +299,7 @@ export class JMBoxApp {
                     }
                     break;
                 case 'play mode':
-                    playModeSelectionDialog().then(mode => {
-                        this.setPlayMode(mode);
-                        playerBar.setPlayModeIcon(mode);
-                    });
+                    playModeSelectionDialog().then(mode => editSetting('playMode', mode));
                     break;
                 case 'replay':
                     this.player.replay();
@@ -310,7 +314,7 @@ export class JMBoxApp {
             waterfall.toggle();
         })
 
-        playerBar.setEventListener('playmodechange', mode => this.setPlayMode)
+        playerBar.setEventListener('playmodechange', mode => editSetting('playMode', mode))
 
 
         filelist.setEventListener('list', name => {
@@ -370,6 +374,7 @@ export class JMBoxApp {
                     this.createPlayer(e.value);
                     break;
                 case "playMode":
+                    this.setPlayMode(e.value);
                     playerBar.setPlayModeIcon(e.value);
                     break;
                 case "volume":
@@ -396,5 +401,26 @@ export class JMBoxApp {
             }
             updateSettingsItem(e.key, e.value);
         });
+
+
+        if ('mediaSession' in navigator) {
+            navigator.mediaSession.metadata = new MediaMetadata({
+                // artwork: [
+                //     { src: 'favicon.ico', type: 'image/x-icon' }
+                // ]
+            });
+            navigator.mediaSession.setActionHandler('play', () => {
+                this.player.play();
+            });
+            navigator.mediaSession.setActionHandler('pause', () => {
+                this.player.pause();
+            });
+            navigator.mediaSession.setActionHandler('stop', () => this.player.stop());
+            navigator.mediaSession.setActionHandler('seekbackward', () => { this.player.seek(this.player.currentTime - 5) });
+            navigator.mediaSession.setActionHandler('seekforward', () => { this.player.seek(this.player.currentTime + 5) });
+            navigator.mediaSession.setActionHandler('seekto', action => { this.player.seek(action.seekTime) });
+            navigator.mediaSession.setActionHandler('nexttrack', () => this.play(this.playlist.next().name));
+            navigator.mediaSession.setActionHandler('previoustrack', () => this.play(this.playlist.prev().name));
+        }
     }
 }

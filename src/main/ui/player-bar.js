@@ -160,5 +160,13 @@ playModeButton.addEventListener('click', e => {
     let playMode = settings.playMode + 1;
     if (playMode == 4) playMode = 0;
     playerAdapter.on('playmodechange', playMode);
-    editSetting('playMode', playMode);
 });
+
+
+const wav = $("#wav");
+const mid = $("#mid");
+
+export function setMIDIDownload(baseUrl,path){
+    wav.href = baseUrl + "api/play" + path
+    mid.href = baseUrl + "api/midi" + path
+}
