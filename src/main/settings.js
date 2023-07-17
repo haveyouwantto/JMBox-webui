@@ -1,3 +1,5 @@
+import EventListener from "./event-listener";
+
 // For S&L configs
 
 const defaultValue = {
@@ -16,10 +18,10 @@ const defaultValue = {
     language: "auto",
     noteTransparency: false,
     highlightNotes: true,
-    sortFunc : "sortName",
-    prefmon : false,
-    fancyMode : false,
-    showLyrics : true,
+    sortFunc: "sortName",
+    prefmon: false,
+    fancyMode: false,
+    showLyrics: true,
     lyricsEncoding: "UTF-8"
 }
 
@@ -38,16 +40,16 @@ export function loadSettings() {
             } else {
                 switch (typeof defaultValue[key]) {
                     case 'string':
-                        settings[key] = element;
+                        editSetting(key, element)
                         break;
                     case 'number':
-                        settings[key] = parseFloat(element);
+                        editSetting(key, parseFloat(element))
                         break;
                     case 'boolean':
-                        settings[key] = element == 'true';
+                        editSetting(key, element == 'true')
                         break;
                     default:
-                        settings[key] = element;
+                        editSetting(key, element)
                 }
             }
         }
@@ -76,7 +78,16 @@ export function saveSettings() {
     savingSettings = true;
 }
 
-export {settings}
+const settingChangeListener = new EventListener();
+
+
+export function editSetting(setting, newValue) {
+    settings[setting] = newValue;
+    settingChangeListener.on('settingchange', { "key": setting, "value": newValue });
+    saveSettings();
+}
+
+export { settings, settingChangeListener }
 
 window.settings = settings;
 

@@ -1,6 +1,6 @@
 import { getLocale, createLocaleItem, localeList, setLocale } from '../locale';
 import { smfData } from '../picoaudio';
-import { saveSettings } from '../settings';
+import { editSetting, saveSettings } from '../settings';
 import { formatTime, toSI } from '../utils';
 import version from '../version';
 import * as dialog from './dialog'
@@ -29,9 +29,7 @@ export function languageDialog() {
     item.classList.add('button-flash');
     item.appendChild(createLocaleItem('languages.auto'));
     item.addEventListener('click', e => {
-        setLocale(navigator.language);
-        settings.language = "auto";
-        saveSettings();
+        editSetting('language', 'auto');
     });
     dialog.addElement(item);
 
@@ -39,9 +37,7 @@ export function languageDialog() {
         let item = dialog.createDialogItem(localeList[language], true);
         item.classList.add('button-flash');
         item.addEventListener('click', e => {
-            setLocale(language);
-            settings.language = language;
-            saveSettings();
+            editSetting('language', language);
         });
         dialog.addElement(item);
     }

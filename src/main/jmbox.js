@@ -8,10 +8,13 @@ import * as playerBar from "./ui/player-bar";
 import * as waterfall from './ui/waterfall'
 import Playlist from "./player/playlist";
 import { $ } from "./utils";
-import { loadSettings, saveSettings, settings } from "./settings";
+import { editSetting, loadSettings, settingChangeListener, settings } from "./settings";
 import PicoAudioPlayer from "./player/picoaudio-player";
-import { localeInit } from "./locale";
+import { localeInit, setLocale } from "./locale";
 import { aboutDialog, languageDialog, midiInfoDialog, playModeSelectionDialog } from "./ui/quick-dialog";
+import { setDarkMode } from "./ui/ui-etc";
+import picoAudio from "./picoaudio";
+import { setSettingsDialogVisible } from "./ui/settings-dialog";
 
 export class JMBoxApp {
     constructor(baseUrl) {
@@ -27,7 +30,8 @@ export class JMBoxApp {
         this.playlist = new Playlist([]);
 
         this.initializeListeners();
-        this.initializeSettings();
+        loadSettings();
+        localeInit();
     }
 
     setName(name) {
@@ -119,8 +123,7 @@ export class JMBoxApp {
                 break
         }
         playerBar.setPlayModeIcon(mode)
-        settings.playMode = mode;
-        saveSettings();
+        editSetting('playMode', mode);
     }
 
     initializeListeners() {
@@ -140,9 +143,7 @@ export class JMBoxApp {
         });
 
         this.player.setEventListener('volumechange', volume => {
-            playerBar.setVolume(Math.sqrt(volume));
-            settings.volume = volume;
-            saveSettings();
+            editSetting('volume', volume);
         });
 
         this.player.setEventListener('timeupdate', time => {
@@ -271,6 +272,9 @@ export class JMBoxApp {
                 case 'about':
                     aboutDialog();
                     break;
+                case 'settings':
+                    setSettingsDialogVisible(true);
+                    break;
                 case 'languages':
                     languageDialog();
                     break;
@@ -279,10 +283,27 @@ export class JMBoxApp {
                     break;
             }
         })
-    }
 
-    initializeSettings() {
-        localeInit();
-        this.player.volume = settings.volume;
+        settingChangeListener.setEventListener('settingchange', e => {
+            console.log(e);
+            switch (e.key) {
+                case "dark":
+                    setDarkMode(e.value);
+                    break
+                case "playMode":
+                    playerBar.setPlayModeIcon(e.value);
+                    break;
+                case "volume":
+                    playerBar.setVolume(Math.sqrt(e.value));
+                    break;
+                case "waveType":
+                    picoAudio.settings.soundQuality = e.value + 0;
+                    break;
+                case "language":
+                    if (e.value === 'auto') setLocale(navigator.language);
+                    else setLocale(e.value);
+                    break;
+            }
+        });
     }
 }

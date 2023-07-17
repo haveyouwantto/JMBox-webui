@@ -1,6 +1,6 @@
 import EventListener from "../event-listener";
 import { $, formatTime } from "../utils";
-import { settings, saveSettings } from "../settings";
+import { settings, editSetting } from "../settings";
 
 const progressBar = $("#progress");
 const progressBarInner = $("#playtime");
@@ -155,13 +155,11 @@ export function setPlayModeIcon(mode) {
             break;
     }
 }
-setPlayModeIcon(settings.playMode);
 
 
 playModeButton.addEventListener('click', e => {
-    settings.playMode++;
-    if (settings.playMode == 4) settings.playMode = 0;
-    playerAdapter.on('playmodechange', settings.playMode);
-    setPlayModeIcon(settings.playMode);
-    saveSettings();
+    let playMode = settings.playMode + 1;
+    if (playMode == 4) playMode = 0;
+    playerAdapter.on('playmodechange', playMode);
+    editSetting('playMode', playMode);
 });
