@@ -383,6 +383,18 @@ export class JMBoxApp {
                 case "waveType":
                     picoAudio.settings.soundQuality = e.value + 0;
                     break;
+                case "basePitch":
+                    picoAudio.settings.basePitch = e.value;
+                    break;
+                case "maxPolyphony":
+                    picoAudio.settings.maxPoly = e.value;
+                    break;
+                case "skipBeginning":
+                    picoAudio.settings.isSkipBeginning = e.value;
+                    break;
+                case "skipEnding":
+                    picoAudio.settings.isSkipEnding = e.value;
+                    break;
                 case "webmidi":
                     this.setWebMIDI();
                     break

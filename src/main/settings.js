@@ -10,9 +10,15 @@ const defaultValue = {
     player: "AudioPlayer",
     playMode: 0,
     volume: 1,
+
     waveType: true,
+    basePitch: 440,
+    maxPolyphony: -1,
+    skipBeginning: false,
+    skipEnding: true,
     midiLatency: 250,
     lastMidiDevice: "",
+    
     spanDuration: 4,
     maxNoteDuration: 30,
     language: "auto",
