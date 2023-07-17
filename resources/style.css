@@ -317,7 +317,7 @@ select option {
 }
 
 input[type=number],
-input[type=text] {
+.input {
     border: none;
     background-color: #0000;
     font-size: 1rem;
@@ -328,7 +328,7 @@ input[type=text] {
 }
 
 input[type="number"]:focus,
-input[type=text]:focus {
+.input:focus {
     outline: none;
     border-bottom: 2px solid var(--theme-color);
 }
