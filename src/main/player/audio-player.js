@@ -1,5 +1,6 @@
 import Player from "./player";
 import { $ } from "../utils";
+import { settings } from "../settings";
 
 let audioInit = false;
 export default class AudioPlayer extends Player {
@@ -46,7 +47,7 @@ export default class AudioPlayer extends Player {
     }
 
     loadPath(baseUrl, path) {
-        return this.load(baseUrl + "api/play" + path)
+        return this.load(baseUrl + (settings.midisrc ? "api/midi" : "api/play") + path)
     }
 
     play() {
