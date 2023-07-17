@@ -28,7 +28,7 @@ export default class AudioPlayer extends Player {
             });
 
             this.#audio.addEventListener('error', e => {
-                if (this.audio.src != 'null:') {
+                if (!this.#audio.src.startsWith('null')) {
                     this.listener.on('error', e);
                 }
             })

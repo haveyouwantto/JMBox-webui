@@ -15,6 +15,7 @@ import { aboutDialog, languageDialog, midiInfoDialog, playModeSelectionDialog } 
 import { setDarkMode } from "./ui/ui-etc";
 import picoAudio from "./picoaudio";
 import { setSettingsDialogVisible, updateSettingsUI } from "./ui/settings-dialog";
+import players from "./player/player-registry";
 
 export class JMBoxApp {
     constructor(baseUrl) {
@@ -24,10 +25,9 @@ export class JMBoxApp {
 
         this.pathman = new PathMan();
         this.cache = new FileCache();
-        this.player = new PicoAudioPlayer();
-        waterfall.setPlayer(this.player)
-        this.cwd = new Playlist([]);
-        this.playlist = new Playlist([]);
+        this.player = this.createPlayer(settings.player);
+        this.cwd = null;
+        this.playlist = null;
 
         this.initializeListeners();
         loadSettings();
@@ -104,29 +104,31 @@ export class JMBoxApp {
         })
     }
 
-    play(name) {
+    load(name) {
         const path = this.playlist.path + "/" + encodeURIComponent(name);
-        this.player.loadPath(this.baseUrl, path).then(() => this.player.play());
         this.playlist.setPlaying(name);
         playerBar.setSongName(name);
+        return this.player.loadPath(this.baseUrl, path);
     }
 
-    setPlayMode(mode) {
-        switch (mode) {
-            case 1:
-                this.player.loop = true;
-                break
-            case 0:
-            case 2:
-            case 3:
-                this.player.loop = false;
-                break
+    play(name) {
+        this.load(name).then(() => this.player.play());
+    }
+
+    createPlayer(name) {
+        let paused = false;
+        let playTime = 0;
+        if (this.player) {
+            paused = this.player.paused;
+            playTime = this.player.currentTime;
+            this.player.stop();
+            delete this.player;
         }
-        playerBar.setPlayModeIcon(mode)
-        editSetting('playMode', mode);
-    }
 
-    initializeListeners() {
+        this.player = new players[name];
+        this.setPlayMode(settings.playMode);
+        this.player.volume = settings.volume;
+
 
         this.player.setEventListener('load', url => {
             playerBar.setDuration(this.player.duration);
@@ -171,6 +173,32 @@ export class JMBoxApp {
                     break;
             }
         })
+
+        waterfall.setPlayer(this.player)
+        if (this.playlist) {
+            this.load(this.playlist.current().name).then(() => {
+                this.player.seek(playTime);
+                if (!paused) this.player.play();
+            });
+        }
+    }
+
+    setPlayMode(mode) {
+        switch (mode) {
+            case 1:
+                this.player.loop = true;
+                break
+            case 0:
+            case 2:
+            case 3:
+                this.player.loop = false;
+                break
+        }
+        playerBar.setPlayModeIcon(mode)
+        editSetting('playMode', mode);
+    }
+
+    initializeListeners() {
 
 
         playerBar.setEventListener('play', () => {
@@ -297,6 +325,9 @@ export class JMBoxApp {
                     filelist.setSortFunc(e.value);
                     this.list();
                     break
+                case "player":
+                    this.createPlayer(e.value);
+                    break;
                 case "playMode":
                     playerBar.setPlayModeIcon(e.value);
                     break;

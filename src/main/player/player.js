@@ -84,6 +84,11 @@ export default class Player {
         // Return true if the audio is paused, false otherwise
     }
 
+    set paused(value) {
+        if (value) this.pause();
+        else this.play();
+    }
+
     /**
      * Returns true if the audio ended
      * @returns {boolean} ended
