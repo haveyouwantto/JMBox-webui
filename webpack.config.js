@@ -31,7 +31,11 @@ module.exports = {
   ],
   optimization: {
     minimize: true,
-    minimizer: [new TerserPlugin(), new CssMinifier()]
+    minimizer: [new TerserPlugin({
+      terserOptions:{
+        format:{ascii_only :true}
+      }
+    }), new CssMinifier()]
   },
   devServer:{
     static:"./dist"

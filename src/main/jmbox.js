@@ -17,7 +17,7 @@ import players from "./player/player-registry";
 import PicoAudioPlayer from "./player/picoaudio-player";
 
 export class JMBoxApp {
-    constructor(baseUrl) {
+    constructor(baseUrl = '') {
         this.serverName = "JMBox";
         this.themeColor = "#00796b";
         this.baseUrl = baseUrl;
