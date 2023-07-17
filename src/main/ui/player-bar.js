@@ -129,7 +129,6 @@ bottomMenu.querySelectorAll('button').forEach(element => {
 });
 
 controlsLeft.addEventListener('click', e => {
-    console.log(1)
     playerAdapter.on('titleclick');
 })
 

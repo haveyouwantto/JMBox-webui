@@ -18,13 +18,13 @@ export default class PicoAudioPlayer extends Player {
                 if (!this.loop) this.pause();
                 this.listener.on('ended');
             });
-            // document.addEventListener("visibilitychange", function () {
-            //     if (document.hidden) {
-            //         picoAudio.settings.WebMIDIWaitTime = 1000;
-            //     } else {
-            //         picoAudio.settings.WebMIDIWaitTime = settings.midiLatency;
-            //     }
-            // });
+            document.addEventListener("visibilitychange", function () {
+                if (document.hidden) {
+                    picoAudio.settings.WebMIDIWaitTime = 1000;
+                } else {
+                    picoAudio.settings.WebMIDIWaitTime = settings.midiLatency;
+                }
+            });
             picoAudioInit = true;
         }
     }
@@ -86,7 +86,7 @@ export default class PicoAudioPlayer extends Player {
     seek(seconds) {
         super.seek(seconds);
 
-        this.lastPausedTime = seconds;
+        this.#lastPausedTime = seconds;
         let playing = picoAudio.states.isPlaying;
         picoAudio.stop();
         picoAudio.initStatus(false, true);

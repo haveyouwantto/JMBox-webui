@@ -56,10 +56,9 @@ $("*[setting]").forEach(element => {
             });
             break
     }
-    console.log(settingDialogElements)
 });
 
-export function updateSettingsUI(key, value) {
+export function updateSettingsItem(key, value) {
     const e = settingDialogElements[key];
     if (e) {
         switch (e.type) {
@@ -84,6 +83,29 @@ export function updateSettingsUI(key, value) {
                 input2.value = value;
                 break
         }
+    }
+}
+
+export function setSettingItemEnabled(key, enabled) {
+    const e = settingDialogElements[key].element;
+    if (enabled) {
+        e.style.display = 'inherit';
+    } else {
+        e.style.display = 'none';
+    }
+}
+
+export function setDropDownItems(key, items, selected) {
+    if (settingDialogElements[key].type == "dropDown") {
+        const e = settingDialogElements[key].element.querySelector('select');
+        e.innerHTML = '';
+        items.forEach(item => {
+            var option = document.createElement('option');
+            option.text = item.text;
+            option.value = item.value;
+            e.appendChild(option);
+        });
+        if(selected) e.value = selected;
     }
 }
 

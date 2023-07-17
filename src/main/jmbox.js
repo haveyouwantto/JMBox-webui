@@ -11,9 +11,10 @@ import { editSetting, loadSettings, settingChangeListener, settings } from "./se
 import { localeInit, setLocale } from "./locale";
 import { aboutDialog, languageDialog, midiInfoDialog, playModeSelectionDialog } from "./ui/quick-dialog";
 import { setDarkMode } from "./ui/ui-etc";
-import picoAudio from "./picoaudio";
-import { setSettingsDialogVisible, updateSettingsUI } from "./ui/settings-dialog";
+import picoAudio, { smfData } from "./picoaudio";
+import { setDropDownItems, setSettingItemEnabled, setSettingsDialogVisible, updateSettingsItem } from "./ui/settings-dialog";
 import players from "./player/player-registry";
+import PicoAudioPlayer from "./player/picoaudio-player";
 
 export class JMBoxApp {
     constructor(baseUrl) {
@@ -26,6 +27,7 @@ export class JMBoxApp {
         this.player = this.createPlayer(settings.player);
         this.cwd = null;
         this.playlist = null;
+        this.midiDevices = null;
 
         this.initializeListeners();
         loadSettings();
@@ -36,6 +38,10 @@ export class JMBoxApp {
         this.serverName = name;
         navbar.setTitle(name);
         document.title = name;
+    }
+
+    setPath(path) {
+        this.pathman.setPath(path);
     }
 
     setThemeColor(color) {
@@ -93,7 +99,6 @@ export class JMBoxApp {
 
     updateList(path, result, back = false) {
         return new Promise((resolve, reject) => {
-            console.log(path, result);
             filelist.setFilelist(result);
             location.hash = path;
 
@@ -196,6 +201,46 @@ export class JMBoxApp {
         editSetting('playMode', mode);
     }
 
+    setWebMIDI() {
+        if (settings.webmidi) {
+            navigator.requestMIDIAccess({ sysex: true }).then(access => {
+
+                picoAudio.setWebMIDI(true);
+                picoAudio.settings.WebMIDIWaitTime = settings.midiLatency;
+
+                const devices = [];
+                let selected = null;
+                this.midiDevices = access.outputs;
+
+                for (let device of access.outputs) {
+                    devices.push({
+                        text: device[1].name, value: device[0]
+                    });
+
+                    if (device[0] == settings.lastMidiDevice) {
+                        selected = device[0];
+                        picoAudio.settings.WebMIDIPortOutput = device[1];
+                    }
+                }
+                setDropDownItems('lastMidiDevice', devices, selected);
+
+                if (smfData && !smfData.smfData && this.player instanceof PicoAudioPlayer) {
+                    let pos = this.player.currentTime;
+                    this.load(this.playlist.current().name).then(() => {
+                        this.player.seek(pos);
+                        this.player.play();
+                    })
+                }
+            });
+        } else {
+            let state = picoAudio.states.isPlaying;
+            picoAudio.pause();
+            picoAudio.setWebMIDI(false);
+            if (state)
+                picoAudio.play();
+        }
+    }
+
     initializeListeners() {
 
 
@@ -224,7 +269,6 @@ export class JMBoxApp {
         });
 
         playerBar.setEventListener('menuitem', func => {
-            console.log(func);
             switch (func) {
                 case 'locate':
                     try {
@@ -290,7 +334,6 @@ export class JMBoxApp {
         })
 
         navbar.setEventListener('menuitem', func => {
-            console.log(func);
             switch (func) {
                 case 'refresh':
                     this.list();
@@ -335,12 +378,23 @@ export class JMBoxApp {
                 case "waveType":
                     picoAudio.settings.soundQuality = e.value + 0;
                     break;
+                case "webmidi":
+                    this.setWebMIDI();
+                    break
+                case "lastMidiDevice":
+                    if (this.midiDevices)
+                        picoAudio.settings.WebMIDIPortOutput = this.midiDevices.get(e.value);
+                    break
+                case "midiLatency":
+                    if (this.midiDevices)
+                        picoAudio.settings.WebMIDIWaitTime = e.value;
+                    break
                 case "language":
                     if (e.value === 'auto') setLocale(navigator.language);
                     else setLocale(e.value);
                     break;
             }
-            updateSettingsUI(e.key, e.value);
+            updateSettingsItem(e.key, e.value);
         });
     }
 }
