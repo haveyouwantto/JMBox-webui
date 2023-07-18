@@ -46,6 +46,7 @@ export function setVisible(value) {
     if (value) {
         waterfall.classList.remove('hidden');
         waterfall.classList.add('open');
+        document.documentElement.classList.add('noscroll');
 
         startAnimation();
         acquireWakelock();
@@ -55,6 +56,7 @@ export function setVisible(value) {
         endAnimation();
         waterfall.classList.add('hidden');
         waterfall.classList.remove('open');
+        document.documentElement.classList.remove('noscroll');
         if (wakeLockSupported && wakeLock != null) {
             wakeLock.release()
                 .then(() => {
