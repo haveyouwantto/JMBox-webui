@@ -19,7 +19,8 @@
     "picoaudio": "npm run --prefix lib/PicoAudio build",
     "dev": "webpack --mode development",
     "start": "webpack serve --open --mode development",
-    "build": "webpack --mode production"
+    "build": "webpack --mode production",
+    "fullbuild": "npm run picoaudio && npm run build"
   },
   "dependencies": {
     "yarn": "^1.22.19"
