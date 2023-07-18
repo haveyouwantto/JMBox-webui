@@ -15,7 +15,8 @@ export default class PicoAudioPlayer extends Player {
 
         if (!picoAudioInit) {
             picoAudio.addEventListener('songEnd', e => {
-                if (!this.loop) this.pause();
+                if (!this.loop) this.stop();
+                this.#lastPausedTime = this.duration;
                 this.listener.on('ended');
             });
             document.addEventListener("visibilitychange", function () {
@@ -31,6 +32,7 @@ export default class PicoAudioPlayer extends Player {
 
     load(url) {
         this.stop();
+        this.listener.on('timeupdate', 0);
         return loadMIDI(url);
     }
 
@@ -41,7 +43,7 @@ export default class PicoAudioPlayer extends Player {
     play() {
         this.listener.on('timeupdate', this.currentTime);
         super.play();
-        if (this.ended) this.seek(0);
+        if (this.currentTime >= this.duration) this.seek(0);
         this.#paused = false;
         picoAudio.play();
 
@@ -98,6 +100,7 @@ export default class PicoAudioPlayer extends Player {
         super.stop();
         picoAudio.stop();
         clearInterval(this.#intervalId);
+        this.seek(0);
     }
 
     get paused() {
