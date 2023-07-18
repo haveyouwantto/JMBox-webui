@@ -4,6 +4,7 @@ const TerserPlugin = require("terser-webpack-plugin");
 const CssMinifier = require("css-minimizer-webpack-plugin");
 const CopyWebpackPlugin = require('copy-webpack-plugin');
 const MiniCssExtractPlugin = require('mini-css-extract-plugin');
+const JsonMinimizerPlugin = require("json-minimizer-webpack-plugin");
 
 module.exports = {
   entry: "./src/index.js",
@@ -15,7 +16,7 @@ module.exports = {
     new HtmlWebpackPlugin({
       template: 'resources/index.html',
       favicon: 'resources/favicon.ico',
-      inject: 'body'
+      inject: 'body',
     }),
     new CopyWebpackPlugin({
       patterns: [
@@ -31,14 +32,18 @@ module.exports = {
   ],
   optimization: {
     minimize: true,
-    minimizer: [new TerserPlugin({
-      terserOptions:{
-        format:{ascii_only :true}
-      }
-    }), new CssMinifier()]
+    minimizer: [
+      new TerserPlugin({
+        terserOptions: {
+          format: { ascii_only: true }
+        }
+      }),
+      new CssMinifier(),
+      new JsonMinimizerPlugin()
+    ]
   },
-  devServer:{
-    static:"./dist"
+  devServer: {
+    static: "./dist"
   },
   module: {
     rules: [
