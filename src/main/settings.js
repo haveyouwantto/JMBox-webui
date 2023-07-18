@@ -42,7 +42,7 @@ export function loadSettings() {
         if (Object.hasOwnProperty.call(defaultValue, key)) {
             const element = localStorage.getItem(key);
             if (element == null) {
-                settings[key] = defaultValue[key];
+                editSetting(key, defaultValue[key]);
             } else {
                 switch (typeof defaultValue[key]) {
                     case 'string':
