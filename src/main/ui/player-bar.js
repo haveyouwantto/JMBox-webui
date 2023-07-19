@@ -17,6 +17,7 @@ const prevButton = $("#prev");
 const replayButton = $("#replay");
 const playModeButton = $("#playMode");
 const volumeControl = $("#volume");
+const volumeControlSlider = $("#volume-slider");
 const volumeControlInner = $("#volume-inner");
 
 const playModeAltButton = $("#playModeAlt");
@@ -83,13 +84,13 @@ prevButton.addEventListener('click', e => {
 
 
 export function setVolume(percentage) {
-    volumeControl.value = percentage*100;
-    // volumeControlInner.style.width = (percentage * 100) + "%";
+    volumeControlSlider.value = percentage*100;
+    volumeControlInner.style.width = (percentage * 100) + "%";
 }
 
-volumeControl.addEventListener('input',e=>{
-    console.log(volumeControl.value)
-    playerAdapter.on('volumechange', volumeControl.value/100);
+volumeControlSlider.addEventListener('input',e=>{
+    console.log(volumeControlSlider.value)
+    playerAdapter.on('volumechange', volumeControlSlider.value/100);
 })
 
 // volumeControl.addEventListener('pointermove', e => {

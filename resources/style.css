@@ -372,17 +372,37 @@ input[type="number"]:focus,
 }
 
 input[type="range"] {
-    accent-color: var(--theme-color);
+    appearance: none;
+    background-color: transparent;
     border: none;
+    margin: 0;
+    padding: 0;
 }
 
-input[type="range"]::-webkit-slider-runnable-track {
-    border-radius: 0rem;
+input[type="range"]::-webkit-slider-thumb {
+    visibility: hidden;
 }
 
 #volume {
     width: 9rem;
+    height: 8px;
     margin-right: 5px;
+    display: inline-flex;
+    position: relative;
+    background-color: var(--bar-color);
+}
+
+#volume-slider {
+    position: absolute;
+    width: 100%;
+    align-self: center;
+}
+
+#volume-inner {
+    position: absolute;
+    height: 8px;
+    align-self: center;
+    pointer-events: none;
 }
 
 .slider {
