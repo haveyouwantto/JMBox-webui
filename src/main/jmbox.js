@@ -100,9 +100,9 @@ export class JMBoxApp {
     }
 
     updateList(path, result, back = false) {
+        if (!back) history.pushState({ page: 1 }, this.serverName, ("#!" + path));
         return new Promise((resolve, reject) => {
             filelist.setFilelist(result);
-            location.hash = path;
 
             this.cwd = new Playlist(path, filelist.load());
             resolve();
@@ -435,6 +435,11 @@ export class JMBoxApp {
             navigator.mediaSession.setActionHandler('seekto', action => { this.player.seek(action.seekTime) });
             navigator.mediaSession.setActionHandler('nexttrack', () => this.play(this.playlist.next().name));
             navigator.mediaSession.setActionHandler('previoustrack', () => this.play(this.playlist.prev().name));
+        }
+
+        window.onpopstate = event => {
+            this.pathman.setPath(location.hash.slice(2));
+            this.list(false, true);
         }
     }
 }
