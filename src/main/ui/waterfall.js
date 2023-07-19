@@ -190,8 +190,7 @@ function fastSpan(list, startTime, duration) {
         if (startTime - note.startTime > maxNoteDuration) {
             break;
         }
-        stopTime = getStopTime(note);
-        if (stopTime >= startTime) result.push(note);
+        if (note.stopTime >= startTime) result.push(note);
         i--;
     }
 
@@ -205,6 +204,10 @@ let player = null;
 
 export function setPlayer(p){
     player = p;
+}
+
+function getY(time, playTime, scaling){
+    return (time - playTime) * scaling;
 }
 
 function draw() {
@@ -222,41 +225,89 @@ function draw() {
         if (smfData != null) {
             for (let i = 0; i < 16; i++) {
                 canvasCtx.fillStyle = palette[i];
+                canvasCtx.strokeStyle = palette[i];
                 let result = fastSpan(smfData.channels[i].notes, playTime, settings.spanDuration);
                 noteCount += result.index;
                 renderCount += result.notes.length;
 
                 for (let note of result.notes) {
                     let stopTime = getStopTime(note);
-                    let startY = (note.startTime - playTime) * scaling;
-                    let endY = (stopTime - playTime) * scaling;
+                    let startY = getY(note.startTime,playTime,scaling);
+                    let endY = getY(stopTime,playTime,scaling)
                     let x = note.pitch * noteWidth;
 
                     if (settings.noteTransparency) {
                         canvasCtx.fillStyle = palette[i] + getNoteTransparency(note.velocity);
                     }
-                    canvasCtx.fillRect(x, canvas.height - endY - keyboardHeight, noteWidth, endY - startY);
+                    if(stopTime > playTime){
+                        if(!settings.detailedNotes) 
+                        canvasCtx.fillRect(x, canvas.height - endY - keyboardHeight, noteWidth, endY - startY);
 
-                    // Pressed key
-                    if (note.startTime < playTime) {
-                        notes[note.pitch] = i;
-
-                        // Highlight notes
-                        if (settings.highlightNotes) {
-                            canvasCtx.shadowOffsetX = 0;
-                            canvasCtx.shadowOffsetY = 0;
-                            canvasCtx.shadowBlur = noteWidth * 1.5;
-                            canvasCtx.shadowColor = palette[i];
-                            canvasCtx.fillStyle = "#ffffff60";
-
-                            canvasCtx.fillRect(x, canvas.height - endY - keyboardHeight, noteWidth, endY - startY);
-                            canvasCtx.fillStyle = palette[i];
-
-                            canvasCtx.shadowOffsetX = 0;
-                            canvasCtx.shadowOffsetY = 0;
-                            canvasCtx.shadowBlur = 0;
-                            canvasCtx.shadowColor = "transparent";
+                         // Pressed key
+                         if (note.startTime < playTime) {
+                             notes[note.pitch] = i;
+     
+                             // Highlight notes
+                             if (settings.highlightNotes && !settings.detailedNotes) {
+                                 canvasCtx.shadowOffsetX = 0;
+                                 canvasCtx.shadowOffsetY = 0;
+                                 canvasCtx.shadowBlur = noteWidth * 1.5;
+                                 canvasCtx.shadowColor = palette[i];
+                                 canvasCtx.fillStyle = "#ffffff60";
+     
+                                 canvasCtx.fillRect(x, canvas.height - endY - keyboardHeight, noteWidth, endY - startY);
+                                 canvasCtx.fillStyle = palette[i];
+     
+                                 canvasCtx.shadowOffsetX = 0;
+                                 canvasCtx.shadowOffsetY = 0;
+                                 canvasCtx.shadowBlur = 0;
+                                 canvasCtx.shadowColor = "transparent";
+                             }
+                         }
+     
                         }
+
+                    
+                    if(settings.detailedNotes){
+                        canvasCtx.lineWidth = 1.5;
+                        
+                        if(note.holdBeforeStop&& note.holdBeforeStop.length > 0){
+                            const endY2 = getY(note.stopTime,playTime,scaling);
+                            canvasCtx.strokeRect(x, canvas.height - endY2 - keyboardHeight, noteWidth, endY2 - endY)
+                        }
+
+                        const controls = [
+                            ...note.pitchBend.map(e=>({t:0,e:e})),
+                            ...note.expression.map(e=>({t:1,e:e})),
+                        ].sort((e1,e2)=>e1.e.time-e2.e.time)
+
+                            let centerX = x;
+                            let width = noteWidth;
+                            let yRecord = [];
+                            canvasCtx.beginPath();
+                            canvasCtx.moveTo(centerX,  canvas.height - startY - keyboardHeight);
+                            canvasCtx.lineTo(centerX+noteWidth,  canvas.height - startY - keyboardHeight);
+                            controls.forEach(control => {
+                                switch(control.t){
+                                    case 0:
+                                        centerX = x+control.e.value*noteWidth;
+                                        break
+                                    case 1:
+                                        width = control.e.value/127*noteWidth;
+                                        break
+                                }
+                                let currentY =  canvas.height - getY(control.e.time,playTime,scaling) - keyboardHeight;
+                                canvasCtx.lineTo( centerX+width,currentY);
+                                yRecord.push([centerX,currentY])
+                            });
+                            canvasCtx.lineTo(centerX+width,  canvas.height - endY - keyboardHeight);
+                            canvasCtx.lineTo(centerX,  canvas.height - endY - keyboardHeight);
+                            yRecord.reverse().forEach(xy => {
+                                canvasCtx.lineTo(xy[0],xy[1]);
+                            });
+                                
+                            canvasCtx.closePath();
+                            canvasCtx.fill();
                     }
                 }
             }

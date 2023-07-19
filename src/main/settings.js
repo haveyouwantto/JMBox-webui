@@ -28,7 +28,8 @@ const defaultValue = {
     prefmon: false,
     fancyMode: false,
     showLyrics: true,
-    lyricsEncoding: "UTF-8"
+    lyricsEncoding: "UTF-8",
+    detailedNotes: false
 }
 
 const settings = {};
