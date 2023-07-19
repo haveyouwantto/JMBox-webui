@@ -441,5 +441,26 @@ export class JMBoxApp {
             this.pathman.setPath(location.hash.slice(2));
             this.list(false, true);
         }
+
+        document.addEventListener("keydown", event => {
+            console.log(event.key)
+            switch (event.key.toLowerCase()) {
+                case " ":
+                    event.preventDefault();
+                    if (this.player.paused) this.player.play()
+                    else this.player.pause();
+                    break;
+                case "a":
+                    this.play(this.playlist.prev().name);
+                    event.preventDefault();
+                    break
+                case "d":
+                    this.play(this.playlist.next().name);
+                    event.preventDefault();
+                    break
+                default:
+                    break;
+            }
+        });
     }
 }
