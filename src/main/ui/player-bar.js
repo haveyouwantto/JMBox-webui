@@ -83,18 +83,24 @@ prevButton.addEventListener('click', e => {
 
 
 export function setVolume(percentage) {
-    volumeControlInner.style.width = (percentage * 100) + "%";
+    volumeControl.value = percentage*100;
+    // volumeControlInner.style.width = (percentage * 100) + "%";
 }
 
-volumeControl.addEventListener('pointermove', e => {
-    if (e.buttons > 0) {
-        playerAdapter.on('volumechange', e.offsetX / volumeControl.clientWidth);
-    }
-});
+volumeControl.addEventListener('input',e=>{
+    console.log(volumeControl.value)
+    playerAdapter.on('volumechange', volumeControl.value/100);
+})
 
-volumeControl.addEventListener('click', e => {
-    playerAdapter.on('volumechange', e.offsetX / volumeControl.clientWidth);
-});
+// volumeControl.addEventListener('pointermove', e => {
+//     if (e.buttons > 0) {
+//         playerAdapter.on('volumechange', e.offsetX / volumeControl.clientWidth);
+//     }
+// });
+
+// volumeControl.addEventListener('click', e => {
+//     playerAdapter.on('volumechange', e.offsetX / volumeControl.clientWidth);
+// });
 
 export function setSongName(name) {
     songTitle.textContent = name;

@@ -371,13 +371,18 @@ input[type="number"]:focus,
     position: absolute;
 }
 
-#volume {
-    width: 9em;
-    margin-right: 5px;
+input[type="range"] {
+    accent-color: var(--theme-color);
+    border: none;
 }
 
-#volume-inner {
-    width: 100%;
+input[type="range"]::-webkit-slider-runnable-track {
+    border-radius: 0rem;
+}
+
+#volume {
+    width: 9rem;
+    margin-right: 5px;
 }
 
 .slider {
