@@ -272,8 +272,13 @@ function draw() {
                         canvasCtx.lineWidth = 1.5;
                         
                         if(note.holdBeforeStop&& note.holdBeforeStop.length > 0){
-                            const endY2 = getY(note.stopTime,playTime,scaling);
-                            canvasCtx.strokeRect(x, canvas.height - endY2 - keyboardHeight, noteWidth, endY2 - endY)
+                            const endY2 =canvas.height - getY(note.stopTime,playTime,scaling) - keyboardHeight ;
+                            canvasCtx.beginPath();
+                            canvasCtx.moveTo(x+noteWidth*0.5,  canvas.height - startY - keyboardHeight);
+                            canvasCtx.lineTo(x+noteWidth*0.5,  endY2);
+                            canvasCtx.moveTo(x,  endY2);
+                            canvasCtx.lineTo(x+noteWidth,  endY2);
+                            canvasCtx.stroke();
                         }
 
                         const controls = [
