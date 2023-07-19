@@ -371,15 +371,16 @@ input[type="number"]:focus,
     position: absolute;
 }
 
-input[type="range"] {
+.slider input[type="range"] {
     appearance: none;
     background-color: transparent;
     border: none;
     margin: 0;
     padding: 0;
+    width: 100%;
 }
 
-input[type="range"]::-webkit-slider-thumb {
+.slider input[type="range"]::-webkit-slider-thumb {
     visibility: hidden;
     -webkit-appearance: none; /* Override default look */
     appearance: none;
@@ -388,43 +389,47 @@ input[type="range"]::-webkit-slider-thumb {
     width: 0;
 }
 
-input[type="range"]:focus-visible {
+/* Firefox */
+.slider input[type="range"]::-moz-range-thumb {
+    visibility: hidden;
+    appearance: none;
+    height: 8px;
+    background-color: white;
+    width: 0;
+  }
+
+.slider input[type="range"]:focus-visible {
     outline: 2px solid var(--text-color);
-}
-
-#volume {
-    width: 9rem;
-    height: 8px;
-    margin-right: 5px;
-    display: inline-flex;
-    position: relative;
-    background-color: var(--bar-color);
-}
-
-#volume-slider {
-    position: absolute;
-    width: 100%;
-    align-self: center;
-    cursor: pointer;
-}
-
-#volume-inner {
-    position: absolute;
-    height: 8px;
-    align-self: center;
-    pointer-events: none;
 }
 
 .slider {
     height: 8px;
     cursor: pointer;
     background-color: var(--bar-color);
+    display: inline-flex;
+    position: relative;
+}
+
+.slider-slider {
+    position: absolute;
+    align-self: center;
+    cursor: pointer;
 }
 
 .slider-inner {
     width: 0;
     background-color: var(--theme-color);
-    height: 100%;
+    
+    position: absolute;
+    height: 8px;
+    align-self: center;
+    pointer-events: none;
+}
+
+#volume {
+    width: 9rem;
+    height: 8px;
+    margin-right: 5px;
 }
 
 #controls {

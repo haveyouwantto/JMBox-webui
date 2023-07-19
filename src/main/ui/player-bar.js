@@ -3,6 +3,7 @@ import { $, formatTime } from "../utils";
 import { settings, editSetting } from "../settings";
 
 const progressBar = $("#progress");
+const progressBarSlider = $("#progress-slider");
 const progressBarInner = $("#playtime");
 const bufferedBar = $("#bufferedtime");
 
@@ -70,8 +71,8 @@ function togglePause() {
 
 playButton.addEventListener('click', togglePause);
 
-progressBar.addEventListener('click', e => {
-    playerAdapter.on('seek', e.clientX / progressBar.clientWidth);
+progressBarSlider.addEventListener('input', e => {
+    playerAdapter.on('seek', progressBarSlider.value);
 });
 
 nextButton.addEventListener('click', e => {
@@ -84,13 +85,12 @@ prevButton.addEventListener('click', e => {
 
 
 export function setVolume(percentage) {
-    volumeControlSlider.value = percentage*100;
+    volumeControlSlider.value = percentage * 100;
     volumeControlInner.style.width = (percentage * 100) + "%";
 }
 
-volumeControlSlider.addEventListener('input',e=>{
-    console.log(volumeControlSlider.value)
-    playerAdapter.on('volumechange', volumeControlSlider.value/100);
+volumeControlSlider.addEventListener('input', e => {
+    playerAdapter.on('volumechange', volumeControlSlider.value / 100);
 })
 
 // volumeControl.addEventListener('pointermove', e => {
@@ -173,7 +173,7 @@ playModeButton.addEventListener('click', e => {
 const wav = $("#wav");
 const mid = $("#mid");
 
-export function setMIDIDownload(baseUrl,path){
+export function setMIDIDownload(baseUrl, path) {
     wav.href = baseUrl + "api/play" + path
     mid.href = baseUrl + "api/midi" + path
 }
