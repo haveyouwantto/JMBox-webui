@@ -381,6 +381,15 @@ input[type="range"] {
 
 input[type="range"]::-webkit-slider-thumb {
     visibility: hidden;
+    -webkit-appearance: none; /* Override default look */
+    appearance: none;
+    height: 8px;
+    background-color: white;
+    width: 0;
+}
+
+input[type="range"]:focus-visible {
+    outline: 2px solid var(--text-color);
 }
 
 #volume {
@@ -396,6 +405,7 @@ input[type="range"]::-webkit-slider-thumb {
     position: absolute;
     width: 100%;
     align-self: center;
+    cursor: pointer;
 }
 
 #volume-inner {
