@@ -139,10 +139,10 @@
             <section class="dialog-section" id="general-section">
                 <locale class="dialog-subtitle" key="settings.general">General</locale>
 
-                <a id="dark" class="dialog-item" setting="dropDown" key="dark">
+                <a class="dialog-item" setting="dropDown" key="dark">
                     <icon>&#57350;</icon>
                     <locale key="settings.general.dark-mode">Dark Mode</locale>
-                    <select id="dark-select" class="right">
+                    <select class="right">
                         <option class="locale" value="unset" key="settings.general.dark.unset">
                             Follow system
                         </option>
@@ -155,7 +155,7 @@
                     </select>
                 </a>
 
-                <button id="showInfo" class="dialog-item button-flash" setting="toggle" key="showInfo">
+                <button class="dialog-item button-flash" setting="toggle" key="showInfo">
                     <icon>&#57352;</icon>
                     <locale key="settings.general.show-info">Show file information</locale>
                     <icon class="right" checker>&#57362;</icon>
@@ -164,7 +164,7 @@
                 <a class="dialog-item" setting="dropDown" key="sortFunc">
                     <icon>&#57373;</icon>
                     <locale key="settings.general.sort">Order</locale>
-                    <select id="sort-select" class="right">
+                    <select class="right">
                         <option class="locale" value="sortName" key="settings.general.sort.name">
                             A-Z
                         </option>
@@ -190,13 +190,13 @@
             <section class="dialog-section" id="player-section">
                 <locale class="dialog-subtitle" key="settings.players">Players</locale>
 
-                <button id="audioPlayer" class="dialog-item button-flash" setting="radio" key="player" value="AudioPlayer">
+                <button class="dialog-item button-flash" setting="radio" key="player" value="AudioPlayer">
                     <icon>&#57361;</icon>
                     <locale key="settings.players.audio">Browser Audio</locale>
                     <icon class="right radio" checker>&#57371;</icon>
                 </button>
 
-                <button id="picoAudioPlayer" class="dialog-item button-flash" setting="radio" key="player" value="PicoAudioPlayer">
+                <button class="dialog-item button-flash" setting="radio" key="player" value="PicoAudioPlayer">
                     <icon>&#57364;</icon>
                     <locale key="settings.players.picoaudio">PicoAudio Synthesizer</locale>
                     <icon class="right radio" checker>&#57371;</icon>
@@ -206,7 +206,7 @@
             <section class="dialog-section" id="audio-section">
                 <locale class="dialog-subtitle" key="settings.audio">Browser Audio</locale>
 
-                <button id="midiSrc" class="dialog-item button-flash" setting="toggle" key="midisrc">
+                <button class="dialog-item button-flash" setting="toggle" key="midisrc">
                     <icon>&#57354;</icon>
                     <locale key="settings.audio.midi-src">Use MIDI as source</locale>
                     <icon class="right" checker>&#57362;</icon>
@@ -217,7 +217,7 @@
             <section class="dialog-section" id="picoaudio-section">
                 <locale class="dialog-subtitle" key="settings.picoaudio">PicoAudio</locale>
 
-                <button id="waveType" class="dialog-item button-flash" setting="toggle" key="waveType">
+                <button class="dialog-item button-flash" setting="toggle" key="waveType">
                     <icon>&#57353;</icon>
                     <locale key="settings.picoaudio.wave-type">Use better waveform</locale>
                     <icon class="right" checker>&#57362;</icon>
@@ -249,22 +249,22 @@
                     <icon class="right" checker>&#57362;</icon>
                 </button>
 
-                <button id="picoAudioMIDI" class="dialog-item button-flash" setting="toggle" key="webmidi">
+                <button class="dialog-item button-flash" setting="toggle" key="webmidi">
                     <icon>&#57370;</icon>
                     <locale key="settings.picoaudio.web-midi">Use Web MIDI Output</locale>
                     <icon class="right" checker>&#57362;</icon>
                 </button>
 
-                <a id="picoAudioMIDIDevice" class="dialog-item" setting="dropDown" key="lastMidiDevice">
+                <a class="dialog-item" setting="dropDown" key="lastMidiDevice">
                     <icon>&#57368;</icon>
-                    <locale key="settings.picoaudio.midi-devices">MIDI Device</locale><select id="devices"
-                        class="right"></select>
+                    <locale key="settings.picoaudio.midi-devices">MIDI Device</locale>
+                    <select class="right"></select>
                 </a>
 
-                <a id="picoAudioMIDILatency" class="dialog-item" setting="spinner" key="midiLatency">
+                <a class="dialog-item" setting="spinner" key="midiLatency">
                     <icon>&#57368;</icon>
                     <locale key="settings.picoaudio.midi-latency">MIDI Output Latency</locale>
-                    <input class="right" id="midiLatency" type="number" min="50" max="1500" step="10"
+                    <input class="right" type="number" min="50" max="1500" step="10"
                         value="100"></input>
                 </a>
             </section>
@@ -272,44 +272,44 @@
             <section class="dialog-section">
                 <locale class="dialog-subtitle" key="settings.piano-roll">Piano Roll</locale>
 
-                <a id="spanDurationSetting" class="dialog-item" setting="spinner" key="spanDuration">
+                <a class="dialog-item" setting="spinner" key="spanDuration">
                     <icon>&#57367;</icon>
                     <locale key="settings.piano-roll.span-duration">Span Duration</locale>
-                    <input class="right" id="spanDuration" type="number" min="0" max="10" step="0.1" value="4"></input>
+                    <input class="right" type="number" min="0" max="10" step="0.1" value="4"></input>
                 </a>
 
-                <a id="maxNoteDurationSetting" class="dialog-item" setting="spinner" key="maxNoteDuration">
+                <a class="dialog-item" setting="spinner" key="maxNoteDuration">
                     <icon>&#57367;</icon>
                     <locale key="settings.piano-roll.max-note-duration">Max Note Duration</locale>
-                    <input class="right" id="maxNoteDuration" type="number" min="1" max="60" step="1"
+                    <input class="right" type="number" min="1" max="60" step="1"
                         value="30"></input>
                 </a>
 
-                <button id="noteTransparency" class="dialog-item button-flash" setting="toggle" key="noteTransparency">
+                <button class="dialog-item button-flash" setting="toggle" key="noteTransparency">
                     <icon>&#57367;</icon>
                     <locale key="settings.piano-roll.note-transparency">Note translucence to velocity</locale>
                     <icon class="right" checker>&#57362;</icon>
                 </button>
 
-                <button id="highlightNotes" class="dialog-item button-flash" setting="toggle" key="highlightNotes">
+                <button class="dialog-item button-flash" setting="toggle" key="highlightNotes">
                     <icon>&#57367;</icon>
                     <locale key="settings.piano-roll.highlight-playing-notes">Highlight playing notes</locale>
                     <icon class="right" checker>&#57362;</icon>
                 </button>
 
-                <button id="prefmon" class="dialog-item button-flash" setting="toggle" key="prefmon">
+                <button class="dialog-item button-flash" setting="toggle" key="prefmon">
                     <icon>&#57367;</icon>
                     <locale key="settings.piano-roll.prefmon">Performance Monitor</locale>
                     <icon class="right" checker>&#57362;</icon>
                 </button>
 
-                <button id="showLyrics" class="dialog-item button-flash" setting="toggle" key="showLyrics">
+                <button class="dialog-item button-flash" setting="toggle" key="showLyrics">
                     <icon>&#57367;</icon>
                     <locale key="settings.piano-roll.show-lyrics">Show Lyrics</locale>
                     <icon class="right" checker>&#57362;</icon>
                 </button>
 
-                <a id="lyricsEncoding" class="dialog-item" setting="string" key="lyricsEncoding">
+                <a class="dialog-item" setting="string" key="lyricsEncoding">
                     <icon>&#57367;</icon>
                     <locale key="settings.piano-roll.lyrics-encoding">Lyrics Encoding</locale>
                     <input type="text" size="8" class="right input"></input>
