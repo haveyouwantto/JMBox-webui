@@ -270,11 +270,13 @@ function draw() {
                     
                     if(settings.detailedNotes){
                         canvasCtx.lineWidth = 1.5;
+                        const noteStartY = canvas.height - startY - keyboardHeight;
+                        const noteEndY = canvas.height - endY - keyboardHeight;
                         
                         if(note.holdBeforeStop&& note.holdBeforeStop.length > 0){
                             const endY2 =canvas.height - getY(note.stopTime,playTime,scaling) - keyboardHeight ;
                             canvasCtx.beginPath();
-                            canvasCtx.moveTo(x+noteWidth*0.5,  canvas.height - startY - keyboardHeight);
+                            canvasCtx.moveTo(x+noteWidth*0.5,  noteStartY);
                             canvasCtx.lineTo(x+noteWidth*0.5,  endY2);
                             canvasCtx.moveTo(x,  endY2);
                             canvasCtx.lineTo(x+noteWidth,  endY2);
@@ -290,8 +292,8 @@ function draw() {
                             let width = noteWidth;
                             let yRecord = [];
                             canvasCtx.beginPath();
-                            canvasCtx.moveTo(centerX,  canvas.height - startY - keyboardHeight);
-                            canvasCtx.lineTo(centerX+noteWidth,  canvas.height - startY - keyboardHeight);
+                            canvasCtx.moveTo(centerX,  noteStartY);
+                            canvasCtx.lineTo(centerX+noteWidth, noteStartY);
                             controls.forEach(control => {
                                 switch(control.t){
                                     case 0:
@@ -305,8 +307,8 @@ function draw() {
                                 canvasCtx.lineTo( centerX+width,currentY);
                                 yRecord.push([centerX,currentY])
                             });
-                            canvasCtx.lineTo(centerX+width,  canvas.height - endY - keyboardHeight);
-                            canvasCtx.lineTo(centerX,  canvas.height - endY - keyboardHeight);
+                            canvasCtx.lineTo(centerX+width,  noteEndY);
+                            canvasCtx.lineTo(centerX,  noteEndY);
                             yRecord.reverse().forEach(xy => {
                                 canvasCtx.lineTo(xy[0],xy[1]);
                             });
