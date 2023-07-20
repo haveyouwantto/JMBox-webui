@@ -313,7 +313,14 @@ export function drawFrame(){
                         });
                             
                         canvasCtx.closePath();
-                        canvasCtx.fill();
+                        if( settings.highlightNotes && note.startTime < playTime && stopTime > playTime){
+                            canvasCtx.fill();
+                            canvasCtx.fillStyle = '#ffffff60';
+                            canvasCtx.fill();
+                            canvasCtx.fillStyle = palette[i];
+                        }else{
+                            canvasCtx.fill();
+                        }
                 }
             }
         }
@@ -429,7 +436,7 @@ function draw() {
     if (!waterfall.classList.contains('hidden')) {
         
         drawFrame();
-        
+
         if (player.paused) {
             endAnimation();
         } else {
