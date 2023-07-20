@@ -342,7 +342,7 @@ export class JMBoxApp {
         navbar.setEventListener('menuitem', func => {
             switch (func) {
                 case 'refresh':
-                    this.list();
+                    this.list(true);
                     break;
                 case 'about':
                     aboutDialog();
