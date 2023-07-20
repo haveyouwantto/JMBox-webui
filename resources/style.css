@@ -381,7 +381,7 @@ input[type="number"]:focus,
     visibility: hidden;
     -webkit-appearance: none; /* Override default look */
     appearance: none;
-    height: 16px;
+    height: 24px;
     background-color: white;
     width: 0;
 }
@@ -390,7 +390,7 @@ input[type="number"]:focus,
 .slider input[type="range"]::-moz-range-thumb {
     visibility: hidden;
     appearance: none;
-    height: 16px;
+    height: 24px;
     background-color: white;
     width: 0;
   }
