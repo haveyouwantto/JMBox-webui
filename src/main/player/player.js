@@ -59,7 +59,7 @@ export default class Player {
      */
     seek(seconds) {
         // Implementation for seeking the audio to the specified seconds
-        this.listener.on('seek', seconds);
+        this.listener.on('timeupdate', seconds);
     }
 
     /**
