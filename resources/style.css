@@ -359,16 +359,13 @@ input[type="number"]:focus,
     position: relative;
 }
 
-#progress #bufferedtime {
+#bufferedtime {
     width: 0;
     background-color: #80808060;
     height: 100%;
     position: absolute;
     transition: width 0.2s;
-}
-
-#progress #playtime {
-    position: absolute;
+    pointer-events: none;
 }
 
 .slider input[type="range"] {
@@ -384,7 +381,7 @@ input[type="number"]:focus,
     visibility: hidden;
     -webkit-appearance: none; /* Override default look */
     appearance: none;
-    height: 8px;
+    height: 16px;
     background-color: white;
     width: 0;
 }
@@ -393,15 +390,14 @@ input[type="number"]:focus,
 .slider input[type="range"]::-moz-range-thumb {
     visibility: hidden;
     appearance: none;
-    height: 8px;
+    height: 16px;
     background-color: white;
     width: 0;
   }
 
 .slider input[type="range"]:focus-visible {
-    outline: 2px solid var(--text-color);
+    border: 2px solid var(--text-color);
 }
-
 .slider {
     height: 8px;
     cursor: pointer;
