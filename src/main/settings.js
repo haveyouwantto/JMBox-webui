@@ -7,7 +7,7 @@ const defaultValue = {
     showInfo: true,
     webmidi: false,
     midisrc: false,
-    player: "AudioPlayer",
+    player: "PicoAudioPlayer",
     playMode: 0,
     volume: 1,
 
@@ -33,6 +33,7 @@ const defaultValue = {
 }
 
 const settings = {};
+const prefix = 'jmbox';
 
 /**
  * Load configurations from disk
@@ -41,7 +42,7 @@ export function loadSettings() {
     const localStorage = window.localStorage;
     for (const key in defaultValue) {
         if (Object.hasOwnProperty.call(defaultValue, key)) {
-            const element = localStorage.getItem(key);
+            const element = localStorage.getItem(`${prefix}.${key}`);
             if (element == null) {
                 editSetting(key, defaultValue[key]);
             } else {
@@ -72,7 +73,7 @@ export function saveNow() {
     for (const key in settings) {
         if (Object.hasOwnProperty.call(settings, key)) {
             const element = settings[key];
-            localStorage.setItem(key, element);
+            localStorage.setItem(`${prefix}.${key}`, element);
         }
     }
     console.log("Settings saved.");

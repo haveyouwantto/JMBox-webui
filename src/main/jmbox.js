@@ -444,7 +444,6 @@ export class JMBoxApp {
         }
 
         document.addEventListener("keydown", event => {
-            console.log(event.key)
             switch (event.key.toLowerCase()) {
                 case " ":
                     event.preventDefault();
