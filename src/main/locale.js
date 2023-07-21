@@ -70,7 +70,11 @@ export function setLocale(language = 'en-US') {
                     currentLocale = json;
                     updateHTML();
                 })
+            } else {
+                setLocale()
             }
+        }).catch(e => {
+            setLocale();
         })
     }
 }
