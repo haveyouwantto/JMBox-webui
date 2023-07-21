@@ -69,5 +69,6 @@
     "player.failed": "Failed to play",
     "player.failed.description": "There's an error in playing this file.",
     "general.error": "Error",
-    "browser.not-found": "Directory not found."
+    "browser.not-found": "Directory not found.",
+    "browser.empty":"Empty"
 }

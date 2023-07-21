@@ -9,6 +9,7 @@ class FileList {
     #content = $("#content");
     #filelist = [];
     #events;
+    #empty = $("#empty");
 
     constructor() {
         this.sortFunc = sortName;
@@ -40,6 +41,11 @@ class FileList {
 
         this.#filelist.sort(this.sortFunc);
         if (this.reversed) this.#filelist.reverse();
+        
+        if (this.#filelist.length > 0)
+            this.#empty.style.display = "none";
+        else
+            this.#empty.style.display = "block";
 
         for (let element of this.#filelist) {
             let file = document.createElement("button");
