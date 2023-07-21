@@ -141,13 +141,32 @@ file-icon {
     margin: auto;
 }
 
-#empty {
+.center {
     position: fixed;
     top: 50%;
     left: 50%;
     color: var(--text-color);
     transform: translate(-50%, -50%);
     pointer-events: none;
+}
+
+#loading {
+    border: 0.4rem solid var(--bar-color);
+    border-radius: 50%;
+    border-top: 0.4rem solid var(--theme-color);
+    width: 2rem;
+    height: 2rem;
+    animation: spin 1s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+}
+
+@keyframes spin {
+    0% {
+        transform: rotate(0deg);
+    }
+
+    100% {
+        transform: rotate(360deg);
+    }
 }
 
 .menu-button {
@@ -388,7 +407,8 @@ input[type="number"]:focus,
 
 .slider input[type="range"]::-webkit-slider-thumb {
     visibility: hidden;
-    -webkit-appearance: none; /* Override default look */
+    -webkit-appearance: none;
+    /* Override default look */
     appearance: none;
     height: 24px;
     background-color: white;
@@ -402,11 +422,12 @@ input[type="number"]:focus,
     height: 24px;
     background-color: white;
     width: 0;
-  }
+}
 
 .slider input[type="range"]:focus-visible {
     border: 2px solid var(--text-color);
 }
+
 .slider {
     height: 8px;
     cursor: pointer;
@@ -424,7 +445,7 @@ input[type="number"]:focus,
 .slider-inner {
     width: 0;
     background-color: var(--theme-color);
-    
+
     position: absolute;
     height: 8px;
     align-self: center;

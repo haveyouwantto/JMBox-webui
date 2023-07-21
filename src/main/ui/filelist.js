@@ -10,6 +10,7 @@ class FileList {
     #filelist = [];
     #events;
     #empty = $("#empty");
+    #loading = $("#loading");
 
     constructor() {
         this.sortFunc = sortName;
@@ -31,6 +32,11 @@ class FileList {
         this.sortFunc = sorting[func];
     }
 
+    setLoading(value){
+        if(value) this.#loading.style.display = 'block';
+        else this.#loading.style.display = 'none';
+    }
+
     clear() {
         this.#content.innerHTML = '';
     }
@@ -41,7 +47,7 @@ class FileList {
 
         this.#filelist.sort(this.sortFunc);
         if (this.reversed) this.#filelist.reverse();
-        
+
         if (this.#filelist.length > 0)
             this.#empty.style.display = "none";
         else

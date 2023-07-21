@@ -79,6 +79,7 @@ export class JMBoxApp {
 
         if (this.cache.get(path) == null || ignoreCache) {
             filelist.clear();
+            filelist.setLoading(true)
             return fetch(this.baseUrl + "api/list" + path)
                 .then(response => {
                     if (response.ok) {
@@ -92,6 +93,8 @@ export class JMBoxApp {
                 .then(result => {
                     this.updateList(path, result, back);
                     this.cache.put(path, result);
+                }).finally(()=>{
+                    filelist.setLoading(false);
                 });
         }
         else {
