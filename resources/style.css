@@ -1,5 +1,5 @@
 :root {
-    --theme-color: #00796b;
+    --theme-color: #008577;
 
     --text-color: #202020;
     --bg-color: white;
@@ -9,11 +9,11 @@
     --fill-color: #f0f0f0;
     --transparent-bg-color: #ffffffa0;
 
-    --theme-color-80: #00796b80;
-    --theme-color-60: #00796b60;
-    --theme-color-50: #00796b50;
-    --theme-color-40: #00796b40;
-    --theme-color-20: #00796b20;
+    --theme-color-80: #00857780;
+    --theme-color-60: #00857760;
+    --theme-color-50: #00857750;
+    --theme-color-40: #00857740;
+    --theme-color-20: #00857720;
 
     overflow-x: hidden;
 }
