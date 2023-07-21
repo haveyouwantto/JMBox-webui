@@ -275,7 +275,7 @@ export function drawFrame(){
                     if(note.holdBeforeStop&& note.holdBeforeStop.length > 0){
                         const endY2 =canvas.height - getY(note.stopTime,playTime,scaling) - keyboardHeight ;
                         canvasCtx.beginPath();
-                        canvasCtx.moveTo(x+noteWidth*0.5,  noteStartY);
+                        canvasCtx.moveTo(x+noteWidth*0.5,  noteEndY);
                         canvasCtx.lineTo(x+noteWidth*0.5,  endY2);
                         canvasCtx.moveTo(x,  endY2);
                         canvasCtx.lineTo(x+noteWidth,  endY2);
