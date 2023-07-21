@@ -135,8 +135,8 @@
         <div id="empty" class="center">
             <locale key="browser.empty"></locale>
         </div>
-        <div id="loading" class="center">
-            
+        <div class="center">
+            <div id="loading"></div>
         </div>
         <div id="content"></div>
     </div>
@@ -239,15 +239,13 @@
                 <a class="dialog-item" setting="spinner" key="basePitch">
                     <icon>&#57367;</icon>
                     <locale key="settings.picoaudio.base-pitch"></locale>
-                    <input class="right" type="number" min="410" max="480" step="1"
-                        value="440"></input>
+                    <input class="right" type="number" min="410" max="480" step="1" value="440"></input>
                 </a>
 
                 <a class="dialog-item" setting="spinner" key="maxPolyphony">
                     <icon>&#57367;</icon>
                     <locale key="settings.picoaudio.max-polyphony"></locale>
-                    <input class="right" type="number" min="-1" max="500" step="1"
-                        value="-1"></input>
+                    <input class="right" type="number" min="-1" max="500" step="1" value="-1"></input>
                 </a>
 
                 <button class="dialog-item button-flash" setting="toggle" key="skipBeginning">
@@ -277,8 +275,7 @@
                 <a class="dialog-item" setting="spinner" key="midiLatency">
                     <icon>&#57368;</icon>
                     <locale key="settings.picoaudio.midi-latency">MIDI Output Latency</locale>
-                    <input class="right" type="number" min="50" max="1500" step="10"
-                        value="100"></input>
+                    <input class="right" type="number" min="50" max="1500" step="10" value="100"></input>
                 </a>
             </section>
 
@@ -294,8 +291,7 @@
                 <a class="dialog-item" setting="spinner" key="maxNoteDuration">
                     <icon>&#57367;</icon>
                     <locale key="settings.piano-roll.max-note-duration">Max Note Duration</locale>
-                    <input class="right" type="number" min="1" max="60" step="1"
-                        value="30"></input>
+                    <input class="right" type="number" min="1" max="60" step="1" value="30"></input>
                 </a>
 
                 <button class="dialog-item button-flash" setting="toggle" key="noteTransparency">
@@ -303,7 +299,7 @@
                     <locale key="settings.piano-roll.note-transparency">Note translucence to velocity</locale>
                     <icon class="right" checker>&#57362;</icon>
                 </button>
-                
+
                 <button class="dialog-item button-flash" setting="toggle" key="detailedNotes">
                     <icon>&#57367;</icon>
                     <locale key="settings.piano-roll.detailed-notes">Draw detailed note controls</locale>
