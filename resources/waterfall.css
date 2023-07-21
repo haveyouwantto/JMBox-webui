@@ -8,11 +8,6 @@
     /* backdrop-filter: blur(8px); */
 }
 
-#waterfall.fancy {
-    background-color: unset;
-    backdrop-filter: blur(8px);
-}
-
 #waterfall canvas {
     width: 100%;
     height: 100%;
