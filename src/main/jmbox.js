@@ -132,7 +132,7 @@ export class JMBoxApp {
     }
 
     play(name) {
-        this.load(name).then(() => this.player.play());
+        this.load(name).then(() => this.player.play()).catch(e=>console.log(e));
     }
 
     createPlayer(name) {
@@ -192,7 +192,15 @@ export class JMBoxApp {
                 default:
                     break;
             }
-        })
+        });
+
+        this.player.setEventListener('error', url => {
+            dialog.clear()
+            dialog.setTitleElement(createLocaleItem('general.error'));
+            dialog.addText(url);
+            dialog.closeAfter(5000);
+            dialog.setVisible(true);
+        });
 
         waterfall.setPlayer(this.player)
         if (this.playlist) {

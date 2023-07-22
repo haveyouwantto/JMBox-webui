@@ -6,6 +6,7 @@ const closeDialogButton = $("#close-dialog-button");
 const dialogTitle = dialog.querySelector('.title');
 const dialogContent = dialog.querySelector('.dialog-container');
 
+let timeoutId = null;
 
 dialog.addEventListener('animationend', function () {
     if (dialog.classList.contains('fade-out')) {
@@ -19,7 +20,7 @@ closeDialogButton.addEventListener('click', () => {
     dialog.classList.add('fade-out');
 });
 
-export function clear(){
+export function clear() {
     dialogTitle.innerText = '';
     dialogContent.innerHTML = '';
 }
@@ -45,6 +46,10 @@ export function setVisible(visible) {
     if (visible) {
         dialog.showModal();
     } else {
+        if (timeoutId) { 
+            clearTimeout(timeoutId); 
+            timeoutId = null 
+        }
         dialog.classList.add('fade-out')
     }
 }
@@ -55,4 +60,9 @@ export function createDialogItem(content, button = false) {
     if (content != null)
         a.innerHTML = content;
     return a;
+}
+
+
+export function closeAfter(ms) {
+    timeoutId = setTimeout(setVisible, ms, false)
 }

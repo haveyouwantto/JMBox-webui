@@ -33,7 +33,10 @@ export default class PicoAudioPlayer extends Player {
     load(url) {
         this.stop();
         this.listener.on('timeupdate', 0);
-        return loadMIDI(url);
+        return loadMIDI(url).catch(e=>{
+            this.listener.on('error', e);
+            return Promise.reject(e)
+        });
     }
 
     loadPath(baseUrl, path) {
