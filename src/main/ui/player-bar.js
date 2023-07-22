@@ -28,6 +28,7 @@ const altText = playModeAltButton.querySelector('locale');
 const bottomMenuBtn = $("#bottomMenuBtn");
 const bottomMenu = $("#bottomMenu");
 const collapse = $("#collapse");
+const playerLoading = $("#player-loading");
 
 let currentDuration = 0;
 let playerAdapter = new EventListener();
@@ -117,6 +118,14 @@ function setBottomMenuVisible(visible) {
         bottomMenu.classList.remove('bottom-menu-visible');
         bottomMenu.classList.add('bottom-menu-hidden');
         collapse.classList.add('hidden')
+    }
+}
+
+export function setPlayerLoading(value) {
+    if (value) {
+        progressBarInner.classList.add('player-loading');
+    } else {
+        progressBarInner.classList.remove('player-loading')
     }
 }
 

@@ -91,12 +91,12 @@ export class JMBoxApp {
                 .then(result => {
                     this.updateList(path, result, back);
                     this.cache.put(path, result);
-                }).catch(e=>{
+                }).catch(e => {
                     dialog.clear()
                     dialog.setTitleElement(createLocaleItem('general.error'));
                     dialog.addText(e);
                     dialog.setVisible(true);
-                }).finally(()=>{
+                }).finally(() => {
                     filelist.setLoading(false);
                 });
         }
@@ -126,13 +126,18 @@ export class JMBoxApp {
         }
 
         playerBar.setMIDIDownload(this.baseUrl, path);
+        playerBar.setPlayerLoading(true)
 
         if (!(this.player instanceof PicoAudioPlayer)) loadMIDI(this.baseUrl + "api/midi" + path);
-        return this.player.loadPath(this.baseUrl, path);
+        return this.player.loadPath(this.baseUrl, path).finally(e => {
+            playerBar.setPlayerLoading(false)
+        });
     }
 
     play(name) {
-        this.load(name).then(() => this.player.play()).catch(e=>console.log(e));
+        this.load(name).then(() => {
+            this.player.play();
+        }).catch(e => console.log(e));
     }
 
     createPlayer(name) {
@@ -194,10 +199,10 @@ export class JMBoxApp {
             }
         });
 
-        this.player.setEventListener('error', url => {
+        this.player.setEventListener('error', e => {
             dialog.clear()
             dialog.setTitleElement(createLocaleItem('general.error'));
-            dialog.addText(url);
+            dialog.addText(e);
             // dialog.closeAfter(5000);
             dialog.setVisible(true);
         });

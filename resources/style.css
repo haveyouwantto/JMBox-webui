@@ -452,6 +452,36 @@ input[type="number"]:focus,
     pointer-events: none;
 }
 
+.player-loading {
+    position: absolute;
+    background-color: var(--theme-color-80);
+    height: 100%;
+    pointer-events: none;
+    animation: linear-progress 2s ease-in-out infinite;
+}
+
+@keyframes linear-progress {
+    0% {
+        left: -30%;
+        width: 30%;
+    }
+
+    50% {
+        left: 100%;
+        width: 80%;
+    }
+
+    50.001% {
+        left: -100%;
+        width: 80%;
+    }
+
+    100% {
+        left: 100%;
+        width: 10%;
+    }
+}
+
 #volume {
     width: 9rem;
     height: 8px;
