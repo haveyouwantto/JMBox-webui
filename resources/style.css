@@ -151,11 +151,11 @@ file-icon {
 }
 
 #loading {
-    border: 0.4rem solid var(--bar-color);
+    border: 6px solid var(--bar-color);
     border-radius: 50%;
-    border-top: 0.4rem solid var(--theme-color);
-    width: 2rem;
-    height: 2rem;
+    border-top: 6px solid var(--theme-color);
+    width: 48px;
+    height: 48px;
     animation: spin 1.25s cubic-bezier(0.4, 0, 0.2, 1) infinite;
 }
 
