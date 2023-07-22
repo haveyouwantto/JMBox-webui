@@ -8,7 +8,7 @@ import * as waterfall from './ui/waterfall'
 import Playlist from "./player/playlist";
 import { $ } from "./utils";
 import { editSetting, loadSettings, settingChangeListener, settings } from "./settings";
-import { localeInit, setLocale } from "./locale";
+import { createLocaleItem, localeInit, setLocale, getLocale } from "./locale";
 import { aboutDialog, languageDialog, midiInfoDialog, playModeSelectionDialog } from "./ui/quick-dialog";
 import { setDarkMode } from "./ui/ui-etc";
 import picoAudio, { loadMIDI, smfData } from "./picoaudio";
@@ -85,14 +85,17 @@ export class JMBoxApp {
                     if (response.ok) {
                         return response.json();
                     } else {
-                        dialog.setTitleElement(createLocaleItem('general.error'));
-                        dialog.addText(getLocale('browser.not-found'));
-                        dialog.setVisible(true);
+                        return Promise.reject(getLocale('browser.not-found'))
                     }
                 })
                 .then(result => {
                     this.updateList(path, result, back);
                     this.cache.put(path, result);
+                }).catch(e=>{
+                    dialog.clear()
+                    dialog.setTitleElement(createLocaleItem('general.error'));
+                    dialog.addText(e);
+                    dialog.setVisible(true);
                 }).finally(()=>{
                     filelist.setLoading(false);
                 });
