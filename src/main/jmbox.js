@@ -198,7 +198,7 @@ export class JMBoxApp {
             dialog.clear()
             dialog.setTitleElement(createLocaleItem('general.error'));
             dialog.addText(url);
-            dialog.closeAfter(5000);
+            // dialog.closeAfter(5000);
             dialog.setVisible(true);
         });
 

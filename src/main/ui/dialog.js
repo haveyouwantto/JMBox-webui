@@ -48,8 +48,8 @@ export function setVisible(visible) {
     } else {
         if (timeoutId) { 
             clearTimeout(timeoutId); 
-            timeoutId = null 
         }
+        timeoutId = null 
         dialog.classList.add('fade-out')
     }
 }
