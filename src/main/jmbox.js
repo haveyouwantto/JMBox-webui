@@ -78,7 +78,6 @@ export class JMBoxApp {
         const path = this.pathman.getPath();
 
         if (this.cache.get(path) == null || ignoreCache) {
-            filelist.clear();
             filelist.setLoading(true)
             return fetch(this.baseUrl + "api/list" + path)
                 .then(response => {
@@ -105,9 +104,10 @@ export class JMBoxApp {
         }
     }
 
-    updateList(path, result, back = false) {
-        if (!back) history.pushState({ page: 1 }, this.serverName, ("#!" + path));
+    updateList(path, result, recordHistory = false) {
+        if (!recordHistory) history.pushState({ page: 1 }, this.serverName, ("#!" + path));
         return new Promise((resolve, reject) => {
+            filelist.clear();
             filelist.setFilelist(result);
 
             this.cwd = new Playlist(path, filelist.load());
@@ -378,6 +378,18 @@ export class JMBoxApp {
                     break;
             }
         })
+        navbar.setEventListener('filteropen', e => {
+            const result = this.cache.get(this.pathman.getPath()).filter(f => f.name.toLowerCase().search(e.toLowerCase()) >= 0)
+            this.updateList(this.cwd.path, result, true)
+        })
+        navbar.setEventListener('filterclose', e => {
+            this.updateList(this.cwd.path, this.cwd.list, true)
+        })
+
+        navbar.setEventListener('filter', e => {
+            const result = this.cache.get(this.pathman.getPath()).filter(f => f.name.toLowerCase().search(e.toLowerCase()) >= 0)
+            this.updateList(this.cwd.path, result, true)
+        })
 
         settingChangeListener.setEventListener('settingchange', e => {
             console.log(e);
@@ -462,24 +474,24 @@ export class JMBoxApp {
             this.list(false, true);
         }
 
-        document.addEventListener("keydown", event => {
-            switch (event.key.toLowerCase()) {
-                case " ":
-                    event.preventDefault();
-                    if (this.player.paused) this.player.play()
-                    else this.player.pause();
-                    break;
-                case "a":
-                    this.play(this.playlist.prev().name);
-                    event.preventDefault();
-                    break
-                case "d":
-                    this.play(this.playlist.next().name);
-                    event.preventDefault();
-                    break
-                default:
-                    break;
-            }
-        });
+        // document.addEventListener("keydown", event => {
+        //     switch (event.key.toLowerCase()) {
+        //         case " ":
+        //             event.preventDefault();
+        //             if (this.player.paused) this.player.play()
+        //             else this.player.pause();
+        //             break;
+        //         case "a":
+        //             this.play(this.playlist.prev().name);
+        //             event.preventDefault();
+        //             break
+        //         case "d":
+        //             this.play(this.playlist.next().name);
+        //             event.preventDefault();
+        //             break
+        //         default:
+        //             break;
+        //     }
+        // });
     }
 }

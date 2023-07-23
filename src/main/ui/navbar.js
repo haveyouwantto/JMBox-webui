@@ -12,6 +12,12 @@ class NavBar {
     #menuBtn = this.#nav.querySelector("#menu");
     #menu = $("#topMenu");
 
+    #filter = $('#filter')
+    #filterInput = $('#filter-input')
+    #close = $('#close');
+
+    #backBtnVisible = false;
+
     #events;
     constructor() {
         this.#events = new EventListener();
@@ -34,6 +40,21 @@ class NavBar {
                 this.setMenuVisibility(false);
             })
         });
+
+        this.#filter.addEventListener('click', () => {
+            this.#events.on('filteropen', this.#filterInput.value)
+            this.setFilterVisibility(true)
+        })
+
+        this.#filterInput.addEventListener('input', e => {
+            this.#events.on('filter', this.#filterInput.value)
+            e.stopPropagation();
+        })
+
+        this.#close.addEventListener('click', () => {
+            this.#events.on('filterclose')
+            this.setFilterVisibility(false)
+        })
     }
 
     setTitle(text) {
@@ -56,6 +77,7 @@ class NavBar {
         else {
             this.#backBtn.classList.add('hidden');
         }
+        this.#backBtnVisible = visible;
     }
 
     setMenuVisibility(visible) {
@@ -68,6 +90,22 @@ class NavBar {
             this.#menu.classList.remove('menu-visible');
             this.#menu.classList.add('menu-hidden');
             this.#collapse.classList.add('hidden');
+        }
+    }
+
+    setFilterVisibility(value) {
+        if (value) {
+            this.#title.classList.add('hidden');
+            this.#close.classList.remove('hidden');
+            this.#filter.classList.add('hidden');
+            this.#filterInput.classList.remove('hidden');
+            if (this.#backBtnVisible) this.#backBtn.classList.add('hidden')
+        } else {
+            this.#title.classList.remove('hidden');
+            this.#close.classList.add('hidden');
+            this.#filter.classList.remove('hidden');
+            this.#filterInput.classList.add('hidden');
+            if (this.#backBtnVisible) this.#backBtn.classList.remove('hidden')
         }
     }
 

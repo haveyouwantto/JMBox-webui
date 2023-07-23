@@ -46,4 +46,8 @@ export default class Playlist {
     get path(){
         return this.#path;
     }
+
+    get list(){
+        return this.#list;
+    }
 }
