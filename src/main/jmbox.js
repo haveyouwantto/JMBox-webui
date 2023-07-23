@@ -379,15 +379,19 @@ export class JMBoxApp {
             }
         })
         navbar.setEventListener('filteropen', e => {
-            const result = this.cache.get(this.pathman.getPath()).filter(f => f.name.toLowerCase().search(e.toLowerCase()) >= 0)
+            const path = this.pathman.getPath();
+            const result = this.cache.get(path).filter(f => f.name.toLowerCase().search(e.toLowerCase()) >= 0)
             this.updateList(this.cwd.path, result, true)
         })
         navbar.setEventListener('filterclose', e => {
-            this.updateList(this.cwd.path, this.cwd.list, true)
+            const path = this.pathman.getPath();
+            const result = this.cache.get(path)
+            this.updateList(path, result, true)
         })
 
         navbar.setEventListener('filter', e => {
-            const result = this.cache.get(this.pathman.getPath()).filter(f => f.name.toLowerCase().search(e.toLowerCase()) >= 0)
+            const path = this.pathman.getPath();
+            const result = this.cache.get(path).filter(f => f.name.toLowerCase().search(e.toLowerCase()) >= 0)
             this.updateList(this.cwd.path, result, true)
         })
 
