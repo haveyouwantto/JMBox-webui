@@ -380,7 +380,7 @@ export class JMBoxApp {
         })
         navbar.setEventListener('filteropen', e => {
             const path = this.pathman.getPath();
-            const result = this.cache.get(path).filter(f => f.name.toLowerCase().search(e.toLowerCase()) >= 0)
+            const result = this.cache.get(path).filter(f => f.name.toLowerCase().includes(e.toLowerCase()))
             this.updateList(this.cwd.path, result, true)
         })
         navbar.setEventListener('filterclose', e => {
@@ -391,7 +391,7 @@ export class JMBoxApp {
 
         navbar.setEventListener('filter', e => {
             const path = this.pathman.getPath();
-            const result = this.cache.get(path).filter(f => f.name.toLowerCase().search(e.toLowerCase()) >= 0)
+            const result = this.cache.get(path).filter(f => f.name.toLowerCase().includes(e.toLowerCase()))
             this.updateList(this.cwd.path, result, true)
         })
 
