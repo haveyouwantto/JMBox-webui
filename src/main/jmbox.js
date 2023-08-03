@@ -15,6 +15,7 @@ import picoAudio, { loadMIDI, smfData } from "./picoaudio";
 import { setDropDownItems, setSettingItemEnabled, setSettingsDialogVisible, updateSettingsItem } from "./ui/settings-dialog";
 import players from "./player/player-registry";
 import PicoAudioPlayer from "./player/picoaudio-player";
+import renderAndDownload from "./wav-render";
 
 export class JMBoxApp {
     constructor(baseUrl = '') {
@@ -327,6 +328,11 @@ export class JMBoxApp {
                 case 'replay':
                     this.player.replay();
                     break;
+
+                case 'render':
+                    if (picoAudio.playData) {
+                        renderAndDownload(this.playlist.current().name + '.wav');
+                    }
 
                 default:
                     break;

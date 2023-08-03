@@ -13,6 +13,7 @@
     "menu.play-mode.list-looped": "List Looped",
     "menu.replay": "Replay",
     "menu.languages": "Languages",
+    "menu.render":"Render to audio",
     "settings.title": "Settings",
     "settings.general": "General",
     "settings.general.dark-mode": "Dark mode",

@@ -13,6 +13,7 @@
     "menu.play-mode.list-looped": "列表循环",
     "menu.replay": "重播",
     "menu.languages": "语言",
+    "menu.render": "渲染为音频",
     "settings.title": "设置",
     "settings.general": "通用",
     "settings.general.dark-mode": "深色模式",
