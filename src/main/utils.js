@@ -106,3 +106,10 @@ export function generateWav(audioBuffer) {
 
     return bytes
 }
+
+function setString(dataView, byteOffset, string) {
+    const encoder = new TextEncoder('utf-8');
+    encoder.encode(string).forEach((e, i) => {
+        dataView.setUint8(byteOffset + i, e)
+    });
+}
