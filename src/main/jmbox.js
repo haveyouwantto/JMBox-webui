@@ -78,6 +78,7 @@ export class JMBoxApp {
         const path = this.pathman.getPath();
 
         if (this.cache.get(path) == null || ignoreCache) {
+            filelist.clear();
             filelist.setLoading(true)
             return fetch(this.baseUrl + "api/list" + path)
                 .then(response => {
