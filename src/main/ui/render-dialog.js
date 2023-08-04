@@ -24,7 +24,8 @@ dialog.addEventListener('animationend', function () {
     }
 });
 
-startRenderButton.addEventListener('click',()=>{
+startRenderButton.addEventListener('click', () => {
+    download.classList.add('hidden')
     renderListener.on('start')
 })
 
@@ -36,7 +37,7 @@ export function setProgress(percentage) {
     progressBar.style.width = (percentage * 100) + '%'
 }
 
-export function setStartButtonEnabled(value){
+export function setStartButtonEnabled(value) {
     startRenderButton.disabled = !value
 }
 
@@ -56,22 +57,22 @@ export function closeAfter(ms) {
     timeoutId = setTimeout(setVisible, ms, false)
 }
 
-export function setTime(s){
+export function setTime(s) {
     timeDisplay.innerText = formatTime(s)
 }
 
-export function setDuration(s){
+export function setDuration(s) {
     durationDisplay.innerText = formatTime(s)
 }
 
-export function setName(name){
+export function setName(name) {
     rendering.innerText = name;
 }
 
-export function setDownload(url,name){
+export function setDownload(url, name) {
     download.href = url;
     download.download = name;
     download.classList.remove('hidden')
 }
 
-export {renderListener}
+export { renderListener }
