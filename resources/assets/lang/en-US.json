@@ -13,7 +13,7 @@
     "menu.play-mode.list-looped": "List Looped",
     "menu.replay": "Replay",
     "menu.languages": "Languages",
-    "menu.render":"Render to audio",
+    "menu.render": "Render to audio",
     "settings.title": "Settings",
     "settings.general": "General",
     "settings.general.dark-mode": "Dark mode",
@@ -46,7 +46,7 @@
     "settings.piano-roll.span-duration": "Span duration",
     "settings.piano-roll.max-note-duration": "Max note duration",
     "settings.piano-roll.note-transparency": "Note translucence to velocity",
-    "settings.piano-roll.detailed-notes":"Draw detailed note controls",
+    "settings.piano-roll.detailed-notes": "Draw detailed note controls",
     "settings.piano-roll.highlight-playing-notes": "Highlight playing notes",
     "settings.piano-roll.show-note-counter": "Show note counter",
     "settings.piano-roll.prefmon": "Performance Monitor",
@@ -54,6 +54,10 @@
     "settings.piano-roll.lyrics-encoding": "Lyrics encoding",
     "settings.close-btn": "Close",
     "dialog.close-btn": "Close",
+    "render.title": "Render",
+    "render.start-render": "Start",
+    "render.current": "Rendering: ",
+    "render.download": "Download",
     "about.title": "About",
     "about.name": "Web App",
     "about.version": "Version",
@@ -71,5 +75,5 @@
     "player.failed.description": "There's an error in playing this file.",
     "general.error": "Error",
     "browser.not-found": "Directory not found.",
-    "browser.empty":"Empty"
+    "browser.empty": "Empty"
 }

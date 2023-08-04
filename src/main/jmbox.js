@@ -1,6 +1,7 @@
 import FileCache from "./files/filecache";
 import PathMan from "./files/pathman";
 import * as dialog from "./ui/dialog";
+import * as renderDialog from "./ui/render-dialog"
 import { filelist } from "./ui/filelist";
 import { navbar } from "./ui/navbar";
 import * as playerBar from "./ui/player-bar";
@@ -330,10 +331,7 @@ export class JMBoxApp {
                     break;
 
                 case 'render':
-                    if (picoAudio.playData) {
-                        renderAndDownload(this.playlist.current().name + '.wav');
-                    }
-
+                    renderDialog.setVisible(true);
                 default:
                     break;
             }
@@ -458,6 +456,24 @@ export class JMBoxApp {
             }
             updateSettingsItem(e.key, e.value);
         });
+
+
+        renderDialog.renderListener.setEventListener('start', e => {
+            if (picoAudio.playData) {
+                renderDialog.setStartButtonEnabled(false)
+                renderDialog.setDuration(picoAudio.playData.lastEventTime)
+                renderDialog.setName(this.playlist.current().name)
+                renderAndDownload((time, length) => {
+                    renderDialog.setProgress(Math.min(time / length, 1))
+                    renderDialog.setTime(Math.min(time, length))
+                }).then(blob => {
+                    console.log(blob)
+                    renderDialog.setDownload(blob, this.playlist.current().name + '.wav')
+                    renderDialog.setStartButtonEnabled(true);
+                    renderDialog.setName('')
+                })
+            }
+        })
 
 
         if ('mediaSession' in navigator) {

@@ -464,6 +464,11 @@ input[type="number"]:focus,
     pointer-events: none;
 }
 
+#render-dialog .slider {
+    margin-left: 16px;
+    margin-right: 16px;
+}
+
 .player-loading {
     position: absolute;
     background-color: var(--theme-color-80);
@@ -549,11 +554,15 @@ input[type="number"]:focus,
     color: var(--theme-color);
 }
 
-#time {
+.time {
     display: flex;
     font-size: 16px;
     margin-left: 8px;
     color: var(--text-color);
+}
+
+dialog .time {
+    margin-left: unset;
 }
 
 .seperater {
@@ -696,9 +705,23 @@ dialog.fade-out::backdrop {
     transition: background-color 0.15s;
 }
 
+a.dialog-button {
+    text-decoration: none;
+}
+
 .dialog-button:hover {
     background-color: var(--theme-color-20);
 }
+
+.dialog-button:disabled {
+    color: gray;
+    cursor: default;
+}
+
+.dialog-button:disabled:hover {
+    background-color: unset;
+}
+
 
 .dialog-button-container {
     display: flex;
@@ -946,7 +969,7 @@ html::-webkit-scrollbar-track {
 }
 
 @media only screen and (max-width: 512px) {
-    #time {
+    .time {
         display: none;
     }
 
