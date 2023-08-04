@@ -4,7 +4,7 @@ import PicoAudio from '../../lib/PicoAudio/dist/nodejs/picoaudio.mjs';
 export default function renderAndDownload(progressFunc) {
     const length = picoAudio.playData.lastEventTime
     const sr = picoAudio.context.sampleRate;
-    const ctx = new OfflineAudioContext(2, sr * length * 2, sr)
+    const ctx = new OfflineAudioContext(2, sr * length, sr)
     const picoAudioRender = new PicoAudio({ audioContext: ctx });
     for (let key in picoAudio.settings) picoAudioRender.settings[key] = picoAudio.settings[key];
     picoAudioRender.setData(picoAudio.playData);
@@ -30,12 +30,13 @@ export function generateWav(audioBuffer) {
 
     const bytesPerSample = 2 * 4;
     const filesize = audioBuffer.length * bytesPerSample + 44;
+    console.log(bytesPerSample,filesize)
 
     const bytes = new ArrayBuffer(filesize);
     const view = new DataView(bytes);
 
     setString(view, 0, 'RIFF')
-    view.setUint32(4, 36 + audioBuffer.length * 4, true);
+    view.setUint32(4, 36 + audioBuffer.length * bytesPerSample, true);
     setString(view, 8, 'WAVEfmt ')
     view.setUint32(16, 16, true)  // meta length
 
@@ -47,7 +48,7 @@ export function generateWav(audioBuffer) {
     view.setUint16(34, 32, true)   // bits per sample
 
     setString(view, 36, 'data')
-    view.setUint32(40, audioBuffer.length * 4, true)   // length
+    view.setUint32(40, audioBuffer.length * bytesPerSample, true)   // length
 
     for (let i = 0; i < audioBuffer.length; i++) {
         view.setFloat32(44 + i * bytesPerSample, a[i], true)
