@@ -923,7 +923,7 @@ html::-webkit-scrollbar-track {
         overflow-wrap: anywhere;
     }
 
-    .seperater,
+    #playTimeSep,
     #durationDisplay {
         display: none;
     }
@@ -969,7 +969,7 @@ html::-webkit-scrollbar-track {
 }
 
 @media only screen and (max-width: 512px) {
-    .time {
+    #time {
         display: none;
     }
 
