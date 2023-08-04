@@ -28,29 +28,30 @@ export default function renderAndDownload(progressFunc) {
 export function generateWav(audioBuffer) {
     let a = audioBuffer.getChannelData(0), b = audioBuffer.getChannelData(1);
 
-    const filesize = audioBuffer.length * 4 + 44;
+    const bytesPerSample = 2 * 4;
+    const filesize = audioBuffer.length * bytesPerSample + 44;
 
     const bytes = new ArrayBuffer(filesize);
     const view = new DataView(bytes);
 
     setString(view, 0, 'RIFF')
-    view.setUint32(4, filesize, true);
+    view.setUint32(4, 36 + audioBuffer.length * 4, true);
     setString(view, 8, 'WAVEfmt ')
     view.setUint32(16, 16, true)  // meta length
 
-    view.setUint16(20, 1, true)   // type: pcm
+    view.setInt16(20, 3, true)   // type: pcm float
     view.setUint16(22, 2, true)   // channels
-    view.setUint32(24, audioBuffer.sampleRate, true)   // samplerate
-    view.setUint32(28, audioBuffer.sampleRate * 2 * 2, true)    // byte rate
-    view.setUint16(32, 4, true)   // block align
-    view.setUint16(34, 16, true)   // bits per sample
+    view.setUint32(24, audioBuffer.sampleRate, true)   // sample rate
+    view.setUint32(28, audioBuffer.sampleRate * bytesPerSample, true)    // byte rate
+    view.setUint16(32, bytesPerSample, true)   // block align
+    view.setUint16(34, 32, true)   // bits per sample
 
     setString(view, 36, 'data')
-    view.setUint32(40, audioBuffer.length * 2, true)   // length
+    view.setUint32(40, audioBuffer.length * 4, true)   // length
 
     for (let i = 0; i < audioBuffer.length; i++) {
-        view.setInt16(44 + i * 4, parseInt(a[i] * 32768), true)
-        view.setInt16(46 + i * 4, parseInt(b[i] * 32768), true)
+        view.setFloat32(44 + i * bytesPerSample, a[i], true)
+        view.setFloat32(48 + i * bytesPerSample, b[i], true)
     }
 
     return bytes
