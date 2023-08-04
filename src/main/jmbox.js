@@ -460,15 +460,16 @@ export class JMBoxApp {
 
         renderDialog.renderListener.setEventListener('start', e => {
             if (picoAudio.playData) {
+                const name = this.playlist.current().name
                 renderDialog.setStartButtonEnabled(false)
                 renderDialog.setDuration(picoAudio.playData.lastEventTime)
-                renderDialog.setName(this.playlist.current().name)
+                renderDialog.setName(name)
                 renderAndDownload((time, length) => {
                     renderDialog.setProgress(Math.min(time / length, 1))
                     renderDialog.setTime(Math.min(time, length))
                 }).then(blob => {
                     console.log(blob)
-                    renderDialog.setDownload(blob, this.playlist.current().name + '.wav')
+                    renderDialog.setDownload(blob, name + '.wav')
                     renderDialog.setStartButtonEnabled(true);
                     renderDialog.setName('')
                 })
