@@ -13,6 +13,7 @@
   "menu.play-mode.list-looped": "リストループ",
   "menu.replay": "再生",
   "menu.languages": "言語",
+  "menu.render": "オーディオにレンダリング",
   "settings.title": "設定",
   "settings.general": "一般",
   "settings.general.dark-mode": "ダークモード",
@@ -45,12 +46,17 @@
   "settings.piano-roll.span-duration": "区間の長さ",
   "settings.piano-roll.max-note-duration": "最大音符の長さ",
   "settings.piano-roll.note-transparency": "音符の力度が透明度を決定する",
+  "settings.piano-roll.detailed-notes": "詳細な音符コントロールを描画する",
   "settings.piano-roll.highlight-playing-notes": "演奏音符のハイライト表示",
   "settings.piano-roll.prefmon": "パフォーマンスモニター",
   "settings.piano-roll.show-lyrics": "歌詞の表示",
   "settings.piano-roll.lyrics-encoding": "歌詞のエンコーディング",
   "settings.close-btn": "閉じる",
   "dialog.close-btn": "閉じる",
+  "render.title": "レンダリング",
+  "render.start-render": "開始",
+  "render.current": "レンダリング中：",
+  "render.download": "ダウンロード",
   "about.title": "について",
   "about.name": "ウェブアプリ",
   "about.version": "バージョン",
@@ -67,5 +73,6 @@
   "player.failed": "再生に失敗しました",
   "player.failed.description": "このファイルを再生する際にエラーが発生しました。",
   "general.error": "エラー",
-  "browser.not-found": "ディレクトリが見つかりません。"
+  "browser.not-found": "ディレクトリが見つかりません。",
+  "browser.empty":"空"
 }

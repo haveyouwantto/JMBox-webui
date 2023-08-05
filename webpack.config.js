@@ -42,9 +42,6 @@ module.exports = {
       new JsonMinimizerPlugin()
     ]
   },
-  devServer: {
-    static: "./dist"
-  },
   module: {
     rules: [
       {

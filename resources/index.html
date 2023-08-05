@@ -80,9 +80,9 @@
                 <button id="prev" class="icon round bottom-button controls">&#57346;</button>
                 <button id="play" class="icon round bottom-button controls">&#57344;</button>
                 <button id="next" class="icon round bottom-button controls">&#57345;</button>
-                <div id="time">
+                <div id="time" class="time">
                     <div id="timeDisplay">00:00</div>
-                    <div class="seperater">/</div>
+                    <div class="seperater" id="playTimeSep">/</div>
                     <div id="durationDisplay">00:00</div>
                 </div>
             </div>
@@ -105,6 +105,10 @@
 
     <!-- Bottom Menu -->
     <div class="bottom-menu shadow no-select" id="bottomMenu">
+        <button class="menu-item button-flash" func="render">
+            <icon>&#57344;</icon>
+            <locale key="menu.render"></locale>
+        </button>
         <a id="wav" class="menu-item button-flash">
             <icon>&#57353;</icon>
             <locale key="menu.audio-file">Audio File</locale>
@@ -352,6 +356,39 @@
             <button class="dialog-button" id="close-dialog-button">
                 <locale key="dialog.close-btn">Close</locale>
             </button>
+        </div>
+    </dialog>
+
+    <dialog id="render-dialog" class="shadow">
+        <div class="title">
+            <locale key="render.title"></locale>
+        </div>
+        <div class="dialog-container">
+            <div class="time dialog-item">
+                <div>
+                    <locale key="render.current"></locale>
+                    <span id="rendering"></span>
+                </div>
+            </div>
+            <div class="time dialog-item">
+                <div class="timeDisplay">00:00</div>
+                <div class="seperater">/</div>
+                <div class="durationDisplay">00:00</div>
+            </div>
+            <div class="slider">
+                <div class="slider-inner"></div>
+            </div>
+        </div>
+        <div class="dialog-button-container">
+            <button class="dialog-button" id="close-render-button">
+                <locale key="dialog.close-btn">Close</locale>
+            </button>
+            <button class="dialog-button" id="start-render-button">
+                <locale key="render.start-render">Start</locale>
+            </button>
+            <a class="dialog-button hidden" id="render-download-button">
+                <locale key="render.download">Download</locale>
+            </a>
         </div>
     </dialog>
 

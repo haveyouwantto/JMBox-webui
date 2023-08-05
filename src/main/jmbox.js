@@ -1,6 +1,7 @@
 import FileCache from "./files/filecache";
 import PathMan from "./files/pathman";
 import * as dialog from "./ui/dialog";
+import * as renderDialog from "./ui/render-dialog"
 import { filelist } from "./ui/filelist";
 import { navbar } from "./ui/navbar";
 import * as playerBar from "./ui/player-bar";
@@ -15,6 +16,7 @@ import picoAudio, { loadMIDI, smfData } from "./picoaudio";
 import { setDropDownItems, setSettingItemEnabled, setSettingsDialogVisible, updateSettingsItem } from "./ui/settings-dialog";
 import players from "./player/player-registry";
 import PicoAudioPlayer from "./player/picoaudio-player";
+import renderAndDownload from "./wav-render";
 
 export class JMBoxApp {
     constructor(baseUrl = '') {
@@ -328,6 +330,8 @@ export class JMBoxApp {
                     this.player.replay();
                     break;
 
+                case 'render':
+                    renderDialog.setVisible(true);
                 default:
                     break;
             }
@@ -452,6 +456,25 @@ export class JMBoxApp {
             }
             updateSettingsItem(e.key, e.value);
         });
+
+
+        renderDialog.renderListener.setEventListener('start', e => {
+            if (picoAudio.playData) {
+                const name = this.playlist.current().name
+                renderDialog.setStartButtonEnabled(false)
+                renderDialog.setDuration(picoAudio.playData.lastEventTime)
+                renderDialog.setName(name)
+                renderAndDownload((time, length) => {
+                    renderDialog.setProgress(Math.min(time / length, 1))
+                    renderDialog.setTime(Math.min(time, length))
+                }).then(blob => {
+                    console.log(blob)
+                    renderDialog.setDownload(blob, name + '.wav')
+                    renderDialog.setStartButtonEnabled(true);
+                    renderDialog.setName('')
+                })
+            }
+        })
 
 
         if ('mediaSession' in navigator) {
