@@ -24,7 +24,18 @@ jobs:
       with:
         node-version: ${{ matrix.node-version }}
 
-    - name: Build
+    - name: Build PicoAudio library
       run: |
+        cd lib/PicoAudio
         npm install
-        npx webpack
+        npm run build
+    - name: Build main project
+      run: |
+        cd ../..
+        npm install
+        npm run build
+    - name: Upload dist folder as artifact
+      uses: actions/upload-artifact@v2
+      with:
+        name: dist
+        path: dist/
