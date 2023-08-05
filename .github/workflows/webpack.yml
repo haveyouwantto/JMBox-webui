@@ -31,7 +31,6 @@ jobs:
         npm run build
     - name: Build main project
       run: |
-        cd ../..
         npm install
         npm run build
     - name: Upload dist folder as artifact
