@@ -373,6 +373,11 @@ input[type="number"]:focus,
     border-bottom: 2px solid white;
 }
 
+.title-input::selection {
+    background-color: white;
+    color: var(--theme-color);
+}
+
 #collapse {
     position: fixed;
     width: 100vw;
