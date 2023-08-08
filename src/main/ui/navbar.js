@@ -71,7 +71,7 @@ class NavBar {
     }
 
     setBackButtonVisibility(visible) {
-        if (visible) {
+        if (visible && this.#close.classList.contains('hidden')) {
             this.#backBtn.classList.remove('hidden');
         }
         else {
