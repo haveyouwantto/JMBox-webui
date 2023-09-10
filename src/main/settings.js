@@ -18,6 +18,7 @@ const defaultValue = {
     skipEnding: true,
     midiLatency: 250,
     lastMidiDevice: "",
+    preGain: 6,
     
     spanDuration: 4,
     maxNoteDuration: 30,

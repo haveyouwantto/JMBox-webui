@@ -42,6 +42,7 @@
     "settings.picoaudio.max-polyphony": "Max polyphony",
     "settings.picoaudio.skip-beginning": "Skip silence at START of file",
     "settings.picoaudio.skip-ending": "Skip silence at END of file",
+    "settings.picoaudio.pre-gain":"Pre-gain",
     "settings.piano-roll": "Piano Roll",
     "settings.piano-roll.span-duration": "Span duration",
     "settings.piano-roll.max-note-duration": "Max note duration",

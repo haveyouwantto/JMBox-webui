@@ -70,3 +70,6 @@ export function updateChecker(parent, value) {
         checker.innerText = isRadio ? '\ue01b' : '\ue012';
     }
 }
+
+
+export function dbToGain(db) {  return Math.pow(10, db / 20);}

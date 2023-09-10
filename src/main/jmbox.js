@@ -7,7 +7,7 @@ import { navbar } from "./ui/navbar";
 import * as playerBar from "./ui/player-bar";
 import * as waterfall from './ui/waterfall'
 import Playlist from "./player/playlist";
-import { $ } from "./utils";
+import { $, dbToGain } from "./utils";
 import { editSetting, loadSettings, settingChangeListener, settings } from "./settings";
 import { createLocaleItem, localeInit, setLocale, getLocale } from "./locale";
 import { aboutDialog, languageDialog, midiInfoDialog, playModeSelectionDialog } from "./ui/quick-dialog";
@@ -438,6 +438,9 @@ export class JMBoxApp {
                 case "skipEnding":
                     picoAudio.settings.isSkipEnding = e.value;
                     break;
+                case "preGain":
+                    picoAudio.settings.generateVolume = 0.15 * dbToGain(e.value);
+                    break
                 case "webmidi":
                     this.setWebMIDI();
                     break
