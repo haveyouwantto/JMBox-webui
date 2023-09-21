@@ -43,6 +43,7 @@
     "settings.picoaudio.midi-devices": "選擇MIDI設備",
     "settings.picoaudio.midi-latency": "MIDI輸出延遲",
     "settings.picoaudio.pre-gain":"前置增益",
+    "settings.picoaudio.global-reverb": "全域混響效果",
     "settings.piano-roll": "鋼琴瀑布",
     "settings.piano-roll.span-duration": "區間長度",
     "settings.piano-roll.max-note-duration": "最大音符長度",

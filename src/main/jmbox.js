@@ -441,6 +441,9 @@ export class JMBoxApp {
                 case "preGain":
                     picoAudio.settings.generateVolume = 0.15 * dbToGain(e.value);
                     break
+                case "globalReverb":
+                    picoAudio.setGlobalReverb(e.value);
+                    break
                 case "webmidi":
                     this.setWebMIDI();
                     break

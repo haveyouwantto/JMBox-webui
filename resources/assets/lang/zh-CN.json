@@ -42,12 +42,13 @@
     "settings.picoaudio.web-midi": "使用MIDI输出",
     "settings.picoaudio.midi-devices": "选择MIDI设备",
     "settings.picoaudio.midi-latency": "MIDI输出延迟",
-    "settings.picoaudio.pre-gain":"前置增益",
+    "settings.picoaudio.pre-gain": "前置增益",
+    "settings.picoaudio.global-reverb": "全局混响效果",
     "settings.piano-roll": "钢琴瀑布",
     "settings.piano-roll.span-duration": "区间长度",
     "settings.piano-roll.max-note-duration": "最大音符长度",
     "settings.piano-roll.note-transparency": "根据音符力度设置透明度",
-    "settings.piano-roll.detailed-notes":"绘制音符详细控件",
+    "settings.piano-roll.detailed-notes": "绘制音符详细控件",
     "settings.piano-roll.highlight-playing-notes": "高亮弹奏中的音符",
     "settings.piano-roll.prefmon": "性能监视器",
     "settings.piano-roll.show-lyrics": "显示歌词",
@@ -75,5 +76,5 @@
     "player.failed.description": "播放此文件时出错。",
     "general.error": "错误",
     "browser.not-found": "文件夹未找到。",
-    "browser.empty":"空"
+    "browser.empty": "空"
 }

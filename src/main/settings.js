@@ -19,6 +19,7 @@ const defaultValue = {
     midiLatency: 250,
     lastMidiDevice: "",
     preGain: 6,
+    globalReverb: false,
     
     spanDuration: 4,
     maxNoteDuration: 30,

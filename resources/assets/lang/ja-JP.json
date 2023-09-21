@@ -43,6 +43,7 @@
   "settings.picoaudio.midi-devices": "MIDIデバイスを選択",
   "settings.picoaudio.midi-latency": "MIDI出力レイテンシ",
   "settings.picoaudio.pre-gain": "プリゲイン",
+  "settings.picoaudio.global-reverb": "グローバルリバーブ効果",
   "settings.piano-roll": "ピアノロール",
   "settings.piano-roll.span-duration": "区間の長さ",
   "settings.piano-roll.max-note-duration": "最大音符の長さ",
