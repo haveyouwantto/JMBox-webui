@@ -7,6 +7,7 @@ export default function renderAndDownload(progressFunc) {
     const ctx = new OfflineAudioContext(2, sr * length, sr)
     const picoAudioRender = new PicoAudio({ audioContext: ctx });
     for (let key in picoAudio.settings) picoAudioRender.settings[key] = picoAudio.settings[key];
+    picoAudioRender.setGlobalReverb(picoAudio.settings.globalReverb);
     picoAudioRender.setData(picoAudio.playData);
     const interval = setInterval(() => progressFunc(picoAudioRender.context.currentTime, length), 100)
     return picoAudioRender.render().then(buffer => {
