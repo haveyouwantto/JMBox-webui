@@ -53,7 +53,6 @@ export default class LyricsRoll {
         } catch (error) {
             decoder = new TextDecoder("UTF-8");
         }
-        console.log(result)
 
         this.#lyrics.forEach(line => {
             line.text = decoder.decode(line.bytes).replace(/\x00+$/g, '')

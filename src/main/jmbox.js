@@ -7,7 +7,7 @@ import { navbar } from "./ui/navbar";
 import * as playerBar from "./ui/player-bar";
 import * as waterfall from './ui/waterfall'
 import Playlist from "./player/playlist";
-import { $, dbToGain } from "./utils";
+import { $, dbToGain, resetMIDI } from "./utils";
 import { editSetting, loadSettings, settingChangeListener, settings } from "./settings";
 import { createLocaleItem, localeInit, setLocale, getLocale } from "./locale";
 import { aboutDialog, languageDialog, midiInfoDialog, playModeSelectionDialog } from "./ui/quick-dialog";
@@ -236,6 +236,13 @@ export class JMBoxApp {
         }
     }
 
+    getDeviceByName(map, name) {
+        for (var output of map.values()) {
+            if (output.name === name) {
+                return output;
+            }
+        }
+    }
     setWebMIDI() {
         if (settings.webmidi) {
             navigator.requestMIDIAccess({ sysex: true }).then(access => {
@@ -249,11 +256,11 @@ export class JMBoxApp {
 
                 for (let device of access.outputs) {
                     devices.push({
-                        text: device[1].name, value: device[0]
+                        text: device[1].name, value: device[1].name
                     });
 
-                    if (device[0] == settings.lastMidiDevice) {
-                        selected = device[0];
+                    if (device[1].name == settings.lastMidiDevice) {
+                        selected = device[1].name;
                         picoAudio.settings.WebMIDIPortOutput = device[1];
                     }
                 }
@@ -452,8 +459,12 @@ export class JMBoxApp {
                     this.setWebMIDI();
                     break
                 case "lastMidiDevice":
-                    if (this.midiDevices)
-                        picoAudio.settings.WebMIDIPortOutput = this.midiDevices.get(e.value);
+                    if (this.midiDevices) {
+                        resetMIDI(picoAudio.settings.WebMIDIPortOutput, true)
+                        const newDevice = this.getDeviceByName(this.midiDevices,e.value)
+                        resetMIDI(newDevice)
+                        picoAudio.settings.WebMIDIPortOutput = newDevice;
+                    }
                     break
                 case "midiLatency":
                     if (this.midiDevices)
@@ -480,7 +491,6 @@ export class JMBoxApp {
                     renderDialog.setProgress(Math.min(time / length, 1))
                     renderDialog.setTime(Math.min(time, length))
                 }).then(blob => {
-                    console.log(blob)
                     renderDialog.setDownload(blob, name + '.wav')
                     renderDialog.setStartButtonEnabled(true);
                     renderDialog.setName('')
