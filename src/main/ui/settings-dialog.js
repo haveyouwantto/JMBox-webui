@@ -26,6 +26,10 @@ $("*[setting]").forEach(element => {
         "key": key
     }
 
+    if (element.getAttribute('requireSecure') && !window.isSecureContext) {
+        element.style.display = 'none';
+    }
+
     switch (type) {
         case "toggle":
             element.addEventListener('click', e => {

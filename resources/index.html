@@ -284,19 +284,19 @@
                 </button>
 
 
-                <button class="dialog-item button-flash" setting="toggle" key="webmidi">
+                <button class="dialog-item button-flash" setting="toggle" key="webmidi" requireSecure="1">
                     <icon>&#57370;</icon>
                     <locale key="settings.picoaudio.web-midi">Use Web MIDI Output</locale>
                     <icon class="right" checker>&#57362;</icon>
                 </button>
 
-                <a class="dialog-item" setting="dropDown" key="lastMidiDevice">
+                <a class="dialog-item" setting="dropDown" key="lastMidiDevice" requireSecure="1">
                     <icon>&#57368;</icon>
                     <locale key="settings.picoaudio.midi-devices">MIDI Device</locale>
                     <select class="right"></select>
                 </a>
 
-                <a class="dialog-item" setting="spinner" key="midiLatency">
+                <a class="dialog-item" setting="spinner" key="midiLatency" requireSecure="1">
                     <icon>&#57368;</icon>
                     <locale key="settings.picoaudio.midi-latency">MIDI Output Latency</locale>
                     <input class="right" type="number" min="50" max="1500" step="10" value="100"></input>
