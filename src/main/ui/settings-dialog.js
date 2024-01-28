@@ -105,7 +105,7 @@ export function setDropDownItems(key, items, selected) {
             option.value = item.value;
             e.appendChild(option);
         });
-        if(selected) e.value = selected;
+        if (selected) e.value = selected;
     }
 }
 

@@ -31,7 +31,7 @@ export function generateWav(audioBuffer) {
 
     const bytesPerSample = 2 * 4;
     const filesize = audioBuffer.length * bytesPerSample + 44;
-    console.log(bytesPerSample,filesize)
+    console.log(bytesPerSample, filesize)
 
     const bytes = new ArrayBuffer(filesize);
     const view = new DataView(bytes);

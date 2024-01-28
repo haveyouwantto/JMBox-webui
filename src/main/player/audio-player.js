@@ -42,6 +42,7 @@ export default class AudioPlayer extends Player {
         return new Promise((resolve, reject) => {
             this.#audio.src = url;
             this.seek(0);
+            this.listener.on('loaded', url);
             resolve(super.load(url));
         })
     }

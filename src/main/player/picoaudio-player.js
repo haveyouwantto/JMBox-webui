@@ -33,7 +33,9 @@ export default class PicoAudioPlayer extends Player {
     load(url) {
         this.stop();
         this.listener.on('timeupdate', 0);
-        return loadMIDI(url).catch(e=>{
+        return loadMIDI(url).then(e => {
+            this.listener.on('loaded',url);
+        }).catch(e => {
             this.listener.on('error', e);
             return Promise.reject(e)
         });
@@ -51,14 +53,14 @@ export default class PicoAudioPlayer extends Player {
         picoAudio.play();
 
         this.#intervalId = setInterval(() => { this.listener.on('timeupdate', this.currentTime) }, 50);
-        
+
         if (this.silent == null && settings.webmidi) {
             this.silent = picoAudio.context.createConstantSource();
             this.silent.offset.value = 0.01
             this.silent.connect(picoAudio.context.destination);
             this.silent.start();
         }
-        
+
     }
 
     pause() {
@@ -69,7 +71,7 @@ export default class PicoAudioPlayer extends Player {
 
         clearInterval(this.#intervalId);
 
-        
+
         if (this.silent != null) {
             this.silent.stop();
             this.silent.disconnect(picoAudio.context.destination);

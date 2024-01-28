@@ -1,6 +1,7 @@
-import { smfData } from "../picoaudio";
+import picoAudio, { smfData } from "../picoaudio";
 import { $ } from "../utils";
 import { settings } from "../settings";
+import LyricsRoll from "../lrc-roll";
 
 const waterfall = $("#waterfall");
 const canvas = waterfall.querySelector('canvas');
@@ -42,6 +43,41 @@ const wakeLockSupported = 'wakeLock' in navigator;
 let lastDrawTime = performance.now();
 let timeList = []
 
+
+let lrc = new LyricsRoll();
+let lrcDiv = $("#lyrics");
+
+export {lrc};
+
+lrc.onload = function (lyricsList) {
+    lrcDiv.innerText = '';
+    if (lyricsList.length > 0) {
+        for (let i = 0; i < lyricsList.length; i++) {
+            const lyrics = lyricsList[i];
+            let segment = document.createElement('span');
+            segment.id = 'lyrics-' + lyrics.ord;
+            segment.innerText = lyrics.text;
+            lrcDiv.appendChild(segment);
+        }
+    }
+}
+
+lrc.onlyrics = function (lyrics) {
+    const lrcElement = document.getElementById('lyrics-' + lyrics.ord)
+    lrcElement.classList.add('lyrics-highlight');
+    if (lrcElement.offsetWidth > 0) lrcElement.scrollIntoView({ block: "center", behavior: 'smooth' })
+}
+
+lrc.onseek = function (lyrics) {
+    document.querySelectorAll('.lyrics-highlight').forEach(e => e.classList.remove('lyrics-highlight'));
+    for (let i = 0; i <= lyrics.ord; i++) {
+        document.getElementById('lyrics-' + i).classList.add('lyrics-highlight');
+    }
+    const lrcElement = document.getElementById('lyrics-' + lyrics.ord)
+    lrcElement.scrollIntoView({ block: "center", behavior: 'smooth' })
+}
+
+
 export function setVisible(value) {
     if (value) {
         waterfall.classList.remove('hidden');
@@ -77,7 +113,10 @@ export function toggle() {
 export function startAnimation() {
     if (animationId == null && isVisible()) {
         lastDrawTime = performance.now();
-        // if (settings.showLyrics) lrc.seek(player.currentTime());
+        if (settings.showLyrics) {
+            if(picoAudio.playData) lrc.load(smfData);
+            lrc.seek(player.currentTime);
+        }
         animationId = requestAnimationFrame(draw);
     }
 }
@@ -325,7 +364,7 @@ export function drawFrame(){
             }
         }
 
-        // if (settings.showLyrics) lrc.update(playTime);
+        if (settings.showLyrics) lrc.update(playTime);
     }
 
     // Draw white keys
@@ -457,6 +496,16 @@ function resizeCanvas() {
 }
 
 window.onresize = resizeCanvas;
+
+export function setLyricsVisible(b){
+    if (b) {
+        if(picoAudio.playData) lrc.load(smfData);
+    } else {
+        lrc.clear();
+        lrcDiv.innerText = '';
+    }
+}
+
 // // Create a new Resize Observer instance
 // const resizeObserver = new ResizeObserver(entries => {
 //     for (const entry of entries) {

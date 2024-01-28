@@ -131,7 +131,6 @@ export class JMBoxApp {
         playerBar.setMIDIDownload(this.baseUrl, path);
         playerBar.setPlayerLoading(true)
 
-        if (!(this.player instanceof PicoAudioPlayer)) loadMIDI(this.baseUrl + "api/midi" + path);
         return this.player.loadPath(this.baseUrl, path).finally(e => {
             playerBar.setPlayerLoading(false)
         });
@@ -158,8 +157,13 @@ export class JMBoxApp {
         this.player.volume = settings.volume;
 
 
-        this.player.setEventListener('load', url => {
+        this.player.setEventListener('loaded', url => {
             playerBar.setDuration(this.player.duration);
+            if (!(this.player instanceof PicoAudioPlayer)) {
+                if (settings.showLyrics) loadMIDI(url.replace("/play/", "/midi/")).then(smfData => waterfall.lrc.load(smfData));
+            } else {
+                if (settings.showLyrics) waterfall.lrc.load(picoAudio.playData)
+            }
         });
 
         this.player.setEventListener('play', () => {
@@ -459,6 +463,8 @@ export class JMBoxApp {
                     if (e.value === 'auto') setLocale(navigator.language);
                     else setLocale(e.value);
                     break;
+                case "showLyrics":
+                    waterfall.setLyricsVisible(e.value)
             }
             updateSettingsItem(e.key, e.value);
         });
