@@ -1,6 +1,6 @@
 import Player from "./player";
 import picoAudio from "../picoaudio";
-import { loadMIDI } from "../picoaudio";
+import { loadMIDIUrl } from "../picoaudio";
 
 let picoAudioInit = false;
 
@@ -33,7 +33,7 @@ export default class PicoAudioPlayer extends Player {
     load(url) {
         this.stop();
         this.listener.on('timeupdate', 0);
-        return loadMIDI(url).then(e => {
+        return loadMIDIUrl(url).then(e => {
             this.listener.on('loaded',url);
         }).catch(e => {
             this.listener.on('error', e);

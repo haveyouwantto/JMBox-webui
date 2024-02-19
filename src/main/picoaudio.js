@@ -4,29 +4,29 @@ const picoAudio = new PicoAudio();
 picoAudio.init();
 picoAudio.settings.preserveSmfData = true
 
-let smfData = null;
 
-export function loadMIDI(url) {
+export function loadMIDIUrl(url) {
     return fetch(url).then(r => {
         if (r.ok) {
             return r.arrayBuffer()
         }
         else return Promise.reject(r.statusText);
     }).then(data => {
-        const parsedData = picoAudio.parseSMF(data);
-        smfData = parsedData;
-        try {
-            picoAudio.setData(parsedData);
-            return Promise.resolve(parsedData);
-        } catch (error) {
-            console.warn(error);
-            return Promise.reject(error);
-        }
+        return loadMIDI(data)
     });
+}
+
+export function loadMIDI(buffer) {
+    const parsedData = picoAudio.parseSMF(buffer);
+    try {
+        picoAudio.setData(parsedData);
+        return parsedData;
+    } catch (error) {
+        console.warn(error);
+        throw error;
+    }
 }
 
 window.picoAudio = picoAudio;
 
 export default picoAudio;
-
-export { smfData };

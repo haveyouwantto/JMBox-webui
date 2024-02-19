@@ -1,5 +1,5 @@
 import { getLocale, createLocaleItem, localeList } from '../locale';
-import { smfData } from '../picoaudio';
+import picoAudio from '../picoaudio';
 import { editSetting } from '../settings';
 import { $, formatTime, toSI, updateChecker } from '../utils';
 import version from '../version';
@@ -129,12 +129,12 @@ export function midiInfoDialog(data) {
     dialog.clear();
     dialog.setTitle(getLocale("midi-info.title"));
 
-    let notes = smfData.channels.reduce((prev, cur) => prev + cur.notes.length, 0);
+    let notes = picoAudio.playData.channels.reduce((prev, cur) => prev + cur.notes.length, 0);
 
     dialog.addText(getLocale("midi-info.name") + ": " + data.name);
     dialog.addText(getLocale("midi-info.size") + ": " + toSI(data.size, true) + "B");
     dialog.addText(getLocale("midi-info.last-modified") + ": " + new Date(data.date).toLocaleString());
-    dialog.addText(getLocale("midi-info.duration") + ": " + formatTime(smfData.lastEventTime));
+    dialog.addText(getLocale("midi-info.duration") + ": " + formatTime(picoAudio.playData.lastEventTime));
     dialog.addText(getLocale("midi-info.notes") + ": " + notes);
     dialog.setVisible(true);
 }

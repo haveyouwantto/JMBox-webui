@@ -1,4 +1,4 @@
-import picoAudio, { smfData } from "../picoaudio";
+import picoAudio from "../picoaudio";
 import { $ } from "../utils";
 import { settings } from "../settings";
 import LyricsRoll from "../lrc-roll";
@@ -114,7 +114,7 @@ export function startAnimation() {
     if (animationId == null && isVisible()) {
         lastDrawTime = performance.now();
         if (settings.showLyrics) {
-            if(picoAudio.playData) lrc.load(smfData);
+            if(picoAudio.playData) lrc.load(picoAudio.playData);
             lrc.seek(player.currentTime);
         }
         animationId = requestAnimationFrame(draw);
@@ -260,11 +260,11 @@ export function drawFrame(){
     let noteCount = 0;
     let renderCount = 0;
 
-    if (smfData != null) {
+    if (picoAudio.playData != null) {
         for (let i = 0; i < 16; i++) {
             canvasCtx.fillStyle = palette[i];
             canvasCtx.strokeStyle = palette[i];
-            let result = fastSpan(smfData.channels[i].notes, playTime, settings.spanDuration);
+            let result = fastSpan(picoAudio.playData.channels[i].notes, playTime, settings.spanDuration);
             noteCount += result.index;
             renderCount += result.notes.length;
 
@@ -499,7 +499,7 @@ window.onresize = resizeCanvas;
 
 export function setLyricsVisible(b){
     if (b) {
-        if(picoAudio.playData) lrc.load(smfData);
+        if(picoAudio.playData) lrc.load(picoAudio.playData);
     } else {
         lrc.clear();
         lrcDiv.innerText = '';

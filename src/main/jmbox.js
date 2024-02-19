@@ -12,7 +12,7 @@ import { editSetting, loadSettings, settingChangeListener, settings } from "./se
 import { createLocaleItem, localeInit, setLocale, getLocale } from "./locale";
 import { aboutDialog, languageDialog, midiInfoDialog, playModeSelectionDialog } from "./ui/quick-dialog";
 import { setDarkMode } from "./ui/ui-etc";
-import picoAudio, { loadMIDI, smfData } from "./picoaudio";
+import picoAudio, { loadMIDI, loadMIDIUrl } from "./picoaudio";
 import { setDropDownItems, setSettingItemEnabled, setSettingsDialogVisible, updateSettingsItem } from "./ui/settings-dialog";
 import players from "./player/player-registry";
 import PicoAudioPlayer from "./player/picoaudio-player";
@@ -131,6 +131,8 @@ export class JMBoxApp {
         playerBar.setMIDIDownload(this.baseUrl, path);
         playerBar.setPlayerLoading(true)
 
+        if (picoAudio.isWebMIDI()) resetMIDI(picoAudio.settings.WebMIDIPortOutput, true);
+
         return this.player.loadPath(this.baseUrl, path).finally(e => {
             playerBar.setPlayerLoading(false)
         });
@@ -160,7 +162,7 @@ export class JMBoxApp {
         this.player.setEventListener('loaded', url => {
             playerBar.setDuration(this.player.duration);
             if (!(this.player instanceof PicoAudioPlayer)) {
-                if (settings.showLyrics) loadMIDI(url.replace("/play/", "/midi/")).then(smfData => waterfall.lrc.load(smfData));
+                if (settings.showLyrics) loadMIDIUrl(url.replace("/play/", "/midi/")).then(smfData => waterfall.lrc.load(smfData));
             } else {
                 if (settings.showLyrics) waterfall.lrc.load(picoAudio.playData)
             }
@@ -221,6 +223,29 @@ export class JMBoxApp {
                 if (!paused) this.player.play();
             });
         }
+
+        document.querySelector('html').addEventListener('drop', e => {
+            if (this.player instanceof PicoAudioPlayer) {
+                const fr = new FileReader()
+                fr.onload = () => {
+                    try {
+                        loadMIDI(fr.result);
+                        this.player.play()
+                    } catch (error) {
+                        dialog.clear()
+                        dialog.setTitle(getLocale("general.error"))
+                        dialog.addText(getLocale("player.failed"))
+                        dialog.setVisible(true)
+                    }
+                }
+                playerBar.setSongName(e.dataTransfer.files[0].name)
+                fr.readAsArrayBuffer(e.dataTransfer.files[0])
+                e.preventDefault();
+            }
+        })
+        document.querySelector('html').addEventListener('dragover', e => {
+            e.preventDefault();
+        });
     }
 
     setPlayMode(mode) {
@@ -266,7 +291,7 @@ export class JMBoxApp {
                 }
                 setDropDownItems('lastMidiDevice', devices, selected);
 
-                if (smfData && !smfData.smfData && this.player instanceof PicoAudioPlayer) {
+                if (picoAudio.playData && !picoAudio.playData.smfData && this.player instanceof PicoAudioPlayer) {
                     let pos = this.player.currentTime;
                     this.load(this.playlist.current().name).then(() => {
                         this.player.seek(pos);
@@ -343,6 +368,16 @@ export class JMBoxApp {
 
                 case 'render':
                     renderDialog.setVisible(true);
+                    break;
+                case 'full screen':
+                    if (!document.fullscreenElement) {
+                        document.documentElement.requestFullscreen();
+                    } else {
+                        if (document.exitFullscreen) {
+                            document.exitFullscreen();
+                        }
+                    }
+                    break;
                 default:
                     break;
             }
@@ -461,7 +496,7 @@ export class JMBoxApp {
                 case "lastMidiDevice":
                     if (this.midiDevices) {
                         resetMIDI(picoAudio.settings.WebMIDIPortOutput, true)
-                        const newDevice = this.getDeviceByName(this.midiDevices,e.value)
+                        const newDevice = this.getDeviceByName(this.midiDevices, e.value)
                         resetMIDI(newDevice)
                         picoAudio.settings.WebMIDIPortOutput = newDevice;
                     }
@@ -483,7 +518,7 @@ export class JMBoxApp {
 
         renderDialog.renderListener.setEventListener('start', e => {
             if (picoAudio.playData) {
-                const name = this.playlist.current().name
+                const name = this.playlist ? this.playlist.current().name : "anonymous"
                 renderDialog.setStartButtonEnabled(false)
                 renderDialog.setDuration(picoAudio.playData.lastEventTime)
                 renderDialog.setName(name)
