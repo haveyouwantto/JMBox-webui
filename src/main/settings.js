@@ -11,7 +11,7 @@ const defaultValue = {
     playMode: 0,
     volume: 1,
 
-    waveType: true,
+    soundQuality: '1',
     basePitch: 440,
     maxPolyphony: -1,
     skipBeginning: false,

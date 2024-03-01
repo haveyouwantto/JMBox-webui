@@ -10,8 +10,7 @@
     <meta charset="UTF-8">
 
     <!-- <link rel="stylesheet" href="style.css" /> -->
-
-    <link rel="icon" href="favicon.ico" />
+    <!-- <link rel="icon" href="favicon.ico" /> -->
     <link rel="manifest" href="manifest.json">
 
 </head>
@@ -245,11 +244,16 @@
             <section class="dialog-section" id="picoaudio-section">
                 <locale class="dialog-subtitle" key="settings.picoaudio">PicoAudio</locale>
 
-                <button class="dialog-item button-flash" setting="toggle" key="waveType">
+                
+                <a class="dialog-item" setting="dropDown" key="soundQuality">
                     <icon>&#57353;</icon>
-                    <locale key="settings.picoaudio.wave-type">Use better waveform</locale>
-                    <icon class="right" checker>&#57362;</icon>
-                </button>
+                    <locale key="settings.picoaudio.sound-quality">Sound Quality</locale>
+                    <select class="right">
+                        <option class="locale" value="0" key="settings.picoaudio.quality.0"></option>
+                        <option class="locale" value="1" key="settings.picoaudio.quality.1"></option>
+                        <option class="locale" value="3" key="settings.picoaudio.quality.3"></option>
+                    </select>
+                </a>
 
                 <a class="dialog-item" setting="spinner" key="basePitch">
                     <icon>&#57367;</icon>

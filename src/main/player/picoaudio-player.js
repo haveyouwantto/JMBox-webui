@@ -52,6 +52,7 @@ export default class PicoAudioPlayer extends Player {
         this.#paused = false;
         picoAudio.play();
 
+        if (this.#intervalId) clearInterval(this.#intervalId);
         this.#intervalId = setInterval(() => { this.listener.on('timeupdate', this.currentTime) }, 50);
 
         if (this.silent == null && settings.webmidi) {

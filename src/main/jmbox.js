@@ -12,7 +12,7 @@ import { editSetting, loadSettings, settingChangeListener, settings } from "./se
 import { createLocaleItem, localeInit, setLocale, getLocale } from "./locale";
 import { aboutDialog, languageDialog, midiInfoDialog, playModeSelectionDialog } from "./ui/quick-dialog";
 import { setDarkMode } from "./ui/ui-etc";
-import picoAudio, { loadMIDI, loadMIDIUrl } from "./picoaudio";
+import picoAudio, { loadMIDI, loadMIDIUrl, loadSoundfont } from "./picoaudio";
 import { setDropDownItems, setSettingItemEnabled, setSettingsDialogVisible, updateSettingsItem } from "./ui/settings-dialog";
 import players from "./player/player-registry";
 import PicoAudioPlayer from "./player/picoaudio-player";
@@ -469,8 +469,9 @@ export class JMBoxApp {
                 case "volume":
                     playerBar.setVolume(Math.sqrt(e.value));
                     break;
-                case "waveType":
-                    picoAudio.settings.soundQuality = e.value + 0;
+                case "soundQuality":
+                    if (parseInt(e.value) == 3) loadSoundfont();
+                    picoAudio.settings.soundQuality = parseInt(e.value)
                     break;
                 case "basePitch":
                     picoAudio.settings.basePitch = e.value;

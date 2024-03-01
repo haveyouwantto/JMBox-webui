@@ -62,7 +62,11 @@ module.exports = {
       {
         test: /\*\.json$/,
         type: "asset/resource"
-      }
+      },
+      {
+        test: /\.html$/,
+        use: ["html-loader"]
+      },
     ]
   }
 };

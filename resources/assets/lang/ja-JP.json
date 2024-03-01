@@ -14,7 +14,7 @@
   "menu.replay": "再生",
   "menu.languages": "言語",
   "menu.render": "オーディオにレンダリング",
-  "menu.full-screen":"フルスクリーン",
+  "menu.full-screen": "フルスクリーン",
   "settings.title": "設定",
   "settings.general": "一般",
   "settings.general.dark-mode": "ダークモード",
@@ -35,7 +35,10 @@
   "settings.audio": "ブラウザオーディオ",
   "settings.audio.midi-src": "MIDIファイルを再生元に使用",
   "settings.picoaudio": "PicoAudioシンセサイザー",
-  "settings.picoaudio.wave-type": "FM波形を使用する",
+  "settings.picoaudio.sound-quality": "音質",
+  "settings.picoaudio.quality.0": "基本波形",
+  "settings.picoaudio.quality.1": "加法合成",
+  "settings.picoaudio.quality.3": "サンプリング（実験的）",
   "settings.picoaudio.base-pitch": "基準音の周波数",
   "settings.picoaudio.max-polyphony": "同時発音数",
   "settings.picoaudio.skip-beginning": "冒頭の余白をスキップ",
@@ -77,5 +80,5 @@
   "player.failed.description": "このファイルを再生する際にエラーが発生しました。",
   "general.error": "エラー",
   "browser.not-found": "ディレクトリが見つかりません。",
-  "browser.empty":"空"
+  "browser.empty": "空"
 }
