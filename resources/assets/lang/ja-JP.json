@@ -36,6 +36,7 @@
   "settings.audio.midi-src": "MIDIファイルを再生元に使用",
   "settings.picoaudio": "PicoAudioシンセサイザー",
   "settings.picoaudio.sound-quality": "音質",
+  "settings.picoaudio.quality.-1": "サイン波",
   "settings.picoaudio.quality.0": "基本波形",
   "settings.picoaudio.quality.1": "加法合成",
   "settings.picoaudio.quality.3": "サンプリング（実験的）",

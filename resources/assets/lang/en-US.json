@@ -36,6 +36,7 @@
     "settings.audio.midi-src": "Use MIDI as source",
     "settings.picoaudio": "PicoAudio",
     "settings.picoaudio.sound-quality": "Sound quality",
+    "settings.picoaudio.quality.-1": "Sine wave",
     "settings.picoaudio.quality.0": "Basic waves",
     "settings.picoaudio.quality.1": "Additive synthesis",
     "settings.picoaudio.quality.3": "Sampled (Experimental)",

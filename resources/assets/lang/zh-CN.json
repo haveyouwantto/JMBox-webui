@@ -36,6 +36,7 @@
     "settings.audio.midi-src": "使用MIDI文件作为播放源",
     "settings.picoaudio": "PicoAudio合成器", 
     "settings.picoaudio.sound-quality": "声音质量",
+    "settings.picoaudio.quality.-1": "正弦波",
     "settings.picoaudio.quality.0": "基本波形",
     "settings.picoaudio.quality.1": "加法合成",
     "settings.picoaudio.quality.3": "采样(实验性)",
