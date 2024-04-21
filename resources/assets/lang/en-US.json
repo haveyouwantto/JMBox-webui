@@ -15,6 +15,7 @@
     "menu.languages": "Languages",
     "menu.render": "Render to audio",
     "menu.full-screen":"Full Screen",
+    "menu.upload":"Load local file",
     "settings.title": "Settings",
     "settings.general": "General",
     "settings.general.dark-mode": "Dark mode",

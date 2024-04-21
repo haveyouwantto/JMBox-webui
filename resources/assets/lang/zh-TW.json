@@ -15,6 +15,7 @@
     "menu.languages": "語言",
     "menu.render": "渲染為音頻",
     "menu.full-screen":"全螢幕顯示",
+    "menu.upload":"上傳本地檔案",
     "settings.title": "設定",
     "settings.general": "通用",
     "settings.general.dark-mode": "深色模式",

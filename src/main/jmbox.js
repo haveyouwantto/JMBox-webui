@@ -225,27 +225,31 @@ export class JMBoxApp {
         }
 
         document.querySelector('html').addEventListener('drop', e => {
-            if (this.player instanceof PicoAudioPlayer) {
-                const fr = new FileReader()
-                fr.onload = () => {
-                    try {
-                        loadMIDI(fr.result);
-                        this.player.play()
-                    } catch (error) {
-                        dialog.clear()
-                        dialog.setTitle(getLocale("general.error"))
-                        dialog.addText(getLocale("player.failed"))
-                        dialog.setVisible(true)
-                    }
-                }
-                playerBar.setSongName(e.dataTransfer.files[0].name)
-                fr.readAsArrayBuffer(e.dataTransfer.files[0])
-                e.preventDefault();
-            }
+            this.loadLocalFile(e.dataTransfer.files[0]);
+            e.preventDefault();
         })
         document.querySelector('html').addEventListener('dragover', e => {
             e.preventDefault();
         });
+    }
+
+    loadLocalFile(file) {
+        if (this.player instanceof PicoAudioPlayer) {
+            const fr = new FileReader()
+            fr.onload = () => {
+                try {
+                    loadMIDI(fr.result);
+                    this.player.play()
+                } catch (error) {
+                    dialog.clear()
+                    dialog.setTitle(getLocale("general.error"))
+                    dialog.addText(getLocale("player.failed"))
+                    dialog.setVisible(true)
+                }
+            }
+            playerBar.setSongName(file.name);
+            fr.readAsArrayBuffer(file);
+        }
     }
 
     setPlayMode(mode) {
@@ -368,6 +372,9 @@ export class JMBoxApp {
 
                 case 'render':
                     renderDialog.setVisible(true);
+                    break;
+                case 'upload':
+                    document.getElementById("uploader").click();
                     break;
                 case 'full screen':
                     if (!document.fullscreenElement) {
@@ -533,6 +540,11 @@ export class JMBoxApp {
                 })
             }
         })
+
+        const uploader = document.getElementById("uploader");
+        uploader.addEventListener('change', e => {
+            this.loadLocalFile(uploader.files[0]);
+        });
 
 
         if ('mediaSession' in navigator) {

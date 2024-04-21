@@ -15,6 +15,7 @@
     "menu.languages": "语言",
     "menu.render": "渲染为音频",
     "menu.full-screen":"全屏显示",
+    "menu.upload":"加载本地文件",
     "settings.title": "设置",
     "settings.general": "通用",
     "settings.general.dark-mode": "深色模式",
