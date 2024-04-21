@@ -248,6 +248,7 @@ export class JMBoxApp {
                 }
             }
             playerBar.setSongName(file.name);
+            document.title = this.serverName + " - " + file.name;
             fr.readAsArrayBuffer(file);
         }
     }
