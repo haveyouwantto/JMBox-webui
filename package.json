@@ -24,7 +24,6 @@
     "fullbuild": "npm run picoaudio && npm run build"
   },
   "dependencies": {
-    "chardet": "^2.0.0",
-    "yarn": "^1.22.19"
+    "chardet": "^2.0.0"
   }
 }
