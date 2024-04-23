@@ -60,7 +60,7 @@ export class JMBoxApp {
     }
 
     info() {
-        fetch(this.baseUrl + 'api/info').then(r => r.json()).then(result => {
+        return fetch(this.baseUrl + 'api/info').then(r => r.json()).then(result => {
             this.setName(result.serverName);
             this.setThemeColor(result.themeColor);
         });
