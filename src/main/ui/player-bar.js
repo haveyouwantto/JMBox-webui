@@ -108,6 +108,9 @@ export function setSongName(name) {
     songTitle.textContent = name;
 }
 
+export function getSongName(){
+	return songTitle.textContent;
+}
 
 function setBottomMenuVisible(visible) {
     if (visible) {

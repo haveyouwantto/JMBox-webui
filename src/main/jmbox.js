@@ -527,7 +527,7 @@ export class JMBoxApp {
 
         renderDialog.renderListener.setEventListener('start', e => {
             if (picoAudio.playData) {
-                const name = this.playlist ? this.playlist.current().name : "anonymous"
+                const name = this.playlist ? this.playlist.current().name : playerBar.getSongName();
                 renderDialog.setStartButtonEnabled(false)
                 renderDialog.setDuration(picoAudio.playData.lastEventTime)
                 renderDialog.setName(name)
