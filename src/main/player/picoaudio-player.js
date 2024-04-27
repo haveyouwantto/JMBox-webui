@@ -88,7 +88,7 @@ export default class PicoAudioPlayer extends Player {
     get currentTime() {
         if (picoAudio.playData == null) return 0;
         else if (!picoAudio.states.isPlaying) return this.#lastPausedTime;
-        else return picoAudio.context.currentTime - picoAudio.states.startTime;
+        else return picoAudio.context.currentTime - picoAudio.states.startTime - picoAudio.context.baseLatency;
     }
 
     seek(seconds) {
