@@ -81,8 +81,7 @@ export default class PicoAudioPlayer extends Player {
     }
 
     get duration() {
-        if (picoAudio.playData == null) return NaN;
-        else return picoAudio.getTime(picoAudio.playData.songLength);
+        return picoAudio.getDuration();
     }
 
     get currentTime() {
