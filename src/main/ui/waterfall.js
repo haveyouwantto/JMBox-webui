@@ -10,6 +10,7 @@ import LyricsRoll from "../lrc-roll";
 const waterfall = $("#waterfall");
 const canvas = waterfall.querySelector('canvas');
 const dpr = window.devicePixelRatio;
+import * as THREE from 'three';
 
 let fillColor = 'white';
 
@@ -193,7 +194,7 @@ function getNoteTransparency(velocity) {
     return transparency;
 }
 
-function fastSpan(list, startTime, duration) {
+function fastSpan(list, startTime, duration, removePlayedNotes = false) {
     if (list.length == 0) return {
         notes: [],
         index: 0
@@ -227,6 +228,13 @@ function fastSpan(list, startTime, duration) {
     while (i < list.length && list[i].startTime < startTime + duration) {
         result.push(list[i]);
         i++;
+    }
+
+    if (removePlayedNotes) {
+        return {
+            notes: result,
+            index: left
+        };
     }
 
     // Linear search to the left (for searching currently playing notes)
@@ -495,7 +503,60 @@ class StandardRenderer {
     }
 }
 
-const renderer = new StandardRenderer(canvas, settings);
+class WebGLRenderer {
+    constructor(canvas, settings) {
+        this.canvas = canvas;
+        this.settings = settings;
+        this.scene = new THREE.Scene();
+        this.camera = new THREE.PerspectiveCamera(75, canvas.width / canvas.height, 0.1, 1000);
+
+        this.renderer = new THREE.WebGLRenderer({
+            canvas: canvas
+        });
+
+        this.renderer.setSize(waterfall.clientWidth, waterfall.clientHeight);
+        this.renderer.setPixelRatio(window.devicePixelRatio);
+
+        this.geometry = new THREE.BoxGeometry();
+        this.materials = palette.map(color => new THREE.MeshBasicMaterial({
+            color: color
+        }));
+        this.camera.position.set(0, 20, 0);
+        this.camera.lookAt(0, 0, 20);
+
+
+    }
+
+    drawFrame() {
+        this.renderer.setSize(waterfall.clientWidth, waterfall.clientHeight);
+        this.camera.aspect = waterfall.clientWidth / waterfall.clientHeight;
+        this.scene.clear();
+        let playTime = player.currentTime;
+
+        if (picoAudio && picoAudio.playData && picoAudio.playData.channels) {
+            for (let i = 0; i < picoAudio.playData.channels.length; i++) {
+                let result = fastSpan(picoAudio.playData.channels[i].notes, playTime, 32, true);
+                for (const note of result.notes) {
+                    const x = -(note.pitch - 63);
+                    const y = 0;
+                    const z = note.startTime * 8;
+
+                    const cube = new THREE.Mesh(this.geometry, this.materials[i]);
+                    cube.position.set(x, y, z);
+                    this.scene.add(cube);
+                }
+            }
+
+            // Update the camera position
+            // this.camera.position.x = picoAudio.context.currentTime;
+        }
+        this.camera.position.z = playTime * 8 - 20;
+
+        this.renderer.render(this.scene, this.camera);
+    }
+}
+
+const renderer = new WebGLRenderer(canvas, settings);
 
 export function draw() {
     if (!waterfall.classList.contains('hidden')) {
