@@ -279,7 +279,6 @@ export function drawFrame() {
             noteCount += result.index;
             renderCount += result.notes.length;
 
-            canvasCtx.beginPath();
             for (let note of result.notes) {
                 let stopTime = getStopTime(note);
                 let startY = getY(note.startTime, playTime, scaling);
@@ -323,10 +322,12 @@ export function drawFrame() {
 
 
                 if (settings.detailedNotes) {
-                    canvasCtx.lineWidth = 1.5;
+                    canvasCtx.lineWidth = 2;
+                    canvasCtx.blendMode = 'multiply';
                     const noteStartY = canvas.height - startY - keyboardHeight;
                     const noteEndY = canvas.height - endY - keyboardHeight;
 
+                    // Draw sustain pedal line
                     if (note.holdBeforeStop && note.holdBeforeStop.length > 0) {
                         const endY2 = canvas.height - getY(note.stopTime, playTime, scaling) - keyboardHeight;
                         canvasCtx.beginPath();
@@ -350,10 +351,10 @@ export function drawFrame() {
                     canvasCtx.lineTo(centerX + noteWidth, noteStartY);
                     controls.forEach(control => {
                         switch (control.t) {
-                            case 0:
+                            case 0: // pitch bend
                                 centerX = x + control.e.value * noteWidth;
                                 break
-                            case 1:
+                            case 1: // expression
                                 width = control.e.value / 127 * noteWidth;
                                 break
                         }
@@ -368,18 +369,15 @@ export function drawFrame() {
                     });
 
                     canvasCtx.closePath();
-                    if (settings.highlightNotes && note.startTime < playTime && stopTime > playTime) {
-                        canvasCtx.fill();
+                    canvasCtx.fill();
+                    if (note.startTime < playTime && stopTime > playTime && settings.highlightNotes) {
                         canvasCtx.fillStyle = '#ffffff60';
                         canvasCtx.fill();
                         canvasCtx.fillStyle = palette[i];
-                    } else {
-                        canvasCtx.fill();
                     }
                 }
 
             }
-            canvasCtx.fill();
         }
 
         if (settings.showLyrics) lrc.update(playTime);
