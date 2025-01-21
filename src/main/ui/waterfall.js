@@ -525,6 +525,21 @@ class WebGLRenderer {
         this.camera.lookAt(0, 0, 20);
 
 
+
+        // 创建一条线的材质，颜色是红色
+        const material = new THREE.LineBasicMaterial({ color: 0xffffff });
+        // 创建线的几何体，用来存储顶点位置
+        const geometry = new THREE.BufferGeometry();
+        // 创建顶点位置的数组
+        const points = [];
+
+        // 在 points数组里加入几个点的坐标
+        points.push(new THREE.Vector3(-63, 0, 0));
+        points.push(new THREE.Vector3(63, 0, 0));
+
+        geometry.setFromPoints(points);
+        // 根据材质和几何体创建Line对象
+        this.line = new THREE.Line(geometry, material);
     }
 
     drawFrame() {
@@ -539,7 +554,7 @@ class WebGLRenderer {
                 for (const note of result.notes) {
                     const x = -(note.pitch - 63);
                     const y = 0;
-                    const z = note.startTime * 8;
+                    const z = note.startTime * 16;
 
                     const cube = new THREE.Mesh(this.geometry, this.materials[i]);
                     cube.position.set(x, y, z);
@@ -550,7 +565,14 @@ class WebGLRenderer {
             // Update the camera position
             // this.camera.position.x = picoAudio.context.currentTime;
         }
-        this.camera.position.z = playTime * 8 - 20;
+
+        // 把线加入到场景里
+        this.scene.add(this.line);
+
+        const z = playTime * 16;
+        this.line.position.z = z;
+
+        this.camera.position.z = z - 20;
 
         this.renderer.render(this.scene, this.camera);
     }
