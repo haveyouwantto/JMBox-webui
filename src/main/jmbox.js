@@ -338,7 +338,7 @@ export class JMBoxApp {
 
         playerBar.setEventListener('seek', percentage => {
             this.player.seekPercentage(percentage);
-            if (waterfall.isVisible()) waterfall.drawFrame();
+            if (waterfall.isVisible()) waterfall.draw();
         });
 
         playerBar.setEventListener('menuitem', func => {
