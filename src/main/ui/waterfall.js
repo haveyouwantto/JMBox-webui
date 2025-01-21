@@ -508,7 +508,7 @@ class WebGLRenderer {
         this.canvas = canvas;
         this.settings = settings;
         this.scene = new THREE.Scene();
-        this.camera = new THREE.PerspectiveCamera(75, canvas.width / canvas.height, 0.1, 1000);
+        this.camera = new THREE.PerspectiveCamera(60, canvas.width / canvas.height, 0.1, 1000);
 
         this.renderer = new THREE.WebGLRenderer({
             canvas: canvas
@@ -521,8 +521,8 @@ class WebGLRenderer {
         this.materials = palette.map(color => new THREE.MeshBasicMaterial({
             color: color
         }));
-        this.camera.position.set(0, 20, 0);
-        this.camera.lookAt(0, 0, 20);
+        this.camera.position.set(0, 32, 0);
+        this.camera.lookAt(0, 0, 32);
 
 
 
@@ -548,12 +548,14 @@ class WebGLRenderer {
         this.scene.clear();
         let playTime = player.currentTime;
 
+        const playZ = playTime * 16;
+
         if (picoAudio && picoAudio.playData && picoAudio.playData.channels) {
             for (let i = 0; i < picoAudio.playData.channels.length; i++) {
                 let result = fastSpan(picoAudio.playData.channels[i].notes, playTime, 32, true);
                 for (const note of result.notes) {
                     const x = -(note.pitch - 63);
-                    const y = 0;
+                    const y = i;
                     const z = note.startTime * 16;
 
                     const cube = new THREE.Mesh(this.geometry, this.materials[i]);
@@ -569,10 +571,9 @@ class WebGLRenderer {
         // 把线加入到场景里
         this.scene.add(this.line);
 
-        const z = playTime * 16;
-        this.line.position.z = z;
+        this.line.position.z = playZ;
 
-        this.camera.position.z = z - 20;
+        this.camera.position.z = playZ - 15;
 
         this.renderer.render(this.scene, this.camera);
     }
