@@ -162,7 +162,7 @@ export class JMBoxApp {
         this.player.setEventListener('loaded', url => {
             playerBar.setDuration(this.player.duration);
             if (!(this.player instanceof PicoAudioPlayer)) {
-                if (settings.showLyrics) loadMIDIUrl(url.replace("/play/", "/midi/")).then(smfData => waterfall.lrc.load(smfData));
+                loadMIDIUrl(url.replace("/play/", "/midi/")).then(smfData => { if (settings.showLyrics) waterfall.lrc.load(smfData) });
             } else {
                 if (settings.showLyrics) waterfall.lrc.load(picoAudio.playData)
             }
