@@ -71,7 +71,7 @@ export default class AudioPlayer extends Player {
 
     seek(seconds) {
         super.seek();
-        this.#audio.currentTime = seconds;
+        if (isFinite(seconds)) this.#audio.currentTime = seconds;
     }
 
     stop() {
