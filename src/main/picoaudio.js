@@ -1,4 +1,4 @@
-import PicoAudio from '../../lib/PicoAudio/dist/nodejs/picoaudio.mjs';
+import PicoAudio from 'picoaudio';
 
 const picoAudio = new PicoAudio();
 picoAudio.init();
