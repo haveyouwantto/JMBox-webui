@@ -40,6 +40,7 @@
     "settings.picoaudio.quality.-1": "正弦波",
     "settings.picoaudio.quality.0": "基本波形",
     "settings.picoaudio.quality.1": "加法合成",
+    "settings.picoaudio.quality.2": "卡普拉斯-斯特朗合成",
     "settings.picoaudio.quality.3": "采样(实验性)",
     "settings.picoaudio.base-pitch": "基准音频率",
     "settings.picoaudio.max-polyphony": "最大复音数",

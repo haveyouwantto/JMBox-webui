@@ -40,6 +40,7 @@
     "settings.picoaudio.quality.-1": "Sine wave",
     "settings.picoaudio.quality.0": "Basic waves",
     "settings.picoaudio.quality.1": "Additive synthesis",
+    "settings.picoaudio.quality.2": "Karplus-Strong",
     "settings.picoaudio.quality.3": "Sampled (Experimental)",
     "settings.picoaudio.web-midi": "Use Web MIDI Output",
     "settings.picoaudio.midi-devices": "MIDI device",
