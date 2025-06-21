@@ -124,8 +124,9 @@ export function startAnimation() {
     if (animationId == null && isVisible()) {
         lastDrawTime = performance.now();
         if (settings.showLyrics) {
-            if (picoAudio.playData) lrc.load(picoAudio.playData);
-            lrc.seek(player.currentTime);
+            if (picoAudio.playData) lrc.load(picoAudio.playData).then(() => {
+                lrc.seek(player.currentTime);
+            });
         }
         animationId = requestAnimationFrame(draw);
     }

@@ -1,5 +1,5 @@
 import picoAudio from "./picoaudio";
-import PicoAudio from '../../lib/PicoAudio/dist/nodejs/picoaudio.mjs';
+import PicoAudio from 'picoaudio';
 
 export default function renderAndDownload(progressFunc) {
     const length = picoAudio.playData.lastEventTime

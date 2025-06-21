@@ -1,5 +1,3 @@
-import chardet from 'chardet';
-
 function extractLyrics(midiData/*, encoding = "UTF-8"*/) {
     // const decoder = new TextDecoder(encoding);
     const lyrics = [];
@@ -33,7 +31,7 @@ export default class LyricsRoll {
         this.onseek = null;
     }
 
-    load(midiData) {
+    async load(midiData) {
         this.#lyrics = extractLyrics(midiData);
         this.#index = 0;
 
@@ -46,6 +44,7 @@ export default class LyricsRoll {
             } else return e
         }, new Uint8Array())
 
+        const chardet = await import("chardet");
         const result = chardet.analyse(sample);
         let decoder = null;
         try {
