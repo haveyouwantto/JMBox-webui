@@ -40,7 +40,7 @@
   "settings.picoaudio.quality.-1": "サイン波",
   "settings.picoaudio.quality.0": "基本波形",
   "settings.picoaudio.quality.1": "加法合成",
-  "settings.picoaudio.quality.2": "カルプラス-ストロング",
+  "settings.picoaudio.quality.2": "プラック合成",
   "settings.picoaudio.quality.3": "サンプリング（実験的）",
   "settings.picoaudio.base-pitch": "基準音の周波数",
   "settings.picoaudio.max-polyphony": "同時発音数",
