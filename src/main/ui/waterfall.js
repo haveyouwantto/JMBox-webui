@@ -294,7 +294,7 @@ class StandardRenderer {
                     let endY = getY(stopTime, playTime, scaling)
                     
                     let black = isBlackKey(note.pitch);
-                    let thisNoteWidth = black ? noteWidth : whiteNoteWidth;
+                    let thisNoteWidth = black ? noteWidth : noteWidth * bwr;
                     let noteIndex = black ? note.pitch : getWhiteKeyNumber(note.pitch)
                     let x = noteIndex * thisNoteWidth;
                     
@@ -534,8 +534,7 @@ function resizeCanvas() {
     canvas.width = dpr * cssWidth;
     canvas.height = dpr * cssHeight;
 
-    noteWidth = canvas.width / 128;
-    whiteNoteWidth = canvas.width / 75;
+    noteWidth = canvas.width / 128; 
     keyboardHeight = noteWidth * 9;
     blackKeyHeight = noteWidth * 5.5;
     startAnimation();
