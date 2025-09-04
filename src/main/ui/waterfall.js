@@ -310,13 +310,24 @@ class StandardRenderer {
 
                             // Highlight notes
                             if (settings.highlightNotes && !settings.detailedNotes) {
+                            	let played = playTime - note.startTime;
+                                let noteDuration = stopTime - note.startTime;
+                                let transparency = Math.max(
+                                    Math.min(
+                                        1-(played / noteDuration )
+                                    , 1), 0
+                                );
                                 this.ctx.shadowOffsetX = 0;
                                 this.ctx.shadowOffsetY = 0;
-                                this.ctx.shadowBlur = noteWidth * 1.5;
+                                this.ctx.shadowBlur = noteWidth * 5 * transparency;
                                 this.ctx.shadowColor = palette[i];
-                                this.ctx.fillStyle = "#ffffff60";
+                                
+                                let extraWidth = noteWidth * (transparency+1)
+                                
+                              
+                                //this.ctx.fillStyle = "#ffffff60"; 
 
-                                this.ctx.fillRect(x, this.canvas.height - endY - keyboardHeight, noteWidth, endY - startY);
+                                this.ctx.fillRect(x+noteWidth*0.5-extraWidth*0.5, this.canvas.height - endY - keyboardHeight, extraWidth, endY - startY);
                                 this.ctx.fillStyle = palette[i];
 
                                 this.ctx.shadowOffsetX = 0;

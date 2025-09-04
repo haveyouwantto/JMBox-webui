@@ -15,6 +15,7 @@ function start(){
     })
     .catch(()=>{
         const newUrl = prompt("Enter server url:");
+        localStorage.setItem('serverUrl', newUrl);
         if (newUrl) {
             start();
         }
