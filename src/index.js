@@ -3,7 +3,8 @@ import '../resources/style.css';
 import '../resources/waterfall.css';
 
 function start(){
-    const url = localStorage.getItem('serverUrl');
+    let url = localStorage.getItem('serverUrl');
+    if (!url.endsWith('/')) url += '/';
     const app = url ? new JMBoxApp(url) : new JMBoxApp();
 
     app.info().then(()=>{
