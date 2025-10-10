@@ -62,7 +62,11 @@ export default class AudioPlayer extends Player {
     }
 
     get duration() {
-        return this.#audio.duration;
+        if (isFinite(this.#audio.duration)) {
+            return this.#audio.duration;
+        } else {
+            return this.#audio.buffered.length > 0 ? this.#audio.buffered.end(0) : 0;
+        }
     }
 
     get currentTime() {
