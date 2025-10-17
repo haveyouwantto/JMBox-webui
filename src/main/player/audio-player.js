@@ -1,6 +1,7 @@
 import Player from "./player";
 import { $ } from "../utils";
 import { settings } from "../settings";
+import picoAudio from "../picoaudio";
 
 let audioInit = false;
 export default class AudioPlayer extends Player {
@@ -64,6 +65,8 @@ export default class AudioPlayer extends Player {
     get duration() {
         if (isFinite(this.#audio.duration)) {
             return this.#audio.duration;
+        } else if (picoAudio?.playData?.lastEventTime){
+            return picoAudio.playData.lastEventTime;
         } else {
             return this.#audio.buffered.length > 0 ? this.#audio.buffered.end(0) : 0;
         }
