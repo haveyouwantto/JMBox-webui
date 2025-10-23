@@ -30,6 +30,7 @@
   "settings.general.sort.size.reverse": "最大",
   "settings.general.sort.mtime": "最古",
   "settings.general.sort.mtime.reverse": "最新",
+  "settings.general.shuffle": "再生をシャッフル",
   "settings.players": "プレーヤー",
   "settings.players.audio": "ブラウザオーディオ",
   "settings.players.picoaudio": "PicoAudioシンセサイザー",

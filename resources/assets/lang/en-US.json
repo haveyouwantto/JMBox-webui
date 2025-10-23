@@ -30,6 +30,7 @@
     "settings.general.sort.size.reverse": "Largest",
     "settings.general.sort.mtime": "Oldest",
     "settings.general.sort.mtime.reverse": "Latest",
+    "settings.general.shuffle": "Shuffle playback",
     "settings.players": "Players",
     "settings.players.audio": "Browser audio",
     "settings.players.picoaudio": "PicoAudio synthesizer",
