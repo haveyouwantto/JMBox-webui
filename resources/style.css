@@ -913,7 +913,7 @@ html::-webkit-scrollbar-track {
     src: url('icon.woff2');
 }
 
-@media only screen and (max-width: 1000px) {
+@media only screen and (max-width: 1200px) {
 
     #volume {
         width: 10vw;
@@ -926,11 +926,6 @@ html::-webkit-scrollbar-track {
         width: unset;
         overflow-x: hidden;
         overflow-wrap: anywhere;
-    }
-
-    #playTimeSep,
-    #durationDisplay {
-        display: none;
     }
 
     #content {
@@ -954,7 +949,7 @@ html::-webkit-scrollbar-track {
     }
 }
 
-@media only screen and (max-width: 680px) {
+@media only screen and (max-width: 630px) {
 
     #volume,
     #volume-icon {
@@ -967,14 +962,10 @@ html::-webkit-scrollbar-track {
     }
 }
 
-@media only screen and (max-width: 550px) {
-    #playMode {
-        display: none;
-    }
-}
+@media only screen and (max-width: 500px) {
 
-@media only screen and (max-width: 512px) {
-    #time {
+    #playTimeSep,
+    #durationDisplay {
         display: none;
     }
 
@@ -1006,14 +997,21 @@ html::-webkit-scrollbar-track {
     }
 }
 
-@media only screen and (max-width: 420px) {
-    #prev {
+@media only screen and (max-width: 450px) {
+
+    #playMode {
         display: none;
     }
 }
 
-@media only screen and (max-width: 380px) {
-    #next {
+@media only screen and (max-width: 360px) {
+    #time {
+        display: none;
+    }
+}
+
+@media only screen and (max-width: 300px) {
+    #prev {
         display: none;
     }
 
@@ -1022,7 +1020,11 @@ html::-webkit-scrollbar-track {
     }
 }
 
-@media only screen and (max-width: 300px) {
+@media only screen and (max-width: 260px) {
+    #next {
+        display: none;
+    }
+
     input[type=number] {
         min-width: unset;
     }

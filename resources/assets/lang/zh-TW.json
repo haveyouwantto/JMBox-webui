@@ -30,6 +30,7 @@
     "settings.general.sort.size.reverse": "最大",
     "settings.general.sort.mtime": "最舊",
     "settings.general.sort.mtime.reverse": "最新",
+    "settings.general.shuffle": "隨機播放",
     "settings.players": "播放模式",
     "settings.players.audio": "瀏覽器音頻",
     "settings.players.picoaudio": "PicoAudio合成器",

@@ -21,6 +21,7 @@ const palette = [
 ]
 
 let noteWidth = 0;
+let whiteNoteWidth = 0;
 let keyboardHeight = 0;
 let blackKeyHeight = 0;
 
@@ -291,15 +292,19 @@ class StandardRenderer {
                     let stopTime = getStopTime(note);
                     let startY = getY(note.startTime, playTime, scaling);
                     let endY = getY(stopTime, playTime, scaling)
-                    let x = note.pitch * noteWidth;
-
+                    
+                    let black = isBlackKey(note.pitch);
+                    let thisNoteWidth = black ? noteWidth : noteWidth * bwr;
+                    let noteIndex = black ? note.pitch : getWhiteKeyNumber(note.pitch)
+                    let x = noteIndex * thisNoteWidth;
+                    
                     if (settings.noteTransparency) {
                         this.ctx.fillStyle = palette[i] + getNoteTransparency(note.velocity);
                     }
                     if (stopTime > playTime) {
                         if (!settings.detailedNotes) {
                             let y = this.canvas.height - endY - keyboardHeight;
-                            let dx = noteWidth;
+                            let dx = thisNoteWidth;
                             let dy = endY - startY;
                             this.ctx.fillRect(x, y, dx, dy);
                         }
@@ -310,13 +315,23 @@ class StandardRenderer {
 
                             // Highlight notes
                             if (settings.highlightNotes && !settings.detailedNotes) {
+                            	let played = playTime - note.startTime;
+                                let noteDuration = stopTime - note.startTime;
+                                let transparency = Math.max(
+                                    Math.min(
+                                        1-(played / noteDuration )
+                                    , 1), 0
+                                );
                                 this.ctx.shadowOffsetX = 0;
                                 this.ctx.shadowOffsetY = 0;
-                                this.ctx.shadowBlur = noteWidth * 1.5;
+                                this.ctx.shadowBlur = thisNoteWidth * 5 * transparency;
                                 this.ctx.shadowColor = palette[i];
-                                this.ctx.fillStyle = "#ffffff60";
+                                
+                                let extraWidth = thisNoteWidth * (transparency+1)
+                                
+                                //this.ctx.fillStyle = "#ffffff60"; 
 
-                                this.ctx.fillRect(x, this.canvas.height - endY - keyboardHeight, noteWidth, endY - startY);
+                                this.ctx.fillRect(x+thisNoteWidth*0.5-extraWidth*0.5, this.canvas.height - endY - keyboardHeight, extraWidth, endY - startY);
                                 this.ctx.fillStyle = palette[i];
 
                                 this.ctx.shadowOffsetX = 0;
@@ -519,7 +534,7 @@ function resizeCanvas() {
     canvas.width = dpr * cssWidth;
     canvas.height = dpr * cssHeight;
 
-    noteWidth = canvas.width / 128;
+    noteWidth = canvas.width / 128; 
     keyboardHeight = noteWidth * 9;
     blackKeyHeight = noteWidth * 5.5;
     startAnimation();

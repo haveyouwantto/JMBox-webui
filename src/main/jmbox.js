@@ -7,7 +7,7 @@ import { navbar } from "./ui/navbar";
 import * as playerBar from "./ui/player-bar";
 import * as waterfall from './ui/waterfall'
 import Playlist from "./player/playlist";
-import { $, dbToGain, resetMIDI } from "./utils";
+import { $, dbToGain, generatePlaylist, resetMIDI } from "./utils";
 import { editSetting, loadSettings, settingChangeListener, settings } from "./settings";
 import { createLocaleItem, localeInit, setLocale, getLocale } from "./locale";
 import { aboutDialog, languageDialog, midiInfoDialog, playModeSelectionDialog } from "./ui/quick-dialog";
@@ -120,6 +120,7 @@ export class JMBoxApp {
 
     load(name) {
         const path = this.playlist.path + "/" + encodeURIComponent(name);
+
         this.playlist.setPlaying(name);
         playerBar.setSongName(name);
         document.title = this.serverName + " - " + name;
@@ -404,7 +405,22 @@ export class JMBoxApp {
         })
 
         filelist.setEventListener('play', name => {
-            this.playlist = this.cwd;
+            if (settings.shuffle) {
+                const randomList = generatePlaylist(this.cwd.list.map(f => f.name), name, 5);
+
+                // use the order in randomList to create new playlist
+                const newList = [];
+                randomList.forEach(n => {
+                    const item = this.cwd.list.find(f => f.name === n);
+                    if (item) newList.push(item);
+                });
+
+                console.log(newList);
+                this.playlist = new Playlist(this.cwd.path, newList);
+            } else {
+                this.playlist = this.cwd;
+            }
+
             this.play(name);
         })
 
