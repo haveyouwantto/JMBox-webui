@@ -149,7 +149,11 @@ export class MidiFall {
         const settings = this.settings;
 
         ctx.globalCompositeOperation = 'copy';
-        ctx.fillStyle = "#ff000000";
+        if (settings.backgroundColor) {
+            ctx.fillStyle = settings.backgroundColor;
+        } else {
+            ctx.fillStyle = "#ff000000";
+        }
         ctx.fillRect(0, 0, width, height);
         ctx.globalCompositeOperation = 'source-over';
 

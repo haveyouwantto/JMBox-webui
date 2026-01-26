@@ -558,14 +558,53 @@ export class JMBoxApp {
                 renderDialog.setStartButtonEnabled(false)
                 renderDialog.setDuration(picoAudio.playData.lastEventTime)
                 renderDialog.setName(name)
-                renderAndDownload((time, length) => {
-                    renderDialog.setProgress(Math.min(time / length, 1))
-                    renderDialog.setTime(Math.min(time, length))
-                }).then(blob => {
-                    renderDialog.setDownload(blob, name + '.wav')
-                    renderDialog.setStartButtonEnabled(true);
-                    renderDialog.setName('')
-                })
+
+                if (renderDialog.isVideoEnabled()) {
+                    import('./video-render').then(m => {
+                        m.renderVideo(settings, {
+                            audio: renderDialog.isAudioEnabled(),
+                            resolution: renderDialog.getResolution(),
+                            fps: renderDialog.getFps()
+                        }, (overall, length, time, stage, bitmap) => {
+                            renderDialog.setProgress(overall);
+
+                            // Update Stage Text
+                            if (stage === 'audio') {
+                                renderDialog.setName(getLocale('render.stage.audio'));
+                            } else if (stage === 'video') {
+                                renderDialog.setName(getLocale('render.stage.video'));
+                            }
+
+                            // Update Time and Preview
+                            if (time !== undefined) {
+                                renderDialog.setTimeProgress(Math.min(time / length, 1));
+                                renderDialog.setTime(Math.min(time, length));
+                            } else {
+                                renderDialog.setTimeProgress(0);
+                            }
+
+                            if (bitmap) {
+                                // console.log("Received preview bitmap", bitmap);
+                                renderDialog.drawPreview(bitmap);
+                                bitmap.close(); // Important to release memory!
+                            }
+
+                        }).then(() => {
+                            renderDialog.setStartButtonEnabled(true);
+                            renderDialog.setName('')
+                            renderDialog.setVisible(false); // Close dialog on success
+                        });
+                    });
+                } else {
+                    renderAndDownload((time, length) => {
+                        renderDialog.setProgress(Math.min(time / length, 1))
+                        renderDialog.setTime(Math.min(time, length))
+                    }).then(blob => {
+                        renderDialog.setDownload(blob, name + '.wav')
+                        renderDialog.setStartButtonEnabled(true);
+                        renderDialog.setName('')
+                    })
+                }
             }
         })
 

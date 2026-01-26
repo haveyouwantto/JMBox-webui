@@ -14,8 +14,8 @@
     "menu.replay": "重播",
     "menu.languages": "语言",
     "menu.render": "渲染为音频",
-    "menu.full-screen":"全屏显示",
-    "menu.upload":"加载本地文件",
+    "menu.full-screen": "全屏显示",
+    "menu.upload": "加载本地文件",
     "settings.title": "设置",
     "settings.general": "通用",
     "settings.general.dark-mode": "深色模式",
@@ -36,7 +36,7 @@
     "settings.players.picoaudio": "PicoAudio合成器",
     "settings.audio": "浏览器音频",
     "settings.audio.midi-src": "使用MIDI文件作为播放源",
-    "settings.picoaudio": "PicoAudio合成器", 
+    "settings.picoaudio": "PicoAudio合成器",
     "settings.picoaudio.sound-quality": "声音质量",
     "settings.picoaudio.quality.-1": "正弦波",
     "settings.picoaudio.quality.0": "基本波形",
@@ -84,5 +84,12 @@
     "player.failed.description": "播放此文件时出错。",
     "general.error": "错误",
     "browser.not-found": "文件夹未找到。",
-    "browser.empty": "空"
+    "browser.empty": "空",
+    "render.video.title": "视频设置",
+    "render.options.resolution": "分辨率",
+    "render.options.fps": "帧率",
+    "render.progress.overall": "总体进度",
+    "render.progress.encoding": "编码进度",
+    "render.stage.audio": "正在渲染音频...",
+    "render.stage.video": "正在编码视频..."
 }

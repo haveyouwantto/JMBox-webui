@@ -25,6 +25,7 @@
   },
   "dependencies": {
     "chardet": "^2.0.0",
-    "html-inline-css-webpack-plugin": "^1.11.2"
+    "html-inline-css-webpack-plugin": "^1.11.2",
+    "webm-muxer": "^5.1.4"
   }
 }

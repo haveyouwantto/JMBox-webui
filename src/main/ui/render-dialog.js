@@ -4,13 +4,69 @@ import { $, formatTime } from "../utils";
 
 const dialog = $("#render-dialog");
 const closeDialogButton = $("#close-render-button");
-const progressBar = dialog.querySelector('.slider-inner')
+const progressBarOverall = dialog.querySelector('#render-progress-overall')
+const progressBarTime = dialog.querySelector('#render-progress-time')
 const startRenderButton = $("#start-render-button")
 
 const timeDisplay = dialog.querySelector('.timeDisplay')
 const durationDisplay = dialog.querySelector('.durationDisplay')
 const rendering = $("#rendering")
 const download = $("#render-download-button")
+
+const renderVideoCheckbox = $("#render-video");
+const renderAudioCheckbox = $("#render-audio");
+const videoOptions = $("#video-options");
+const resolutionSelect = $("#render-resolution");
+const fpsSelect = $("#render-fps");
+const previewCanvas = $("#render-preview");
+let previewCtx = previewCanvas.getContext('2d');
+
+
+renderVideoCheckbox.addEventListener('change', () => {
+    if (renderVideoCheckbox.checked) {
+        videoOptions.classList.remove('hidden');
+    } else {
+        videoOptions.classList.add('hidden');
+    }
+    validateStartButton();
+});
+
+renderAudioCheckbox.addEventListener('change', validateStartButton);
+
+
+function validateStartButton() {
+    startRenderButton.disabled = !(renderVideoCheckbox.checked || renderAudioCheckbox.checked);
+}
+
+export function isVideoEnabled() {
+    return renderVideoCheckbox.checked;
+}
+
+export function isAudioEnabled() {
+    return renderAudioCheckbox.checked;
+}
+
+export function getResolution() {
+    return parseInt(resolutionSelect.value);
+}
+
+export function getFps() {
+    return parseInt(fpsSelect.value);
+}
+
+export function drawPreview(bitmap) {
+    if (!previewCtx && previewCanvas) {
+        previewCtx = previewCanvas.getContext('2d');
+    }
+
+    if (previewCtx) {
+        if (previewCanvas.width !== bitmap.width) {
+            previewCanvas.width = bitmap.width;
+            previewCanvas.height = bitmap.height;
+        }
+        previewCtx.drawImage(bitmap, 0, 0);
+    }
+}
 
 const renderListener = new EventListener();
 
@@ -34,7 +90,11 @@ closeDialogButton.addEventListener('click', () => {
 });
 
 export function setProgress(percentage) {
-    progressBar.style.width = (percentage * 100) + '%'
+    progressBarOverall.style.width = (percentage * 100) + '%'
+}
+
+export function setTimeProgress(percentage) {
+    progressBarTime.style.width = (percentage * 100) + '%'
 }
 
 export function setStartButtonEnabled(value) {

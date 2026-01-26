@@ -1,7 +1,7 @@
 import picoAudio from "./picoaudio";
 import PicoAudio from 'picoaudio';
 
-export default function renderAndDownload(progressFunc) {
+export function renderAudio(progressFunc) {
     const length = picoAudio.playData.lastEventTime
     const sr = picoAudio.context.sampleRate;
     const ctx = new OfflineAudioContext(2, sr * length, sr)
@@ -12,6 +12,12 @@ export default function renderAndDownload(progressFunc) {
     const interval = setInterval(() => progressFunc(picoAudioRender.context.currentTime, length), 100)
     return picoAudioRender.render().then(buffer => {
         clearInterval(interval);
+        return buffer;
+    })
+}
+
+export default function renderAndDownload(progressFunc) {
+    return renderAudio(progressFunc).then(buffer => {
         const data = generateWav(buffer)
         let blob = new Blob([data], { type: "audio/wav" });
         var new_file = URL.createObjectURL(blob);
