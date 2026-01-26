@@ -91,5 +91,7 @@
     "render.progress.overall": "总体进度",
     "render.progress.encoding": "编码进度",
     "render.stage.audio": "正在渲染音频...",
-    "render.stage.video": "正在编码视频..."
+    "render.stage.video": "正在编码视频...",
+    "render.video": "视频",
+    "render.audio": "音频"
 }

@@ -10,7 +10,8 @@ const startRenderButton = $("#start-render-button")
 
 const timeDisplay = dialog.querySelector('.timeDisplay')
 const durationDisplay = dialog.querySelector('.durationDisplay')
-const rendering = $("#rendering")
+const renderingFilename = $("#rendering-filename")
+const renderingStage = $("#rendering-stage")
 const download = $("#render-download-button")
 
 const renderVideoCheckbox = $("#render-video");
@@ -126,7 +127,11 @@ export function setDuration(s) {
 }
 
 export function setName(name) {
-    rendering.innerText = name;
+    renderingFilename.innerText = name;
+}
+
+export function setStage(stage) {
+    renderingStage.innerText = stage;
 }
 
 export function setDownload(url, name) {

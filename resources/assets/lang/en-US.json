@@ -92,5 +92,7 @@
     "render.progress.overall": "Overall Progress",
     "render.progress.encoding": "Encoding Progress",
     "render.stage.audio": "Rendering Audio...",
-    "render.stage.video": "Encoding Video..."
+    "render.stage.video": "Encoding Video...",
+    "render.video": "Video",
+    "render.audio": "Audio"
 }

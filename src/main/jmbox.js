@@ -384,6 +384,9 @@ export class JMBoxApp {
 
                 case 'render':
                     renderDialog.setVisible(true);
+                    if (!picoAudio.playData) {
+                        renderDialog.setStartButtonEnabled(false);
+                    }
                     break;
                 case 'upload':
                     document.getElementById("uploader").click();
@@ -564,15 +567,16 @@ export class JMBoxApp {
                         m.renderVideo(settings, {
                             audio: renderDialog.isAudioEnabled(),
                             resolution: renderDialog.getResolution(),
-                            fps: renderDialog.getFps()
+                            fps: renderDialog.getFps(),
+                            filename: name // Pass filename
                         }, (overall, length, time, stage, bitmap) => {
                             renderDialog.setProgress(overall);
 
-                            // Update Stage Text
+                            // Update Stage Text: e.g. (Rendering Audio...)
                             if (stage === 'audio') {
-                                renderDialog.setName(getLocale('render.stage.audio'));
+                                renderDialog.setStage(`(${getLocale('render.stage.audio')})`);
                             } else if (stage === 'video') {
-                                renderDialog.setName(getLocale('render.stage.video'));
+                                renderDialog.setStage(`(${getLocale('render.stage.video')})`);
                             }
 
                             // Update Time and Preview
@@ -584,15 +588,18 @@ export class JMBoxApp {
                             }
 
                             if (bitmap) {
-                                // console.log("Received preview bitmap", bitmap);
                                 renderDialog.drawPreview(bitmap);
-                                bitmap.close(); // Important to release memory!
+                                bitmap.close();
                             }
 
                         }).then(() => {
                             renderDialog.setStartButtonEnabled(true);
                             renderDialog.setName('')
                             renderDialog.setVisible(false); // Close dialog on success
+                        }).catch(err => {
+                            console.error(err);
+                            alert(getLocale('general.error') + ": " + err);
+                            renderDialog.setStartButtonEnabled(true);
                         });
                     });
                 } else {

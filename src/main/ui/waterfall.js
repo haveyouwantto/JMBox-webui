@@ -138,6 +138,7 @@ export class MidiFall {
         this.noteWidth = this.canvas.width / 128;
         this.keyboardHeight = this.noteWidth * 9;
         this.blackKeyHeight = this.noteWidth * 5.5;
+        this.renderFrame(this.lastTime ?? 0)
     }
 
     renderFrame(playTime) {
@@ -147,6 +148,7 @@ export class MidiFall {
         } = this.canvas;
         const ctx = this.ctx;
         const settings = this.settings;
+        this.lastTime = playTime;
 
         ctx.globalCompositeOperation = 'copy';
         if (settings.backgroundColor) {
@@ -518,7 +520,7 @@ export class MidiFallController {
         if (this.player && this.player.paused) {
             this.stop();
         } else {
-            this.animationId = requestAnimationFrame(() => this.drawLoop());
+            this.animationId = requestAnimationFrame(this.drawLoop.bind(this));
         }
     }
 
@@ -532,7 +534,12 @@ export class MidiFallController {
             this.waterfallElement.classList.add('open');
             document.documentElement.classList.add('noscroll');
 
+            this.waterfallElement.classList.add('open');
+            document.documentElement.classList.add('noscroll');
+
+            // Double resize to handle layout transitions
             this.midiFall.resize();
+
             this.start();
             this.acquireWakelock();
         } else {

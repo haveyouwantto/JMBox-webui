@@ -10,7 +10,7 @@ export async function renderVideo(waterfallSettings, options, progressCallback) 
     const { Muxer, ArrayBufferTarget } = await import('webm-muxer');
 
     const handle = await window.showSaveFilePicker({
-        suggestedName: 'video.webm',
+        suggestedName: (options.filename || 'video') + '.webm',
         types: [{
             description: 'Video File',
             accept: { 'video/webm': ['.webm'] },
@@ -33,7 +33,7 @@ export async function renderVideo(waterfallSettings, options, progressCallback) 
     if (options.audio) {
         console.log("[VideoRender] Starting Audio Rendering...");
         audioBuffer = await renderAudio((t, l) => {
-            progressCallback(t * 0.1, l, t, 'audio');
+            progressCallback(t * 0.5, l, t, 'audio'); // Audio takes 50%
         });
         console.log(`[VideoRender] Audio Rendered: ${audioBuffer.duration}s, ${audioBuffer.numberOfChannels}ch, ${audioBuffer.sampleRate}Hz`);
     }
@@ -193,7 +193,13 @@ export async function renderVideo(waterfallSettings, options, progressCallback) 
 
         // Progress & Logging
         if (i % 30 === 0) {
-            let overallP = 0.1 + (0.9 * i / totalFrames);
+            // Audio took 0.5. Video takes the rest 0.5?
+            // If audio was skipped, video takes 1.0.
+            // But if audio was enabled, base is 0.5.
+            let base = options.audio ? 0.5 : 0;
+            let factor = options.audio ? 0.5 : 1;
+
+            let overallP = base + (factor * i / totalFrames);
             let elapsed = (performance.now() - startRenderTime) / 1000;
             let fpsCurrent = i / elapsed;
 
