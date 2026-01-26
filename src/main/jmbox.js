@@ -5,7 +5,7 @@ import * as renderDialog from "./ui/render-dialog"
 import { filelist } from "./ui/filelist";
 import { navbar } from "./ui/navbar";
 import * as playerBar from "./ui/player-bar";
-import * as waterfall from './ui/waterfall'
+import { MidiFall, MidiFallController } from './ui/waterfall'
 import Playlist from "./player/playlist";
 import { $, dbToGain, generatePlaylist, resetMIDI } from "./utils";
 import { editSetting, loadSettings, settingChangeListener, settings } from "./settings";
@@ -26,6 +26,12 @@ export class JMBoxApp {
 
         this.pathman = new PathMan();
         this.cache = new FileCache();
+
+        const waterfallElement = $("#waterfall");
+        const canvas = waterfallElement.querySelector('canvas');
+        this.midiFall = new MidiFall(canvas, settings);
+        this.waterfall = new MidiFallController(waterfallElement, this.midiFall, null);
+
         this.player = this.createPlayer(settings.player);
         this.cwd = null;
         this.playlist = null;
@@ -163,20 +169,22 @@ export class JMBoxApp {
         this.player.setEventListener('loaded', url => {
             playerBar.setDuration(this.player.duration);
             if (!(this.player instanceof PicoAudioPlayer)) {
-                loadMIDIUrl(url.replace("/play/", "/midi/")).then(smfData => { if (settings.showLyrics) waterfall.lrc.load(smfData) });
+                loadMIDIUrl(url.replace("/play/", "/midi/")).then(smfData => {
+                    this.waterfall.setMidiData(smfData);
+                });
             } else {
-                if (settings.showLyrics) waterfall.lrc.load(picoAudio.playData)
+                this.waterfall.setMidiData(picoAudio.playData);
             }
         });
 
         this.player.setEventListener('play', () => {
             playerBar.setPaused(false);
-            waterfall.startAnimation();
+            this.waterfall.start();
         });
 
         this.player.setEventListener('pause', () => {
             playerBar.setPaused(true);
-            waterfall.endAnimation();
+            this.waterfall.stop();
         });
 
         this.player.setEventListener('volumechange', volume => {
@@ -217,7 +225,7 @@ export class JMBoxApp {
             dialog.setVisible(true);
         });
 
-        waterfall.setPlayer(this.player)
+        this.waterfall.setPlayer(this.player)
         if (this.playlist) {
             this.load(this.playlist.current().name).then(() => {
                 this.player.seek(playTime);
@@ -302,6 +310,8 @@ export class JMBoxApp {
                     this.load(this.playlist.current().name).then(() => {
                         this.player.seek(pos);
                         this.player.play();
+                        // Re-set data ensuring lyrics/notes are ready
+                        this.waterfall.setMidiData(picoAudio.playData);
                     })
                 }
             });
@@ -339,7 +349,7 @@ export class JMBoxApp {
 
         playerBar.setEventListener('seek', percentage => {
             this.player.seekPercentage(percentage);
-            if (waterfall.isVisible()) waterfall.startAnimation();
+            if (this.waterfall.isVisible()) this.waterfall.start();
         });
 
         playerBar.setEventListener('menuitem', func => {
@@ -393,7 +403,7 @@ export class JMBoxApp {
         })
 
         playerBar.setEventListener('titleclick', () => {
-            waterfall.toggle();
+            this.waterfall.toggle();
         })
 
         playerBar.setEventListener('playmodechange', mode => editSetting('playMode', mode))
@@ -535,8 +545,9 @@ export class JMBoxApp {
                     else setLocale(e.value);
                     break;
                 case "showLyrics":
-                    waterfall.setLyricsVisible(e.value)
+                    this.waterfall.setLyricsVisible(e.value)
             }
+            if (this.waterfall) this.waterfall.updateSettings(settings); // Propagate settings to MidiFall
             updateSettingsItem(e.key, e.value);
         });
 
