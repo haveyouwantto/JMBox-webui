@@ -394,23 +394,20 @@
 
     <dialog id="render-dialog" class="shadow">
         <div class="title">
-            <locale key="render.title"></locale>
+            <locale key="render.title">Render</locale>
         </div>
         <div class="dialog-container">
-            <div class="dialog-item">
-                <label>
-                    <input type="checkbox" id="render-video" />
-                    <locale key="render.video">Video</locale>
-                </label>
-                <label>
-                    <input type="checkbox" id="render-audio" checked />
-                    <locale key="render.audio">Audio</locale>
-                </label>
-            </div>
+            <section class="dialog-section" id="render-settings-section">
+                <locale class="dialog-subtitle" key="render.settings">Settings</locale>
 
-            <div id="video-options" class="hidden">
-                <div class="dialog-row">
-                    <a class="dialog-item half" setting="dropDown">
+                <button class="dialog-item button-flash" id="render-video-btn">
+                    <icon>&#57344;</icon>
+                    <locale key="render.video">Video</locale>
+                    <icon class="right" checker>&#57362;</icon>
+                </button>
+
+                <div id="video-options" class="hidden">
+                    <a class="dialog-item">
                         <locale key="render.options.resolution">Resolution</locale>
                         <select class="right" id="render-resolution">
                             <option value="720">720p</option>
@@ -420,7 +417,7 @@
                             <option value="4320">4320p</option>
                         </select>
                     </a>
-                    <a class="dialog-item half" setting="dropDown">
+                    <a class="dialog-item">
                         <locale key="render.options.fps">FPS</locale>
                         <select class="right" id="render-fps">
                             <option value="30">30fps</option>
@@ -428,34 +425,45 @@
                         </select>
                     </a>
                 </div>
+
+                <button class="dialog-item button-flash" id="render-audio-btn">
+                    <icon>&#57353;</icon>
+                    <locale key="render.audio">Audio</locale>
+                    <icon class="right icon-checked" checker>&#57363;</icon>
+                </button>
+            </section>
+
+            <section class="dialog-section" id="render-progress-section">
+                <locale class="dialog-subtitle" key="render.progress">Progress</locale>
+
                 <div class="dialog-item">
                     <canvas id="render-preview"
-                        style="width: 100%; height: auto; border-radius: 4px; display: block; margin-top: 8px;"></canvas>
+                        style="width: 100%; height: auto; border-radius: 4px; display: none; margin-top: 8px;"></canvas>
                 </div>
-            </div>
 
-            <div class="dialog-item">
-                <locale key="render.current"></locale> <span id="rendering-filename"></span>
-            </div>
-
-            <div class="dialog-item">
-                <locale key="render.progress.overall">Overall Progress</locale> <span id="rendering-stage"></span>
-            </div>
-            <div class="slider">
-                <div class="slider-inner" id="render-progress-overall"></div>
-            </div>
-
-            <div class="dialog-item" style="display: flex; justify-content: space-between;">
-                <locale key="render.progress.encoding">Encoding Progress</locale>
-                <div class="time" style="margin: 0;">
-                    <div class="timeDisplay">00:00</div>
-                    <div class="seperater">/</div>
-                    <div class="durationDisplay">00:00</div>
+                <div class="dialog-item">
+                    <locale key="render.current">Current File:</locale> <span id="rendering-filename"></span>
                 </div>
-            </div>
-            <div class="slider">
-                <div class="slider-inner" id="render-progress-time"></div>
-            </div>
+
+                <div class="dialog-item">
+                    <locale key="render.progress.overall">Overall Progress:</locale> <span id="rendering-stage"></span>
+                </div>
+                <div class="slider" style="margin: 0 16px;">
+                    <div class="slider-inner" id="render-progress-overall"></div>
+                </div>
+
+                <div class="dialog-item" style="display: flex; justify-content: space-between;">
+                    <locale key="render.progress.encoding">Encoding Progress</locale>
+                    <div class="time" style="margin: 0;">
+                        <div class="timeDisplay">00:00</div>
+                        <div class="seperater">/</div>
+                        <div class="durationDisplay">00:00</div>
+                    </div>
+                </div>
+                <div class="slider" style="margin: 0 16px;">
+                    <div class="slider-inner" id="render-progress-time"></div>
+                </div>
+            </section>
         </div>
         <div class="dialog-button-container">
             <button class="dialog-button" id="close-render-button">

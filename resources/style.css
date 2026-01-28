@@ -361,7 +361,7 @@ input[type="number"]:focus,
     border-bottom: 2px solid var(--theme-color);
 }
 
-.title-input{
+.title-input {
     font-size: 20px;
     color: white;
     font-family: "Roboto", sans-serif;
@@ -369,7 +369,7 @@ input[type="number"]:focus,
     min-width: 100%;
 }
 
-.title-input:focus{
+.title-input:focus {
     border-bottom: 2px solid white;
 }
 
@@ -657,19 +657,22 @@ dialog.fade-out::backdrop {
     padding-bottom: 8px;
     padding-left: 16px;
     padding-right: 16px;
+    display: flex;
+    align-items: center;
 }
 
 .dialog-item locale {
     margin-right: 16px;
 }
 
-#settings-dialog .dialog-item {
-    display: flex;
-    align-items: center;
-}
 
 .dialog-item-line {
     border-bottom: 1px solid var(--hover-color);
+}
+
+#video-options {
+    display: flex;
+    flex-direction: column;
 }
 
 .dialog-section {
@@ -878,7 +881,7 @@ a.dialog-button {
 }
 
 .hidden {
-    display: none;
+    display: none !important;
 }
 
 /* Scroll Bar*/

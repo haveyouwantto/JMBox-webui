@@ -171,9 +171,11 @@ export class JMBoxApp {
             if (!(this.player instanceof PicoAudioPlayer)) {
                 loadMIDIUrl(url.replace("/play/", "/midi/")).then(smfData => {
                     this.waterfall.setMidiData(smfData);
+                    renderDialog.setAvailable(true);
                 });
             } else {
                 this.waterfall.setMidiData(picoAudio.playData);
+                renderDialog.setAvailable(true);
             }
         });
 

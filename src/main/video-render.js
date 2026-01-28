@@ -118,6 +118,8 @@ export async function renderVideo(waterfallSettings, options, progressCallback) 
     waterfallSettings.backgroundColor = backgroundColor;
     console.log(`[VideoRender] Detected background color: ${waterfallSettings.backgroundColor}`);
 
+    waterfallSettings.perfmon = false;
+
     const midiFall = new MidiFall(canvas, waterfallSettings);
 
     // Patch resize for OffscreenCanvas

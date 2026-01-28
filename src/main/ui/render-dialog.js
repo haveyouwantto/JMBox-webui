@@ -1,5 +1,5 @@
 import EventListener from "../event-listener";
-import { $, formatTime } from "../utils";
+import { $, formatTime, updateChecker } from "../utils";
 
 
 const dialog = $("#render-dialog");
@@ -14,37 +14,48 @@ const renderingFilename = $("#rendering-filename")
 const renderingStage = $("#rendering-stage")
 const download = $("#render-download-button")
 
-const renderVideoCheckbox = $("#render-video");
-const renderAudioCheckbox = $("#render-audio");
+const renderVideoBtn = $("#render-video-btn");
+const renderAudioBtn = $("#render-audio-btn");
 const videoOptions = $("#video-options");
 const resolutionSelect = $("#render-resolution");
 const fpsSelect = $("#render-fps");
 const previewCanvas = $("#render-preview");
 let previewCtx = previewCanvas.getContext('2d');
 
+let videoEnabled = false;
+let audioEnabled = true;
+let prepared = false;
 
-renderVideoCheckbox.addEventListener('change', () => {
-    if (renderVideoCheckbox.checked) {
+renderVideoBtn.addEventListener('click', () => {
+    videoEnabled = !videoEnabled;
+    updateChecker(renderVideoBtn, videoEnabled);
+    if (videoEnabled) {
         videoOptions.classList.remove('hidden');
+        previewCanvas.style.display = 'block';
     } else {
         videoOptions.classList.add('hidden');
+        previewCanvas.style.display = 'none';
     }
     validateStartButton();
 });
 
-renderAudioCheckbox.addEventListener('change', validateStartButton);
+renderAudioBtn.addEventListener('click', () => {
+    audioEnabled = !audioEnabled;
+    updateChecker(renderAudioBtn, audioEnabled);
+    validateStartButton();
+});
 
 
 function validateStartButton() {
-    startRenderButton.disabled = !(renderVideoCheckbox.checked || renderAudioCheckbox.checked);
+    startRenderButton.disabled = !((videoEnabled || audioEnabled) && prepared);
 }
 
 export function isVideoEnabled() {
-    return renderVideoCheckbox.checked;
+    return videoEnabled;
 }
 
 export function isAudioEnabled() {
-    return renderAudioCheckbox.checked;
+    return audioEnabled;
 }
 
 export function getResolution() {
@@ -71,7 +82,6 @@ export function drawPreview(bitmap) {
 
 const renderListener = new EventListener();
 
-console.log(dialog, closeDialogButton)
 let timeoutId = null;
 
 dialog.addEventListener('animationend', function () {
@@ -105,6 +115,7 @@ export function setStartButtonEnabled(value) {
 export function setVisible(visible) {
     if (visible) {
         dialog.showModal();
+        validateStartButton();
     } else {
         if (timeoutId) {
             clearTimeout(timeoutId);
@@ -138,6 +149,10 @@ export function setDownload(url, name) {
     download.href = url;
     download.download = name;
     download.classList.remove('hidden')
+}
+
+export function setAvailable(available) {
+    prepared = available;
 }
 
 export { renderListener }
