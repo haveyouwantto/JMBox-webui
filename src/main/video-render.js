@@ -33,7 +33,7 @@ export async function renderVideo(waterfallSettings, options, progressCallback) 
     if (options.audio) {
         console.log("[VideoRender] Starting Audio Rendering...");
         audioBuffer = await renderAudio((t, l) => {
-            progressCallback(t * 0.5, l, t, 'audio'); // Audio takes 50%
+            progressCallback(t / l * 0.5, l, t, 'audio'); // Audio takes 50%
         });
         console.log(`[VideoRender] Audio Rendered: ${audioBuffer.duration}s, ${audioBuffer.numberOfChannels}ch, ${audioBuffer.sampleRate}Hz`);
     }
@@ -118,8 +118,6 @@ export async function renderVideo(waterfallSettings, options, progressCallback) 
     waterfallSettings.backgroundColor = backgroundColor;
     console.log(`[VideoRender] Detected background color: ${waterfallSettings.backgroundColor}`);
 
-    waterfallSettings.perfmon = false;
-
     const midiFall = new MidiFall(canvas, waterfallSettings);
 
     // Patch resize for OffscreenCanvas
@@ -181,6 +179,8 @@ export async function renderVideo(waterfallSettings, options, progressCallback) 
     console.log(`[VideoRender] Starting Video Encoding: ${totalFrames} frames...`);
     const frameInterval = 1 / fps;
     const startRenderTime = performance.now();
+
+    midiFall.perfmon = false;
 
     for (let i = 0; i < totalFrames; i++) {
         const time = i * frameInterval;

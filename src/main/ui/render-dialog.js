@@ -25,6 +25,7 @@ let previewCtx = previewCanvas.getContext('2d');
 let videoEnabled = false;
 let audioEnabled = true;
 let prepared = false;
+let rendering = false;
 
 renderVideoBtn.addEventListener('click', () => {
     videoEnabled = !videoEnabled;
@@ -47,7 +48,25 @@ renderAudioBtn.addEventListener('click', () => {
 
 
 function validateStartButton() {
-    startRenderButton.disabled = !((videoEnabled || audioEnabled) && prepared);
+    startRenderButton.disabled = !((videoEnabled || audioEnabled) && prepared && !rendering);
+}
+
+export function setRendering(value) {
+    rendering = value;
+    validateStartButton();
+}
+
+export function checkApiAvailability() {
+    const webcodecs = 'VideoEncoder' in window;
+    const fileSystem = 'showSaveFilePicker' in window;
+    if (!webcodecs || !fileSystem) {
+        renderVideoBtn.style.display = 'none';
+        videoOptions.classList.add('hidden');
+        videoEnabled = false;
+        updateChecker(renderVideoBtn, videoEnabled);
+    } else {
+        renderVideoBtn.style.display = 'flex';
+    }
 }
 
 export function isVideoEnabled() {

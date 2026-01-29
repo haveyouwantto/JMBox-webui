@@ -385,9 +385,10 @@ export class JMBoxApp {
                     break;
 
                 case 'render':
+                    renderDialog.checkApiAvailability();
                     renderDialog.setVisible(true);
                     if (!picoAudio.playData) {
-                        renderDialog.setStartButtonEnabled(false);
+                        renderDialog.setRendering(false); // Disable if no data
                     }
                     break;
                 case 'upload':
@@ -560,7 +561,7 @@ export class JMBoxApp {
         renderDialog.renderListener.setEventListener('start', e => {
             if (picoAudio.playData) {
                 const name = playerBar.getSongName();
-                renderDialog.setStartButtonEnabled(false)
+                renderDialog.setRendering(true)
                 renderDialog.setDuration(picoAudio.playData.lastEventTime)
                 renderDialog.setName(name)
 
@@ -595,13 +596,13 @@ export class JMBoxApp {
                             }
 
                         }).then(() => {
-                            renderDialog.setStartButtonEnabled(true);
+                            renderDialog.setRendering(false);
                             renderDialog.setName('')
                             renderDialog.setVisible(false); // Close dialog on success
                         }).catch(err => {
                             console.error(err);
                             alert(getLocale('general.error') + ": " + err);
-                            renderDialog.setStartButtonEnabled(true);
+                            renderDialog.setRendering(false);
                         });
                     });
                 } else {
@@ -610,7 +611,7 @@ export class JMBoxApp {
                         renderDialog.setTime(Math.min(time, length))
                     }).then(blob => {
                         renderDialog.setDownload(blob, name + '.wav')
-                        renderDialog.setStartButtonEnabled(true);
+                        renderDialog.setRendering(false);
                         renderDialog.setName('')
                     })
                 }
