@@ -4,7 +4,7 @@ import '../resources/waterfall.css';
 
 function start() {
     let url = localStorage.getItem('serverUrl');
-    if (!url.endsWith('/')) url += '/';
+    if (url && !url.endsWith('/')) url += '/';
     const app = url ? new JMBoxApp(url) : new JMBoxApp();
 
     app.info().then(() => {
