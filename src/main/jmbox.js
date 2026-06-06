@@ -5,7 +5,7 @@ import * as renderDialog from "./ui/render-dialog"
 import { filelist } from "./ui/filelist";
 import { navbar } from "./ui/navbar";
 import * as playerBar from "./ui/player-bar";
-import { MidiFall, MidiFallController } from './ui/waterfall'
+import { MidiFall, MidiFallController, WebGLRenderer } from './ui/waterfall'
 import Playlist from "./player/playlist";
 import { $, dbToGain, generatePlaylist, resetMIDI } from "./utils";
 import { editSetting, loadSettings, settingChangeListener, settings } from "./settings";
@@ -29,7 +29,7 @@ export class JMBoxApp {
 
         const waterfallElement = $("#waterfall");
         const canvas = waterfallElement.querySelector('canvas');
-        this.midiFall = new MidiFall(canvas, settings);
+        this.midiFall = new WebGLRenderer(canvas, settings);
         this.waterfall = new MidiFallController(waterfallElement, this.midiFall, null);
 
         this.player = this.createPlayer(settings.player);

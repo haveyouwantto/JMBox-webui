@@ -403,79 +403,361 @@ export class MidiFall {
 }
 
 
-class WebGLRenderer {
-    constructor(canvas, settings) {
+export class WebGLRenderer {
+    constructor(canvas, settings = {}) {
         this.canvas = canvas;
-        this.settings = settings;
+        this.settings = Object.assign({
+            spanDuration: 4,
+            maxNoteDuration: 30,
+            noteTransparency: false,
+            highlightNotes: true,
+            detailedNotes: false,
+            prefmon: false,
+            showLyrics: true
+        }, settings);
+
+        this.midiData = null;
+        this.lastDrawTime = performance.now();
+        this.lastTime = 0;
+        this.timeList = [];
+        this.dpr = window.devicePixelRatio || 1;
+
+        // ── THREE.js core ──
         this.scene = new THREE.Scene();
-        this.camera = new THREE.PerspectiveCamera(60, canvas.width / canvas.height, 0.1, 1000);
-
+        this.camera = new THREE.PerspectiveCamera(55, 1, 0.1, 2000);
         this.renderer = new THREE.WebGLRenderer({
-            canvas: canvas
+            canvas: canvas,
+            antialias: true,
+            alpha: false
         });
+        this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+        this.renderer.shadowMap.enabled = false;
+        this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
+        this.renderer.toneMappingExposure = 1.1;
 
-        this.renderer.setSize(waterfall.clientWidth, waterfall.clientHeight);
-        this.renderer.setPixelRatio(window.devicePixelRatio);
+        // ── Fog for depth ──
+        this.scene.fog = new THREE.FogExp2(0x050510, 0.008);
+        this.scene.background = new THREE.Color(0x050510);
 
-        this.geometry = new THREE.BoxGeometry();
-        this.materials = palette.map(color => new THREE.MeshBasicMaterial({
-            color: color
+        // ── Lights ──
+        const ambient = new THREE.AmbientLight(0x222244, 0.6);
+        this.scene.add(ambient);
+
+        this.pointLight = new THREE.PointLight(0xffffff, 1.2, 200);
+        this.pointLight.position.set(0, 20, 0);
+        this.scene.add(this.pointLight);
+
+        const dirLight = new THREE.DirectionalLight(0x8888ff, 0.4);
+        dirLight.position.set(-30, 40, -20);
+        this.scene.add(dirLight);
+
+        // ── Shared geometries ──
+        this.noteGeometry = new THREE.BoxGeometry(1, 1, 1);
+        this.noteGeometry.translate(0, 0.5, 0.5); // pivot at bottom-back
+
+        // ── Materials per channel (neon glow) ──
+        this.noteMaterials = palette.map(color => new THREE.MeshStandardMaterial({
+            color: color,
+            emissive: new THREE.Color(color),
+            emissiveIntensity: 0.35,
+            metalness: 0.3,
+            roughness: 0.5,
+            transparent: true,
+            opacity: 0.92
         }));
-        this.camera.position.set(0, 32, 0);
-        this.camera.lookAt(0, 0, 32);
+        this.activeNoteMaterials = palette.map(color => new THREE.MeshStandardMaterial({
+            color: 0xffffff,
+            emissive: new THREE.Color(color),
+            emissiveIntensity: 1.8,
+            metalness: 0.1,
+            roughness: 0.2,
+            transparent: true,
+            opacity: 1.0
+        }));
 
+        // ── Ground plane (reflective dark stage) ──
+        const groundGeo = new THREE.PlaneGeometry(200, 600);
+        const groundMat = new THREE.MeshStandardMaterial({
+            color: 0x0a0a1a,
+            metalness: 0.85,
+            roughness: 0.15,
+            envMapIntensity: 0.5
+        });
+        this.ground = new THREE.Mesh(groundGeo, groundMat);
+        this.ground.rotation.x = -Math.PI / 2;
+        this.ground.position.y = -0.5;
+        this.scene.add(this.ground);
 
+        // ── Grid overlay ──
+        const gridHelper = new THREE.GridHelper(200, 128, 0x1a1a3a, 0x0d0d20);
+        gridHelper.position.y = -0.48;
+        this.scene.add(gridHelper);
 
-        // 创建一条线的材质，颜色是红色
-        const material = new THREE.LineBasicMaterial({ color: 0xffffff });
-        // 创建线的几何体，用来存储顶点位置
-        const geometry = new THREE.BufferGeometry();
-        // 创建顶点位置的数组
-        const points = [];
+        // ── Playline (glowing cylinder) ──
+        const playlineMat = new THREE.MeshStandardMaterial({
+            color: 0xff2244,
+            emissive: 0xff2244,
+            emissiveIntensity: 2.5,
+            metalness: 0.0,
+            roughness: 0.3,
+            transparent: true,
+            opacity: 0.9
+        });
+        const playlineGeo = new THREE.CylinderGeometry(0.25, 0.25, 130, 8);
+        playlineGeo.rotateZ(Math.PI / 2);
+        this.playline = new THREE.Mesh(playlineGeo, playlineMat);
+        this.playline.position.y = 0.3;
+        this.scene.add(this.playline);
 
-        // 在 points数组里加入几个点的坐标
-        points.push(new THREE.Vector3(-63, 0, 0));
-        points.push(new THREE.Vector3(63, 0, 0));
+        // ── Side rail glow lines ──
+        const railMat = new THREE.MeshStandardMaterial({
+            color: 0x4444ff,
+            emissive: 0x4444ff,
+            emissiveIntensity: 1.0,
+            transparent: true,
+            opacity: 0.5
+        });
+        const railGeo = new THREE.BoxGeometry(0.15, 0.5, 600);
+        const leftRail = new THREE.Mesh(railGeo, railMat);
+        leftRail.position.set(-65, 0, 0);
+        this.scene.add(leftRail);
+        const rightRail = new THREE.Mesh(railGeo, railMat);
+        rightRail.position.set(65, 0, 0);
+        this.scene.add(rightRail);
 
-        geometry.setFromPoints(points);
-        // 根据材质和几何体创建Line对象
-        this.line = new THREE.Line(geometry, material);
+        // ── Particle system for note hits ──
+        this._particleCount = 512;
+        this._particlePositions = new Float32Array(this._particleCount * 3);
+        this._particleColors = new Float32Array(this._particleCount * 3);
+        this._particleVelocities = new Float32Array(this._particleCount * 3);
+        this._particleLifetimes = new Float32Array(this._particleCount);
+        this._particleIndex = 0;
+
+        const particleGeo = new THREE.BufferGeometry();
+        particleGeo.setAttribute('position', new THREE.BufferAttribute(this._particlePositions, 3));
+        particleGeo.setAttribute('color', new THREE.BufferAttribute(this._particleColors, 3));
+
+        // Procedural circle texture
+        const pCanvas = document.createElement('canvas');
+        pCanvas.width = 32;
+        pCanvas.height = 32;
+        const pCtx = pCanvas.getContext('2d');
+        const grad = pCtx.createRadialGradient(16, 16, 0, 16, 16, 16);
+        grad.addColorStop(0, 'rgba(255,255,255,1)');
+        grad.addColorStop(0.3, 'rgba(255,255,255,0.6)');
+        grad.addColorStop(1, 'rgba(255,255,255,0)');
+        pCtx.fillStyle = grad;
+        pCtx.fillRect(0, 0, 32, 32);
+        const particleTexture = new THREE.CanvasTexture(pCanvas);
+
+        const particleMat = new THREE.PointsMaterial({
+            size: 1.2,
+            map: particleTexture,
+            vertexColors: true,
+            transparent: true,
+            opacity: 0.85,
+            blending: THREE.AdditiveBlending,
+            depthWrite: false
+        });
+        this.particles = new THREE.Points(particleGeo, particleMat);
+        this.scene.add(this.particles);
+
+        // ── Note mesh pool ──
+        this._meshPool = [];
+        this._meshPoolIndex = 0;
+
+        // ── Track active note set for particle emission ──
+        this._activeNotes = new Set();
+
+        // Camera initial
+        this.camera.position.set(0, 14, -20);
+        this.camera.lookAt(0, 0, 20);
     }
 
-    drawFrame() {
-        this.renderer.setSize(waterfall.clientWidth, waterfall.clientHeight);
-        this.camera.aspect = waterfall.clientWidth / waterfall.clientHeight;
-        this.scene.clear();
-        let playTime = player.currentTime;
+    // ── MidiFall-compatible interface ──
 
-        const playZ = playTime * 16;
+    updateSettings(settings) {
+        Object.assign(this.settings, settings);
+    }
 
-        if (picoAudio && picoAudio.playData && picoAudio.playData.channels) {
-            for (let i = 0; i < picoAudio.playData.channels.length; i++) {
-                let result = fastSpan(picoAudio.playData.channels[i].notes, playTime, 32, true);
+    setMidiData(midiData) {
+        this.midiData = midiData;
+    }
+
+    resize() {
+        const container = this.canvas.parentElement || waterfall;
+        const w = container.clientWidth;
+        const h = container.clientHeight;
+        if (w === 0 || h === 0) return;
+
+        this.renderer.setSize(w, h);
+        this.camera.aspect = w / h;
+        this.camera.updateProjectionMatrix();
+        this.renderFrame(this.lastTime ?? 0);
+    }
+
+    renderFrame(playTime) {
+        this.lastTime = playTime;
+        const settings = this.settings;
+        const zScale = 16; // seconds → world Z units
+
+        const playZ = playTime * zScale;
+
+        // ── Reset mesh pool ──
+        this._meshPoolIndex = 0;
+
+        // ── Move persistent scene objects ──
+        this.ground.position.z = playZ + 100;
+        this.playline.position.z = playZ;
+        this.pointLight.position.set(0, 25, playZ);
+
+        // ── Update particles ──
+        this._updateParticles();
+
+        // Track which notes are currently active this frame
+        const nowActive = new Set();
+
+        // ── Draw notes ──
+        if (this.midiData != null) {
+            for (let ch = 0; ch < 16; ch++) {
+                if (!this.midiData.channels || !this.midiData.channels[ch]) continue;
+
+                const result = fastSpan(this.midiData.channels[ch].notes, playTime, settings.spanDuration);
+
                 for (const note of result.notes) {
-                    const x = -(note.pitch - 63);
-                    const y = i;
-                    const z = note.startTime * 16;
+                    const stopTime = getStopTime(note, settings);
+                    if (stopTime <= playTime) continue;
 
-                    const cube = new THREE.Mesh(this.geometry, this.materials[i]);
-                    cube.position.set(x, y, z);
-                    this.scene.add(cube);
+                    const black = isBlackKey(note.pitch);
+                    const noteWidth = black ? 0.6 : 0.9;
+                    const noteHeight = black ? 0.7 : 0.5;
+                    const x = -(note.pitch - 64);
+
+                    const startZ = note.startTime * zScale;
+                    const endZ = stopTime * zScale;
+                    const noteLength = endZ - startZ;
+
+                    const isPlaying = note.startTime < playTime;
+                    const mat = isPlaying && settings.highlightNotes
+                        ? this.activeNoteMaterials[ch]
+                        : this.noteMaterials[ch];
+
+                    const mesh = this._getMesh(mat);
+                    mesh.scale.set(noteWidth, noteHeight, Math.max(noteLength, 0.3));
+                    mesh.position.set(x, black ? 0.15 : 0, startZ);
+                    mesh.visible = true;
+
+                    // Particle emission for actively playing notes
+                    if (isPlaying) {
+                        const noteId = `${ch}-${note.pitch}-${note.startTime}`;
+                        nowActive.add(noteId);
+                        if (!this._activeNotes.has(noteId)) {
+                            // Note just crossed playline → emit particles
+                            this._emitParticles(x, noteHeight, playZ, ch);
+                        }
+                    }
                 }
             }
-
-            // Update the camera position
-            // this.camera.position.x = picoAudio.context.currentTime;
         }
 
-        // 把线加入到场景里
-        this.scene.add(this.line);
+        this._activeNotes = nowActive;
 
-        this.line.position.z = playZ;
+        // Hide unused pooled meshes
+        for (let i = this._meshPoolIndex; i < this._meshPool.length; i++) {
+            this._meshPool[i].visible = false;
+        }
 
-        this.camera.position.z = playZ - 15;
+        // ── Camera ──
+        const camTargetX = 0;
+        const camTargetY = 14;
+        const camTargetZ = playZ - 18;
 
+        this.camera.position.lerp(
+            new THREE.Vector3(camTargetX, camTargetY, camTargetZ), 0.12
+        );
+        this.camera.lookAt(0, -2, playZ + 22);
+
+        // ── Render ──
         this.renderer.render(this.scene, this.camera);
+
+        // ── Perf mon ──
+        if (settings.prefmon) {
+            this._drawPerfMon();
+        }
+    }
+
+    // ── Internal helpers ──
+
+    _getMesh(material) {
+        if (this._meshPoolIndex < this._meshPool.length) {
+            const mesh = this._meshPool[this._meshPoolIndex];
+            mesh.material = material;
+            this._meshPoolIndex++;
+            return mesh;
+        }
+        const mesh = new THREE.Mesh(this.noteGeometry, material);
+        this._meshPool.push(mesh);
+        this.scene.add(mesh);
+        this._meshPoolIndex++;
+        return mesh;
+    }
+
+    _emitParticles(x, y, z, channel) {
+        const color = new THREE.Color(palette[channel]);
+        const count = 6 + Math.floor(Math.random() * 4);
+        for (let i = 0; i < count; i++) {
+            const idx = this._particleIndex % this._particleCount;
+            this._particlePositions[idx * 3] = x + (Math.random() - 0.5) * 0.5;
+            this._particlePositions[idx * 3 + 1] = y + Math.random() * 0.5;
+            this._particlePositions[idx * 3 + 2] = z + (Math.random() - 0.5) * 0.5;
+
+            this._particleColors[idx * 3] = color.r;
+            this._particleColors[idx * 3 + 1] = color.g;
+            this._particleColors[idx * 3 + 2] = color.b;
+
+            this._particleVelocities[idx * 3] = (Math.random() - 0.5) * 0.4;
+            this._particleVelocities[idx * 3 + 1] = 0.2 + Math.random() * 0.5;
+            this._particleVelocities[idx * 3 + 2] = (Math.random() - 0.5) * 0.4;
+
+            this._particleLifetimes[idx] = 1.0;
+            this._particleIndex++;
+        }
+    }
+
+    _updateParticles() {
+        const decay = 0.025;
+        for (let i = 0; i < this._particleCount; i++) {
+            if (this._particleLifetimes[i] > 0) {
+                this._particleLifetimes[i] -= decay;
+                this._particlePositions[i * 3] += this._particleVelocities[i * 3];
+                this._particlePositions[i * 3 + 1] += this._particleVelocities[i * 3 + 1];
+                this._particlePositions[i * 3 + 2] += this._particleVelocities[i * 3 + 2];
+                // Gravity
+                this._particleVelocities[i * 3 + 1] -= 0.012;
+            } else {
+                // Dead particle → hide far away
+                this._particlePositions[i * 3 + 1] = -1000;
+            }
+        }
+        this.particles.geometry.attributes.position.needsUpdate = true;
+        this.particles.geometry.attributes.color.needsUpdate = true;
+    }
+
+    _drawPerfMon() {
+        // Overlay perf stats using a 2D canvas overlay
+        const now = performance.now();
+        const frameTime = now - this.lastDrawTime;
+        this.lastDrawTime = now;
+        this.timeList.push(frameTime);
+        if (this.timeList.length > 120) this.timeList.shift();
+
+        // Use existing canvas 2D overlay if available; otherwise skip
+        // WebGL renderer doesn't easily mix 2D — perf data logged to console
+        const avgFrame = this.timeList.reduce((a, b) => a + b, 0) / this.timeList.length;
+        const fps = 1000 / avgFrame;
+        if (this.timeList.length % 60 === 0) {
+            console.log(`[WebGL PerfMon] ${fps.toFixed(1)} fps, frame ${avgFrame.toFixed(1)}ms, pool ${this._meshPool.length}`);
+        }
     }
 }
 
