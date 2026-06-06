@@ -14,6 +14,11 @@ module.exports = {
     filename: "[name].[contenthash:8].js",
     clean: true
   },
+  resolve: {
+    alias: {
+      'picoaudio': path.resolve(__dirname, 'lib/PicoAudio/src/main.js'),
+    },
+  },
   plugins: [
     new HtmlWebpackPlugin({
       template: 'resources/index.html',
@@ -65,9 +70,9 @@ module.exports = {
         test: /\.json$/,
         type: "asset",
         parser: {
-            dataUrlCondition: {
-                maxSize: 1024
-            }
+          dataUrlCondition: {
+            maxSize: 1024
+          }
         }
       },
       {

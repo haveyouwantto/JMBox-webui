@@ -1,6 +1,7 @@
 import Player from "./player";
 import { $ } from "../utils";
 import { settings } from "../settings";
+import picoAudio from "../picoaudio";
 
 let audioInit = false;
 export default class AudioPlayer extends Player {
@@ -62,7 +63,13 @@ export default class AudioPlayer extends Player {
     }
 
     get duration() {
-        return this.#audio.duration;
+        if (isFinite(this.#audio.duration)) {
+            return this.#audio.duration;
+        } else if (picoAudio?.playData?.lastEventTime){
+            return picoAudio.playData.lastEventTime;
+        } else {
+            return this.#audio.buffered.length > 0 ? this.#audio.buffered.end(0) : 0;
+        }
     }
 
     get currentTime() {
@@ -71,7 +78,7 @@ export default class AudioPlayer extends Player {
 
     seek(seconds) {
         super.seek();
-        this.#audio.currentTime = seconds;
+        if (isFinite(seconds)) this.#audio.currentTime = seconds;
     }
 
     stop() {

@@ -109,3 +109,57 @@ export function resetMIDI(output, mute = false) {
         }
     }
 }
+
+// 计算两个字符串的编辑距离（Levenshtein Distance）
+function editDistance(a, b) {
+    const dp = Array.from({ length: a.length + 1 }, () => Array(b.length + 1).fill(0));
+    for (let i = 0; i <= a.length; i++) dp[i][0] = i;
+    for (let j = 0; j <= b.length; j++) dp[0][j] = j;
+
+    for (let i = 1; i <= a.length; i++) {
+        for (let j = 1; j <= b.length; j++) {
+            const cost = a[i - 1] === b[j - 1] ? 0 : 1;
+            dp[i][j] = Math.min(
+                dp[i - 1][j] + 1,     // 删除
+                dp[i][j - 1] + 1,     // 插入
+                dp[i - 1][j - 1] + cost // 替换
+            );
+        }
+    }
+    return dp[a.length][b.length];
+}
+
+/**
+ * 生成基于编辑距离的随机播放列表
+ * @param {string[]} files 文件名数组
+ * @param {string} startFile 起始文件名
+ * @param {number} topK 每轮取距离最大的K个候选
+ * @returns {string[]} 生成的播放顺序
+ */
+export function generatePlaylist(files, startFile, topK = 3) {
+    const remaining = new Set(files);
+    if (!remaining.has(startFile)) throw new Error("起始文件不在列表中！");
+    const result = [startFile];
+    remaining.delete(startFile);
+
+    let current = startFile;
+    while (remaining.size > 0) {
+        // 计算距离
+        const distances = Array.from(remaining).map(f => ({
+            name: f,
+            dist: editDistance(current, f)
+        }));
+
+        // 取距离最大的 topK
+        distances.sort((a, b) => b.dist - a.dist);
+        const candidates = distances.slice(0, Math.min(topK, distances.length));
+
+        // 随机选择一个
+        const next = candidates[Math.floor(Math.random() * candidates.length)].name;
+        result.push(next);
+        remaining.delete(next);
+        current = next;
+    }
+
+    return result;
+}

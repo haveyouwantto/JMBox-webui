@@ -5,9 +5,9 @@ import * as renderDialog from "./ui/render-dialog"
 import { filelist } from "./ui/filelist";
 import { navbar } from "./ui/navbar";
 import * as playerBar from "./ui/player-bar";
-import * as waterfall from './ui/waterfall'
+import { MidiFall, MidiFallController } from './ui/waterfall'
 import Playlist from "./player/playlist";
-import { $, dbToGain, resetMIDI } from "./utils";
+import { $, dbToGain, generatePlaylist, resetMIDI } from "./utils";
 import { editSetting, loadSettings, settingChangeListener, settings } from "./settings";
 import { createLocaleItem, localeInit, setLocale, getLocale } from "./locale";
 import { aboutDialog, languageDialog, midiInfoDialog, playModeSelectionDialog } from "./ui/quick-dialog";
@@ -26,6 +26,12 @@ export class JMBoxApp {
 
         this.pathman = new PathMan();
         this.cache = new FileCache();
+
+        const waterfallElement = $("#waterfall");
+        const canvas = waterfallElement.querySelector('canvas');
+        this.midiFall = new MidiFall(canvas, settings);
+        this.waterfall = new MidiFallController(waterfallElement, this.midiFall, null);
+
         this.player = this.createPlayer(settings.player);
         this.cwd = null;
         this.playlist = null;
@@ -120,6 +126,7 @@ export class JMBoxApp {
 
     load(name) {
         const path = this.playlist.path + "/" + encodeURIComponent(name);
+
         this.playlist.setPlaying(name);
         playerBar.setSongName(name);
         document.title = this.serverName + " - " + name;
@@ -162,20 +169,24 @@ export class JMBoxApp {
         this.player.setEventListener('loaded', url => {
             playerBar.setDuration(this.player.duration);
             if (!(this.player instanceof PicoAudioPlayer)) {
-                if (settings.showLyrics) loadMIDIUrl(url.replace("/play/", "/midi/")).then(smfData => waterfall.lrc.load(smfData));
+                loadMIDIUrl(url.replace("/play/", "/midi/")).then(smfData => {
+                    this.waterfall.setMidiData(smfData);
+                    renderDialog.setAvailable(true);
+                });
             } else {
-                if (settings.showLyrics) waterfall.lrc.load(picoAudio.playData)
+                this.waterfall.setMidiData(picoAudio.playData);
+                renderDialog.setAvailable(true);
             }
         });
 
         this.player.setEventListener('play', () => {
             playerBar.setPaused(false);
-            waterfall.startAnimation();
+            this.waterfall.start();
         });
 
         this.player.setEventListener('pause', () => {
             playerBar.setPaused(true);
-            waterfall.endAnimation();
+            this.waterfall.stop();
         });
 
         this.player.setEventListener('volumechange', volume => {
@@ -216,7 +227,7 @@ export class JMBoxApp {
             dialog.setVisible(true);
         });
 
-        waterfall.setPlayer(this.player)
+        this.waterfall.setPlayer(this.player)
         if (this.playlist) {
             this.load(this.playlist.current().name).then(() => {
                 this.player.seek(playTime);
@@ -239,6 +250,7 @@ export class JMBoxApp {
             fr.onload = () => {
                 try {
                     loadMIDI(fr.result);
+                    this.waterfall.setMidiData(picoAudio.playData);
                     this.player.play()
                 } catch (error) {
                     dialog.clear()
@@ -301,6 +313,8 @@ export class JMBoxApp {
                     this.load(this.playlist.current().name).then(() => {
                         this.player.seek(pos);
                         this.player.play();
+                        // Re-set data ensuring lyrics/notes are ready
+                        this.waterfall.setMidiData(picoAudio.playData);
                     })
                 }
             });
@@ -338,7 +352,7 @@ export class JMBoxApp {
 
         playerBar.setEventListener('seek', percentage => {
             this.player.seekPercentage(percentage);
-            if (waterfall.isVisible()) waterfall.draw();
+            if (this.waterfall.isVisible()) this.waterfall.start();
         });
 
         playerBar.setEventListener('menuitem', func => {
@@ -372,7 +386,11 @@ export class JMBoxApp {
                     break;
 
                 case 'render':
+                    renderDialog.checkApiAvailability();
                     renderDialog.setVisible(true);
+                    if (!picoAudio.playData) {
+                        renderDialog.setRendering(false); // Disable if no data
+                    }
                     break;
                 case 'upload':
                     document.getElementById("uploader").click();
@@ -392,7 +410,7 @@ export class JMBoxApp {
         })
 
         playerBar.setEventListener('titleclick', () => {
-            waterfall.toggle();
+            this.waterfall.toggle();
         })
 
         playerBar.setEventListener('playmodechange', mode => editSetting('playMode', mode))
@@ -404,7 +422,22 @@ export class JMBoxApp {
         })
 
         filelist.setEventListener('play', name => {
-            this.playlist = this.cwd;
+            if (settings.shuffle) {
+                const randomList = generatePlaylist(this.cwd.list.map(f => f.name), name, 5);
+
+                // use the order in randomList to create new playlist
+                const newList = [];
+                randomList.forEach(n => {
+                    const item = this.cwd.list.find(f => f.name === n);
+                    if (item) newList.push(item);
+                });
+
+                console.log(newList);
+                this.playlist = new Playlist(this.cwd.path, newList);
+            } else {
+                this.playlist = this.cwd;
+            }
+
             this.play(name);
         })
 
@@ -519,8 +552,9 @@ export class JMBoxApp {
                     else setLocale(e.value);
                     break;
                 case "showLyrics":
-                    waterfall.setLyricsVisible(e.value)
+                    this.waterfall.setLyricsVisible(e.value)
             }
+            if (this.waterfall) this.waterfall.updateSettings(settings); // Propagate settings to MidiFall
             updateSettingsItem(e.key, e.value);
         });
 
@@ -528,17 +562,60 @@ export class JMBoxApp {
         renderDialog.renderListener.setEventListener('start', e => {
             if (picoAudio.playData) {
                 const name = playerBar.getSongName();
-                renderDialog.setStartButtonEnabled(false)
+                renderDialog.setRendering(true)
                 renderDialog.setDuration(picoAudio.playData.lastEventTime)
                 renderDialog.setName(name)
-                renderAndDownload((time, length) => {
-                    renderDialog.setProgress(Math.min(time / length, 1))
-                    renderDialog.setTime(Math.min(time, length))
-                }).then(blob => {
-                    renderDialog.setDownload(blob, name + '.wav')
-                    renderDialog.setStartButtonEnabled(true);
-                    renderDialog.setName('')
-                })
+
+                if (renderDialog.isVideoEnabled()) {
+                    import('./video-render').then(m => {
+                        m.renderVideo(settings, {
+                            audio: renderDialog.isAudioEnabled(),
+                            resolution: renderDialog.getResolution(),
+                            fps: renderDialog.getFps(),
+                            filename: name // Pass filename
+                        }, (overall, length, time, stage, bitmap) => {
+                            renderDialog.setProgress(overall);
+
+                            // Update Stage Text: e.g. (Rendering Audio...)
+                            if (stage === 'audio') {
+                                renderDialog.setStage(`(${getLocale('render.stage.audio')})`);
+                            } else if (stage === 'video') {
+                                renderDialog.setStage(`(${getLocale('render.stage.video')})`);
+                            }
+
+                            // Update Time and Preview
+                            if (time !== undefined) {
+                                renderDialog.setTimeProgress(Math.min(time / length, 1));
+                                renderDialog.setTime(Math.min(time, length));
+                            } else {
+                                renderDialog.setTimeProgress(0);
+                            }
+
+                            if (bitmap) {
+                                renderDialog.drawPreview(bitmap);
+                                bitmap.close();
+                            }
+
+                        }).then(() => {
+                            renderDialog.setRendering(false);
+                            renderDialog.setName('')
+                            renderDialog.setVisible(false); // Close dialog on success
+                        }).catch(err => {
+                            console.error(err);
+                            alert(getLocale('general.error') + ": " + err);
+                            renderDialog.setRendering(false);
+                        });
+                    });
+                } else {
+                    renderAndDownload((time, length) => {
+                        renderDialog.setProgress(Math.min(time / length, 1))
+                        renderDialog.setTime(Math.min(time, length))
+                    }).then(blob => {
+                        renderDialog.setDownload(blob, name + '.wav')
+                        renderDialog.setRendering(false);
+                        renderDialog.setName('')
+                    })
+                }
             }
         })
 

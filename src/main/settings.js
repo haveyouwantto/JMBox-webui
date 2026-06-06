@@ -10,6 +10,7 @@ const defaultValue = {
     player: "PicoAudioPlayer",
     playMode: 0,
     volume: 1,
+    shuffle: false,
 
     soundQuality: '1',
     basePitch: 440,
