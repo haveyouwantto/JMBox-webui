@@ -250,6 +250,7 @@ export class JMBoxApp {
             fr.onload = () => {
                 try {
                     loadMIDI(fr.result);
+                    this.waterfall.setMidiData(picoAudio.playData);
                     this.player.play()
                 } catch (error) {
                     dialog.clear()
