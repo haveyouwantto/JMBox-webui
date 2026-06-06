@@ -1,5 +1,5 @@
 
-import { MidiFall } from "./ui/waterfall";
+import { MidiFall, WebGLRenderer } from "./ui/waterfall";
 import picoAudio from "./picoaudio";
 import { renderAudio } from "./wav-render";
 
@@ -118,7 +118,7 @@ export async function renderVideo(waterfallSettings, options, progressCallback) 
     waterfallSettings.backgroundColor = backgroundColor;
     console.log(`[VideoRender] Detected background color: ${waterfallSettings.backgroundColor}`);
 
-    const midiFall = new MidiFall(canvas, waterfallSettings);
+    const midiFall = new WebGLRenderer(canvas, waterfallSettings);
 
     // Patch resize for OffscreenCanvas
     midiFall.resize = function () {

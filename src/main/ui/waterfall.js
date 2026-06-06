@@ -6,6 +6,9 @@ const waterfall = $("#waterfall");
 const canvas = waterfall.querySelector('canvas');
 const dpr = window.devicePixelRatio;
 import * as THREE from 'three';
+import { EffectComposer } from 'three/examples/jsm/postprocessing/EffectComposer.js';
+import { RenderPass } from 'three/examples/jsm/postprocessing/RenderPass.js';
+import { UnrealBloomPass } from 'three/examples/jsm/postprocessing/UnrealBloomPass.js';
 
 let fillColor = 'white';
 
@@ -404,7 +407,7 @@ export class MidiFall {
 
 
 export class WebGLRenderer {
-    constructor(canvas, settings = {}) {
+     constructor(canvas, settings = {}) {
         this.canvas = canvas;
         this.settings = Object.assign({
             spanDuration: 4,
@@ -413,7 +416,24 @@ export class WebGLRenderer {
             highlightNotes: true,
             detailedNotes: false,
             prefmon: false,
-            showLyrics: true
+            showLyrics: true,
+            // ── 音符独立 Bloom 参数 ──
+            noteDecay: 1.0,
+            noteBloomBase: 10,
+            noteBloomIdle: 0.5,
+            noteBloomMin: 1,
+            // ── 播放线独立 Bloom 参数 ──
+            playlineDecay: 2.5,
+            playlineBaseEmissive: 0.25,
+            playlineBoostMultiplier: 2.8,
+            // ── 星星独立 Bloom 参数（新） ──
+            starDecay: 16.0,
+            starBloomBase: 15.0,        // note-on 瞬间 emissive 强度
+            starBloomMin: 0.15,        // 最暗时的 emissive 强度
+            starCount: 2000,
+            starSize: 0.2,             // 星星面片大小
+            starColorDim: '#1a3355',   // 暗态基础色
+            starColorBright: '#88bbff' // 亮态 emissive 色
         }, settings);
 
         this.midiData = null;
@@ -433,87 +453,84 @@ export class WebGLRenderer {
         this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
         this.renderer.shadowMap.enabled = false;
         this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
-        this.renderer.toneMappingExposure = 1.1;
+        this.renderer.toneMappingExposure = 1.35;
 
-        // ── Fog for depth ──
+        this.renderPass = new RenderPass(this.scene, this.camera);
+        this.bloomPass = new UnrealBloomPass(new THREE.Vector2(1, 1), 0.72, 0.55, 0);
+        this.composer = new EffectComposer(this.renderer);
+        this.composer.addPass(this.renderPass);
+        this.composer.addPass(this.bloomPass);
+
+        this.trackWidth = 136;
+        this.channelLaneStep = 0.18;
+        this.channelLaneBase = 0.05;
+        this.cameraYOffset = 46;
+        this.cameraZOffset = 43;
+        this.cameraLookAhead = 20;
+        this.webglSpanDuration = 12;
+        this._lastFrameTime = performance.now();
+
+        // ── Fog ──
         this.scene.fog = new THREE.FogExp2(0x050510, 0.008);
         this.scene.background = new THREE.Color(0x050510);
 
         // ── Lights ──
         const ambient = new THREE.AmbientLight(0x222244, 0.6);
         this.scene.add(ambient);
-
         this.pointLight = new THREE.PointLight(0xffffff, 1.2, 200);
         this.pointLight.position.set(0, 20, 0);
         this.scene.add(this.pointLight);
-
         const dirLight = new THREE.DirectionalLight(0x8888ff, 0.4);
         dirLight.position.set(-30, 40, -20);
         this.scene.add(dirLight);
 
-        // ── Shared geometries ──
+        // ── Shared geometry ──
         this.noteGeometry = new THREE.BoxGeometry(1, 1, 1);
-        this.noteGeometry.translate(0, 0.5, 0.5); // pivot at bottom-back
+        this.noteGeometry.translate(0, 0.5, 0.5);
 
-        // ── Materials per channel (neon glow) ──
-        this.noteMaterials = palette.map(color => new THREE.MeshStandardMaterial({
-            color: color,
-            emissive: new THREE.Color(color),
-            emissiveIntensity: 0.35,
-            metalness: 0.3,
-            roughness: 0.5,
-            transparent: true,
-            opacity: 0.92
-        }));
-        this.activeNoteMaterials = palette.map(color => new THREE.MeshStandardMaterial({
-            color: 0xffffff,
-            emissive: new THREE.Color(color),
-            emissiveIntensity: 1.8,
-            metalness: 0.1,
-            roughness: 0.2,
-            transparent: true,
-            opacity: 1.0
-        }));
+        // ── 调色板 ──
+        this.palette = palette;
 
-        // ── Ground plane (reflective dark stage) ──
-        const groundGeo = new THREE.PlaneGeometry(200, 600);
+        // ── Ground ──
+        const groundGeo = new THREE.PlaneGeometry(220, 600);
         const groundMat = new THREE.MeshStandardMaterial({
             color: 0x0a0a1a,
+            emissive: 0x000000,
+            emissiveIntensity: 0,
             metalness: 0.85,
-            roughness: 0.15,
-            envMapIntensity: 0.5
+            roughness: 0.15
         });
         this.ground = new THREE.Mesh(groundGeo, groundMat);
         this.ground.rotation.x = -Math.PI / 2;
         this.ground.position.y = -0.5;
         this.scene.add(this.ground);
 
-        // ── Grid overlay ──
-        const gridHelper = new THREE.GridHelper(200, 128, 0x1a1a3a, 0x0d0d20);
+        // ── Grid ──
+        const gridHelper = new THREE.GridHelper(220, 128, 0x1a1a3a, 0x0d0d20);
         gridHelper.position.y = -0.48;
         this.scene.add(gridHelper);
 
-        // ── Playline (glowing cylinder) ──
+        // ── Playline ──
         const playlineMat = new THREE.MeshStandardMaterial({
             color: 0xff2244,
             emissive: 0xff2244,
-            emissiveIntensity: 2.5,
+            emissiveIntensity: this.settings.playlineBaseEmissive,
             metalness: 0.0,
             roughness: 0.3,
             transparent: true,
             opacity: 0.9
         });
-        const playlineGeo = new THREE.CylinderGeometry(0.25, 0.25, 130, 8);
+        const playlineGeo = new THREE.CylinderGeometry(0.25, 0.25, this.trackWidth, 8);
         playlineGeo.rotateZ(Math.PI / 2);
         this.playline = new THREE.Mesh(playlineGeo, playlineMat);
         this.playline.position.y = 0.3;
         this.scene.add(this.playline);
 
-        // ── Side rail glow lines ──
+        // ── Side rails ──
         const railMat = new THREE.MeshStandardMaterial({
             color: 0x4444ff,
             emissive: 0x4444ff,
-            emissiveIntensity: 1.0,
+            emissiveIntensity: 0.15,
             transparent: true,
             opacity: 0.5
         });
@@ -525,135 +542,187 @@ export class WebGLRenderer {
         rightRail.position.set(65, 0, 0);
         this.scene.add(rightRail);
 
-        // ── Particle system for note hits ──
-        this._particleCount = 512;
-        this._particlePositions = new Float32Array(this._particleCount * 3);
-        this._particleColors = new Float32Array(this._particleCount * 3);
-        this._particleVelocities = new Float32Array(this._particleCount * 3);
-        this._particleLifetimes = new Float32Array(this._particleCount);
-        this._particleIndex = 0;
+        // ── Particle effects ──
+        this.popDotTexture = this._createPopTexture('dot');
+        this.popRingTexture = this._createPopTexture('ring');
+        this._popEffects = [];
+        this._popPool = [];
 
-        const particleGeo = new THREE.BufferGeometry();
-        particleGeo.setAttribute('position', new THREE.BufferAttribute(this._particlePositions, 3));
-        particleGeo.setAttribute('color', new THREE.BufferAttribute(this._particleColors, 3));
-
-        // Procedural circle texture
-        const pCanvas = document.createElement('canvas');
-        pCanvas.width = 32;
-        pCanvas.height = 32;
-        const pCtx = pCanvas.getContext('2d');
-        const grad = pCtx.createRadialGradient(16, 16, 0, 16, 16, 16);
-        grad.addColorStop(0, 'rgba(255,255,255,1)');
-        grad.addColorStop(0.3, 'rgba(255,255,255,0.6)');
-        grad.addColorStop(1, 'rgba(255,255,255,0)');
-        pCtx.fillStyle = grad;
-        pCtx.fillRect(0, 0, 32, 32);
-        const particleTexture = new THREE.CanvasTexture(pCanvas);
-
-        const particleMat = new THREE.PointsMaterial({
-            size: 1.2,
-            map: particleTexture,
-            vertexColors: true,
-            transparent: true,
-            opacity: 0.85,
-            blending: THREE.AdditiveBlending,
-            depthWrite: false
-        });
-        this.particles = new THREE.Points(particleGeo, particleMat);
-        this.scene.add(this.particles);
-
-        // ── Note mesh pool ──
+        // ── Note mesh & material pools ──
         this._meshPool = [];
         this._meshPoolIndex = 0;
+        this._noteMaterialMap = new Map();
+        this._materialPool = [];
 
-        // ── Track active note set for particle emission ──
+        // ── Active notes tracking ──
         this._activeNotes = new Set();
 
+        // ── 独立 boost 值：星星 & 播放线 ──
+        this._starBoost = 0;
+        this._playlineBoost = 0;
+
+        // ── 背景星星（InstancedMesh + emissive → 支持 Bloom） ──
+        this._initStars();
+
         // Camera initial
-        this.camera.position.set(0, 14, -20);
-        this.camera.lookAt(0, 0, 20);
+        this.camera.position.set(0, this.cameraYOffset, -this.cameraZOffset);
+        this.camera.lookAt(0, 1, this.cameraLookAhead);
     }
 
-    // ── MidiFall-compatible interface ──
+    /**
+     * 初始化星星：使用 InstancedMesh 使每个星星拥有 emissive，从而能被 Bloom 捕获。
+     * 材质统一控制 emissiveIntensity，每个实例通过矩阵定位。
+     */
+        _initStars() {
+        const count = this.settings.starCount;
+        const starGeo = new THREE.PlaneGeometry(this.settings.starSize, this.settings.starSize);
 
+        this.starMaterial = new THREE.MeshStandardMaterial({
+            color: this.settings.starColorDim,
+            emissive: new THREE.Color(this.settings.starColorBright),
+            emissiveIntensity: 0,
+            side: THREE.DoubleSide,
+            transparent: true,
+            depthWrite: false,
+            blending: THREE.AdditiveBlending
+        });
+
+        this.starInstancedMesh = new THREE.InstancedMesh(starGeo, this.starMaterial, count);
+        this.starInstancedMesh.frustumCulled = false;
+
+        // 存储每个星星的绝对世界坐标（x, y, z）
+        this._starWorld = new Float32Array(count * 3);
+        const dummy = new THREE.Object3D();
+        for (let i = 0; i < count; i++) {
+            const x = (Math.random() - 0.5) * 160;
+            const y = 5 + Math.random() * 95;
+            const z = -200 + Math.random() * 600;   // 初始分布在 playZ=0 的可见区
+            this._starWorld[i * 3] = x;
+            this._starWorld[i * 3 + 1] = y;
+            this._starWorld[i * 3 + 2] = z;
+
+            dummy.position.set(x, y, z);
+            dummy.updateMatrix();
+            this.starInstancedMesh.setMatrixAt(i, dummy.matrix);
+        }
+        this.starInstancedMesh.instanceMatrix.needsUpdate = true;
+        this.scene.add(this.starInstancedMesh);
+    }
+
+    // ── MidiFall interface ──
     updateSettings(settings) {
         Object.assign(this.settings, settings);
+        // 动态更新星星颜色
+        if (this.starMaterial) {
+            this.starMaterial.color.set(this.settings.starColorDim);
+            this.starMaterial.emissive.set(this.settings.starColorBright);
+            this.starMaterial.emissiveIntensity = 0;
+        }
     }
 
-    setMidiData(midiData) {
-        this.midiData = midiData;
-    }
+    setMidiData(midiData) { this.midiData = midiData; }
 
     resize() {
         const container = this.canvas.parentElement || waterfall;
-        const w = container.clientWidth;
-        const h = container.clientHeight;
+        const rect = container.getBoundingClientRect();
+        const w = Math.max(1, Math.round(rect.width));
+        const h = Math.max(1, Math.round(rect.height));
         if (w === 0 || h === 0) return;
 
-        this.renderer.setSize(w, h);
+        this.canvas.style.width = `${w}px`;
+        this.canvas.style.height = `${h}px`;
+        this.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+        this.renderer.setSize(w, h, false);
+        this.composer.setSize(w, h);
         this.camera.aspect = w / h;
+        this._fitCameraToDisplayWidth();
         this.camera.updateProjectionMatrix();
         this.renderFrame(this.lastTime ?? 0);
     }
 
     renderFrame(playTime) {
         this.lastTime = playTime;
-        const settings = this.settings;
-        const zScale = 16; // seconds → world Z units
-
+        const s = this.settings;
+        const now = performance.now();
+        const deltaTime = Math.min((now - this._lastFrameTime) / 1000, 0.05);
+        this._lastFrameTime = now;
+        const zScale = 16;
         const playZ = playTime * zScale;
 
-        // ── Reset mesh pool ──
+        // ★ 独立衰减：星星 & 播放线
+        this._starBoost *= Math.exp(-s.starDecay * deltaTime);
+        this._playlineBoost *= Math.exp(-s.playlineDecay * deltaTime);
+
+        // ── 清理过期音符材质 ──
+        this._cleanExpiredNotes(playTime);
+
+        // ── 重置 mesh 池索引 ──
         this._meshPoolIndex = 0;
 
-        // ── Move persistent scene objects ──
+        // ── 移动持久物体 ──
         this.ground.position.z = playZ + 100;
         this.playline.position.z = playZ;
         this.pointLight.position.set(0, 25, playZ);
 
-        // ── Update particles ──
-        this._updateParticles();
+        // ── 更新粒子特效 ──
+        this._updatePopEffects(deltaTime);
 
-        // Track which notes are currently active this frame
         const nowActive = new Set();
 
-        // ── Draw notes ──
+        // ── 绘制音符 ──
         if (this.midiData != null) {
             for (let ch = 0; ch < 16; ch++) {
                 if (!this.midiData.channels || !this.midiData.channels[ch]) continue;
 
-                const result = fastSpan(this.midiData.channels[ch].notes, playTime, settings.spanDuration);
+                const result = fastSpan(
+                    this.midiData.channels[ch].notes,
+                    playTime,
+                    Math.max(s.spanDuration, this.webglSpanDuration)
+                );
 
                 for (const note of result.notes) {
-                    const stopTime = getStopTime(note, settings);
+                    const stopTime = getStopTime(note, s);
                     if (stopTime <= playTime) continue;
 
+                    const noteId = Math.floor(note.startTime * 1000) << 12 | note.pitch << 4 | ch; //`${ch}-${note.pitch}-${note.startTime}`;
                     const black = isBlackKey(note.pitch);
-                    const noteWidth = black ? 0.6 : 0.9;
-                    const noteHeight = black ? 0.7 : 0.5;
+                    const noteWidth = black ? 0.58 : 0.86;
+                    const noteHeight = black ? 0.38 : 0.32;
                     const x = -(note.pitch - 64);
+                    const channelY = this._getChannelY(ch, black);
 
                     const startZ = note.startTime * zScale;
                     const endZ = stopTime * zScale;
                     const noteLength = endZ - startZ;
 
                     const isPlaying = note.startTime < playTime;
-                    const mat = isPlaying && settings.highlightNotes
-                        ? this.activeNoteMaterials[ch]
-                        : this.noteMaterials[ch];
+                    const age = isPlaying ? playTime - note.startTime : 0;
 
-                    const mesh = this._getMesh(mat);
+                    const material = this._getOrCreateNoteMaterial(noteId, ch, isPlaying, age);
+                    const mesh = this._getMesh(material);
                     mesh.scale.set(noteWidth, noteHeight, Math.max(noteLength, 0.3));
-                    mesh.position.set(x, black ? 0.15 : 0, startZ);
+                    mesh.position.set(x, channelY, startZ);
                     mesh.visible = true;
 
-                    // Particle emission for actively playing notes
+                    if (isPlaying && s.highlightNotes) {
+                        material.emissiveIntensity = Math.max(
+                            s.noteBloomBase * Math.exp(-s.noteDecay * age),
+                            s.noteBloomMin
+                        );
+                    } else {
+                        material.emissiveIntensity = s.noteBloomIdle;
+                    }
+
+                    const meta = this._noteMaterialMap.get(noteId);
+                    if (meta) meta.stopTime = stopTime;
+
+                    // note-on 瞬间触发星星 & 播放线 boost 置 1
                     if (isPlaying) {
-                        const noteId = `${ch}-${note.pitch}-${note.startTime}`;
                         nowActive.add(noteId);
                         if (!this._activeNotes.has(noteId)) {
-                            // Note just crossed playline → emit particles
-                            this._emitParticles(x, noteHeight, playZ, ch);
+                            this._starBoost = 1;
+                            this._playlineBoost = 1;
+                            this._spawnNotePop(x, channelY + noteHeight, playZ, ch);
                         }
                     }
                 }
@@ -662,31 +731,112 @@ export class WebGLRenderer {
 
         this._activeNotes = nowActive;
 
-        // Hide unused pooled meshes
+        // 隐藏未使用的 mesh
         for (let i = this._meshPoolIndex; i < this._meshPool.length; i++) {
             this._meshPool[i].visible = false;
         }
 
-        // ── Camera ──
-        const camTargetX = 0;
-        const camTargetY = 14;
-        const camTargetZ = playZ - 18;
+        // ── 应用独立 boost ──
+        // 播放线
+        this.playline.material.emissiveIntensity =
+            s.playlineBaseEmissive + this._playlineBoost * s.playlineBoostMultiplier;
 
+        // 星星 emissiveIntensity（独立三参数）
+        const starEmissive = Math.max(
+            s.starBloomBase * this._starBoost,   // boost 本身已指数衰减
+            s.starBloomMin
+        );
+        this.starMaterial.emissiveIntensity = starEmissive;
+
+        // 星星位置循环（仍用 InstancedMesh 更新矩阵）
+        const dummy = new THREE.Object3D();
+        const count = s.starCount;
+        const viewBack = playZ - 250;      // 可视区后边界（较远）
+        const viewFront = playZ + 350;     // 可视区前边界（较近）
+
+        for (let i = 0; i < count; i++) {
+            const idx = i * 3;
+            const x = this._starWorld[idx];
+            const y = this._starWorld[idx + 1];
+            let z = this._starWorld[idx + 2];
+
+            // 将星星 Z 保持在可视区间内，每次恰好移动 600 单位
+            while (z < viewBack) z += 600;
+            while (z > viewFront) z -= 600;
+
+            // 更新存储的绝对坐标（下次帧继续使用）
+            this._starWorld[idx + 2] = z;
+
+            dummy.position.set(x, y, z);
+            dummy.updateMatrix();
+            this.starInstancedMesh.setMatrixAt(i, dummy.matrix);
+        }
+        this.starInstancedMesh.instanceMatrix.needsUpdate = true;
+
+        // 摄像机
+        const camTargetX = 0;
+        const camTargetY = this.cameraYOffset;
+        const camTargetZ = playZ - this.cameraZOffset;
         this.camera.position.lerp(
             new THREE.Vector3(camTargetX, camTargetY, camTargetZ), 0.12
         );
-        this.camera.lookAt(0, -2, playZ + 22);
+        this.camera.lookAt(0, 1.2, playZ + this.cameraLookAhead);
 
-        // ── Render ──
-        this.renderer.render(this.scene, this.camera);
+        this.composer.render();
 
-        // ── Perf mon ──
-        if (settings.prefmon) {
-            this._drawPerfMon();
+        if (s.prefmon) this._drawPerfMon();
+    }
+
+    // ── 音符独立材质管理（不变） ──
+    _getOrCreateNoteMaterial(noteId, channel, isPlaying, age) {
+        const existing = this._noteMaterialMap.get(noteId);
+        if (existing) return existing.material;
+
+        let material = this._materialPool.pop();
+        if (material) {
+            material.color.set(this.palette[channel]);
+            material.emissive.set(this.palette[channel]);
+            material.emissiveIntensity = isPlaying ? this.settings.noteBloomBase : this.settings.noteBloomIdle;
+            material.opacity = 0.92;
+            material.transparent = true;
+        } else {
+            material = new THREE.MeshStandardMaterial({
+                color: this.palette[channel],
+                emissive: new THREE.Color(this.palette[channel]),
+                emissiveIntensity: isPlaying ? this.settings.noteBloomBase : this.settings.noteBloomIdle,
+                metalness: 0.18,
+                roughness: 0.36,
+                transparent: true,
+                opacity: 0.92
+            });
+        }
+        this._noteMaterialMap.set(noteId, { material, stopTime: Infinity, mesh: null });
+        return material;
+    }
+
+    _cleanExpiredNotes(currentTime) {
+        for (const [noteId, meta] of this._noteMaterialMap.entries()) {
+            if (meta.stopTime <= currentTime) {
+                meta.material.emissiveIntensity = 0;
+                this._materialPool.push(meta.material);
+                this._noteMaterialMap.delete(noteId);
+            }
         }
     }
 
-    // ── Internal helpers ──
+    // ── 辅助方法（不变） ──
+    _fitCameraToDisplayWidth() {
+        const aspect = Math.max(this.camera.aspect, 0.1);
+        const targetDistance = Math.hypot(this.cameraYOffset - 1.2, this.cameraZOffset + this.cameraLookAhead);
+        const requiredFov = THREE.MathUtils.radToDeg(
+            2 * Math.atan(this.trackWidth / (2 * targetDistance * aspect))
+        );
+        this.camera.fov = THREE.MathUtils.clamp(requiredFov + 6, 52, 82);
+    }
+
+    _getChannelY(channel, isBlackKeyNote) {
+        return this.channelLaneBase + channel * this.channelLaneStep + (isBlackKeyNote ? 0.08 : 0);
+    }
 
     _getMesh(material) {
         if (this._meshPoolIndex < this._meshPool.length) {
@@ -702,57 +852,130 @@ export class WebGLRenderer {
         return mesh;
     }
 
-    _emitParticles(x, y, z, channel) {
-        const color = new THREE.Color(palette[channel]);
-        const count = 6 + Math.floor(Math.random() * 4);
-        for (let i = 0; i < count; i++) {
-            const idx = this._particleIndex % this._particleCount;
-            this._particlePositions[idx * 3] = x + (Math.random() - 0.5) * 0.5;
-            this._particlePositions[idx * 3 + 1] = y + Math.random() * 0.5;
-            this._particlePositions[idx * 3 + 2] = z + (Math.random() - 0.5) * 0.5;
+    _createPopTexture(type) {
+        const size = 96;
+        const popCanvas = document.createElement('canvas');
+        popCanvas.width = size;
+        popCanvas.height = size;
+        const popCtx = popCanvas.getContext('2d');
+        const center = size / 2;
 
-            this._particleColors[idx * 3] = color.r;
-            this._particleColors[idx * 3 + 1] = color.g;
-            this._particleColors[idx * 3 + 2] = color.b;
+        if (type === 'ring') {
+            const ring = popCtx.createRadialGradient(center, center, 18, center, center, 44);
+            ring.addColorStop(0, 'rgba(255,255,255,0)');
+            ring.addColorStop(0.48, 'rgba(255,255,255,0)');
+            ring.addColorStop(0.62, 'rgba(255,255,255,1)');
+            ring.addColorStop(0.78, 'rgba(255,255,255,0.35)');
+            ring.addColorStop(1, 'rgba(255,255,255,0)');
+            popCtx.fillStyle = ring;
+        } else {
+            const dot = popCtx.createRadialGradient(center, center, 0, center, center, 44);
+            dot.addColorStop(0, 'rgba(255,255,255,1)');
+            dot.addColorStop(0.18, 'rgba(255,255,255,0.95)');
+            dot.addColorStop(0.55, 'rgba(255,255,255,0.28)');
+            dot.addColorStop(1, 'rgba(255,255,255,0)');
+            popCtx.fillStyle = dot;
+        }
+        popCtx.fillRect(0, 0, size, size);
+        return new THREE.CanvasTexture(popCanvas);
+    }
 
-            this._particleVelocities[idx * 3] = (Math.random() - 0.5) * 0.4;
-            this._particleVelocities[idx * 3 + 1] = 0.2 + Math.random() * 0.5;
-            this._particleVelocities[idx * 3 + 2] = (Math.random() - 0.5) * 0.4;
+    _getPopSprite(texture) {
+        const pooled = this._popPool.pop();
+        if (pooled) {
+            pooled.sprite.material.map = texture;
+            return pooled;
+        }
+        const material = new THREE.SpriteMaterial({
+            map: texture,
+            color: 0xffffff,
+            transparent: true,
+            opacity: 0,
+            blending: THREE.AdditiveBlending,
+            depthWrite: false,
+            depthTest: false
+        });
+        const sprite = new THREE.Sprite(material);
+        sprite.visible = false;
+        this.scene.add(sprite);
+        return { sprite, velocity: new THREE.Vector3() };
+    }
 
-            this._particleLifetimes[idx] = 1.0;
-            this._particleIndex++;
+    _spawnPopSprite(texture, color, x, y, z, options) {
+        const effect = this._getPopSprite(texture);
+        effect.sprite.visible = true;
+        effect.sprite.position.set(x, y, z);
+        effect.sprite.material.color.copy(color);
+        effect.sprite.material.opacity = options.opacity;
+        effect.sprite.material.rotation = Math.random() * Math.PI * 2;
+        effect.sprite.scale.setScalar(options.startScale);
+        effect.velocity.copy(options.velocity);
+        effect.age = 0;
+        effect.lifetime = options.lifetime;
+        effect.startScale = options.startScale;
+        effect.endScale = options.endScale;
+        effect.opacity = options.opacity;
+        effect.spin = options.spin || 0;
+        this._popEffects.push(effect);
+    }
+
+    _spawnNotePop(x, y, z, channel) {
+        const color = new THREE.Color(this.palette[channel]);
+        this._spawnPopSprite(this.popRingTexture, color, x, y + 0.1, z, {
+            velocity: new THREE.Vector3(0, 0.25, 0),
+            lifetime: 0.58,
+            startScale: 1.2,
+            endScale: 7.5,
+            opacity: 1,
+            spin: (Math.random() - 0.5) * 2
+        });
+        for (let i = 0; i < 14; i++) {
+            const angle = Math.random() * Math.PI * 2;
+            const speed = 3.5 + Math.random() * 6.5;
+            this._spawnPopSprite(this.popDotTexture, color, x, y, z, {
+                velocity: new THREE.Vector3(
+                    Math.cos(angle) * speed * 0.75,
+                    2.5 + Math.random() * 5.5,
+                    Math.sin(angle) * speed
+                ),
+                lifetime: 2.45 + Math.random() * 0.35,
+                startScale: 0.65 + Math.random() * 0.7,
+                endScale: 0.08,
+                opacity: 0.95,
+                spin: (Math.random() - 0.5) * 8
+            });
         }
     }
 
-    _updateParticles() {
-        const decay = 0.025;
-        for (let i = 0; i < this._particleCount; i++) {
-            if (this._particleLifetimes[i] > 0) {
-                this._particleLifetimes[i] -= decay;
-                this._particlePositions[i * 3] += this._particleVelocities[i * 3];
-                this._particlePositions[i * 3 + 1] += this._particleVelocities[i * 3 + 1];
-                this._particlePositions[i * 3 + 2] += this._particleVelocities[i * 3 + 2];
-                // Gravity
-                this._particleVelocities[i * 3 + 1] -= 0.012;
-            } else {
-                // Dead particle → hide far away
-                this._particlePositions[i * 3 + 1] = -1000;
+    _updatePopEffects(deltaTime) {
+        for (let i = this._popEffects.length - 1; i >= 0; i--) {
+            const effect = this._popEffects[i];
+            effect.age += deltaTime;
+            if (effect.age >= effect.lifetime) {
+                effect.sprite.visible = false;
+                effect.sprite.material.opacity = 0;
+                this._popEffects.splice(i, 1);
+                this._popPool.push(effect);
+                continue;
             }
+            const progress = effect.age / effect.lifetime;
+            const expProgress = 1 - Math.exp(-progress * 5);
+            const fade = Math.exp(-progress * 5.6);
+            const scale = THREE.MathUtils.lerp(effect.startScale, effect.endScale, expProgress);
+            effect.velocity.y -= 9.5 * deltaTime;
+            effect.sprite.position.addScaledVector(effect.velocity, deltaTime);
+            effect.sprite.scale.setScalar(scale);
+            effect.sprite.material.opacity = effect.opacity * fade;
+            effect.sprite.material.rotation += effect.spin * deltaTime;
         }
-        this.particles.geometry.attributes.position.needsUpdate = true;
-        this.particles.geometry.attributes.color.needsUpdate = true;
     }
 
     _drawPerfMon() {
-        // Overlay perf stats using a 2D canvas overlay
         const now = performance.now();
         const frameTime = now - this.lastDrawTime;
         this.lastDrawTime = now;
         this.timeList.push(frameTime);
         if (this.timeList.length > 120) this.timeList.shift();
-
-        // Use existing canvas 2D overlay if available; otherwise skip
-        // WebGL renderer doesn't easily mix 2D — perf data logged to console
         const avgFrame = this.timeList.reduce((a, b) => a + b, 0) / this.timeList.length;
         const fps = 1000 / avgFrame;
         if (this.timeList.length % 60 === 0) {
