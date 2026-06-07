@@ -407,7 +407,7 @@ export class MidiFall {
 
 
 export class WebGLRenderer {
-     constructor(canvas, settings = {}) {
+    constructor(canvas, settings = {}) {
         this.canvas = canvas;
         this.settings = Object.assign({
             spanDuration: 4,
@@ -433,7 +433,10 @@ export class WebGLRenderer {
             starCount: 2000,
             starSize: 0.2,             // 星星面片大小
             starColorDim: '#1a3355',   // 暗态基础色
-            starColorBright: '#88bbff' // 亮态 emissive 色
+            starColorBright: '#88bbff', // 亮态 emissive 色
+
+            cameraYOffsetLandscape: 46,   // 横屏时的摄像机高度
+            cameraYOffsetPortrait: 70,    // 竖屏时的摄像机高度（越大越垂直）
         }, settings);
 
         this.midiData = null;
@@ -467,7 +470,7 @@ export class WebGLRenderer {
         this.cameraYOffset = 46;
         this.cameraZOffset = 43;
         this.cameraLookAhead = 20;
-        this.webglSpanDuration = 12;
+        this.webglSpanDuration = 15;
         this._lastFrameTime = performance.now();
 
         // ── Fog ──
@@ -491,24 +494,10 @@ export class WebGLRenderer {
         // ── 调色板 ──
         this.palette = palette;
 
-        // ── Ground ──
-        const groundGeo = new THREE.PlaneGeometry(220, 600);
-        const groundMat = new THREE.MeshStandardMaterial({
-            color: 0x0a0a1a,
-            emissive: 0x000000,
-            emissiveIntensity: 0,
-            metalness: 0.85,
-            roughness: 0.15
-        });
-        this.ground = new THREE.Mesh(groundGeo, groundMat);
-        this.ground.rotation.x = -Math.PI / 2;
-        this.ground.position.y = -0.5;
-        this.scene.add(this.ground);
-
         // ── Grid ──
-        const gridHelper = new THREE.GridHelper(220, 128, 0x1a1a3a, 0x0d0d20);
-        gridHelper.position.y = -0.48;
-        this.scene.add(gridHelper);
+        this.gridHelper = new THREE.GridHelper(220, 128, 0x1a1a3a, 0x0d0d20);
+        this.gridHelper.position.y = -0.48;
+        this.scene.add(this.gridHelper);
 
         // ── Playline ──
         const playlineMat = new THREE.MeshStandardMaterial({
@@ -530,17 +519,17 @@ export class WebGLRenderer {
         const railMat = new THREE.MeshStandardMaterial({
             color: 0x4444ff,
             emissive: 0x4444ff,
-            emissiveIntensity: 0.15,
+            emissiveIntensity: 0.5,
             transparent: true,
             opacity: 0.5
         });
         const railGeo = new THREE.BoxGeometry(0.15, 0.5, 600);
-        const leftRail = new THREE.Mesh(railGeo, railMat);
-        leftRail.position.set(-65, 0, 0);
-        this.scene.add(leftRail);
-        const rightRail = new THREE.Mesh(railGeo, railMat);
-        rightRail.position.set(65, 0, 0);
-        this.scene.add(rightRail);
+        this.leftRail = new THREE.Mesh(railGeo, railMat);
+        this.leftRail.position.set(-65, 0, 0);
+        this.scene.add(this.leftRail);
+        this.rightRail = new THREE.Mesh(railGeo, railMat);
+        this.rightRail.position.set(65, 0, 0);
+        this.scene.add(this.rightRail);
 
         // ── Particle effects ──
         this.popDotTexture = this._createPopTexture('dot');
@@ -573,7 +562,7 @@ export class WebGLRenderer {
      * 初始化星星：使用 InstancedMesh 使每个星星拥有 emissive，从而能被 Bloom 捕获。
      * 材质统一控制 emissiveIntensity，每个实例通过矩阵定位。
      */
-        _initStars() {
+    _initStars() {
         const count = this.settings.starCount;
         const starGeo = new THREE.PlaneGeometry(this.settings.starSize, this.settings.starSize);
 
@@ -594,9 +583,10 @@ export class WebGLRenderer {
         this._starWorld = new Float32Array(count * 3);
         const dummy = new THREE.Object3D();
         for (let i = 0; i < count; i++) {
-            const x = (Math.random() - 0.5) * 160;
-            const y = 5 + Math.random() * 95;
-            const z = -200 + Math.random() * 600;   // 初始分布在 playZ=0 的可见区
+            // 扩大分布范围：x 向左右延伸，y 从很低到很高，z 保持前后长距离覆盖
+            const x = (Math.random() - 0.5) * 200;        // -100 ~ 100
+            const y = -100 + Math.random() * 200;          // -100 ~ 100 (涵盖地下、轨道及高空)
+            const z = -300 + Math.random() * 800;         // -300 ~ 500 (更宽广的纵深)
             this._starWorld[i * 3] = x;
             this._starWorld[i * 3 + 1] = y;
             this._starWorld[i * 3 + 2] = z;
@@ -629,13 +619,28 @@ export class WebGLRenderer {
         const h = Math.max(1, Math.round(rect.height));
         if (w === 0 || h === 0) return;
 
-        this.canvas.style.width = `${w}px`;
-        this.canvas.style.height = `${h}px`;
         this.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
         this.renderer.setSize(w, h, false);
         this.composer.setSize(w, h);
         this.camera.aspect = w / h;
-        this._fitCameraToDisplayWidth();
+
+        // 根据宽高比插值摄像机高度：竖屏→更高（垂直），横屏→更低（平视）
+        const aspect = this.camera.aspect;
+        const landscapeAspect = 1.5;     // 横屏阈值
+        const portraitAspect = 0.6;      // 竖屏阈值
+        const yLandscape = this.settings.cameraYOffsetLandscape;
+        const yPortrait = this.settings.cameraYOffsetPortrait;
+        let t;
+        if (aspect >= landscapeAspect) {
+            t = 1;
+        } else if (aspect <= portraitAspect) {
+            t = 0;
+        } else {
+            t = (aspect - portraitAspect) / (landscapeAspect - portraitAspect);
+        }
+        this.cameraYOffset = yLandscape * t + yPortrait * (1 - t);
+
+        this._fitCameraToDisplayWidth();  // 内部已使用最新的 cameraYOffset 计算 FOV
         this.camera.updateProjectionMatrix();
         this.renderFrame(this.lastTime ?? 0);
     }
@@ -660,7 +665,9 @@ export class WebGLRenderer {
         this._meshPoolIndex = 0;
 
         // ── 移动持久物体 ──
-        this.ground.position.z = playZ + 100;
+        this.gridHelper.position.z = playZ;
+        this.leftRail.position.z = playZ;
+        this.rightRail.position.z = playZ;
         this.playline.position.z = playZ;
         this.pointLight.position.set(0, 25, playZ);
 
@@ -827,11 +834,15 @@ export class WebGLRenderer {
     // ── 辅助方法（不变） ──
     _fitCameraToDisplayWidth() {
         const aspect = Math.max(this.camera.aspect, 0.1);
-        const targetDistance = Math.hypot(this.cameraYOffset - 1.2, this.cameraZOffset + this.cameraLookAhead);
+        // 轨道中心点：y 取通道高度中间值（如1.5），z 为当前播放线位置（cameraZOffset 即相机与该点的前后距离）
+        const trackCenterY = 1.5;
+        const distanceToTrack = Math.hypot(this.cameraYOffset - trackCenterY, this.cameraZOffset);
+        // 计算让轨道宽度恰好填满水平方向所需的垂直视场角
         const requiredFov = THREE.MathUtils.radToDeg(
-            2 * Math.atan(this.trackWidth / (2 * targetDistance * aspect))
+            2 * Math.atan(this.trackWidth / (2 * distanceToTrack * aspect))
         );
-        this.camera.fov = THREE.MathUtils.clamp(requiredFov + 6, 52, 82);
+        // 放宽上下限，竖屏时 FOV 可超过 82°
+        this.camera.fov = THREE.MathUtils.clamp(requiredFov, 40, 120);
     }
 
     _getChannelY(channel, isBlackKeyNote) {
@@ -931,14 +942,14 @@ export class WebGLRenderer {
         });
         for (let i = 0; i < 14; i++) {
             const angle = Math.random() * Math.PI * 2;
-            const speed = 3.5 + Math.random() * 6.5;
+            const speed = 10 + Math.random() * 7;
             this._spawnPopSprite(this.popDotTexture, color, x, y, z, {
                 velocity: new THREE.Vector3(
                     Math.cos(angle) * speed * 0.75,
-                    2.5 + Math.random() * 5.5,
+                    (Math.random() - 0.5) * 5,
                     Math.sin(angle) * speed
                 ),
-                lifetime: 2.45 + Math.random() * 0.35,
+                lifetime: 0.75 + Math.random() * 0.35,
                 startScale: 0.65 + Math.random() * 0.7,
                 endScale: 0.08,
                 opacity: 0.95,
