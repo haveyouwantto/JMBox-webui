@@ -437,6 +437,11 @@ export class WebGLRenderer {
 
             cameraYOffsetLandscape: 46,   // 横屏时的摄像机高度
             cameraYOffsetPortrait: 70,    // 竖屏时的摄像机高度（越大越垂直）
+
+            cameraZOffsetLandscape: 43,
+            cameraZOffsetPortrait: 0,
+            cameraLookAheadLandscape: 50,
+            cameraLookAheadPortrait: 70,
         }, settings);
 
         this.midiData = null;
@@ -469,7 +474,7 @@ export class WebGLRenderer {
         this.channelLaneBase = 0.05;
         this.cameraYOffset = 46;
         this.cameraZOffset = 43;
-        this.cameraLookAhead = 20;
+        this.cameraLookAhead = 50;
         this.webglSpanDuration = 15;
         this._lastFrameTime = performance.now();
 
@@ -640,6 +645,13 @@ export class WebGLRenderer {
         }
         this.cameraYOffset = yLandscape * t + yPortrait * (1 - t);
 
+        // 🆕 同步调整摄像机前后距离
+        this.cameraZOffset = this.settings.cameraZOffsetLandscape * t +
+            this.settings.cameraZOffsetPortrait * (1 - t);
+        // 🆕 同步调整摄像机前瞻距离
+        this.cameraLookAhead = this.settings.cameraLookAheadLandscape * t +
+            this.settings.cameraLookAheadPortrait * (1 - t);
+
         this._fitCameraToDisplayWidth();  // 内部已使用最新的 cameraYOffset 计算 FOV
         this.camera.updateProjectionMatrix();
         this.renderFrame(this.lastTime ?? 0);
@@ -729,7 +741,7 @@ export class WebGLRenderer {
                         if (!this._activeNotes.has(noteId)) {
                             this._starBoost = 1;
                             this._playlineBoost = 1;
-                            this._spawnNotePop(x, channelY + noteHeight, playZ, ch);
+                            this._spawnNotePop(x, channelY + noteHeight, playZ, ch, note.velocity);
                         }
                     }
                 }
@@ -930,27 +942,34 @@ export class WebGLRenderer {
         this._popEffects.push(effect);
     }
 
-    _spawnNotePop(x, y, z, channel) {
+    _spawnNotePop(x, y, z, channel, velocity) {
         const color = new THREE.Color(this.palette[channel]);
+        const v = velocity;
+
+        // 环形冲击波：高度方向速度、缩放受力度影响
         this._spawnPopSprite(this.popRingTexture, color, x, y + 0.1, z, {
-            velocity: new THREE.Vector3(0, 0.25, 0),
+            velocity: new THREE.Vector3(0, 0.25 * (0.4 + v * 0.6), 0),
             lifetime: 0.58,
-            startScale: 1.2,
-            endScale: 7.5,
+            startScale: 0.6 + v * 3,
+            endScale: 2.5 + v * 8,
             opacity: 1,
             spin: (Math.random() - 0.5) * 2
         });
-        for (let i = 0; i < 14; i++) {
+
+        // 粒子数量随力度增加
+        const count = Math.floor(3 + v * 12);
+        for (let i = 0; i < count; i++) {
             const angle = Math.random() * Math.PI * 2;
-            const speed = 10 + Math.random() * 7;
+            const baseSpeed = 10 + Math.random() * 7;
+            const speed = baseSpeed + v * 8;        // 力度越大速度越快
             this._spawnPopSprite(this.popDotTexture, color, x, y, z, {
                 velocity: new THREE.Vector3(
                     Math.cos(angle) * speed * 0.75,
-                    (Math.random() - 0.5) * 5,
+                    (Math.random() - 0.5) * 5 + v * 0.6,
                     Math.sin(angle) * speed
                 ),
                 lifetime: 0.75 + Math.random() * 0.35,
-                startScale: 0.65 + Math.random() * 0.7,
+                startScale: (0.65 + Math.random() * 0.7) * (0.4 + v * 0.6),
                 endScale: 0.08,
                 opacity: 0.95,
                 spin: (Math.random() - 0.5) * 8
