@@ -435,12 +435,12 @@ export class WebGLRenderer {
             starColorDim: '#1a3355',   // 暗态基础色
             starColorBright: '#88bbff', // 亮态 emissive 色
 
-            cameraYOffsetLandscape: 46,   // 横屏时的摄像机高度
+            cameraYOffsetLandscape: 40,   // 横屏时的摄像机高度
             cameraYOffsetPortrait: 70,    // 竖屏时的摄像机高度（越大越垂直）
 
-            cameraZOffsetLandscape: 43,
-            cameraZOffsetPortrait: 0,
-            cameraLookAheadLandscape: 50,
+            cameraZOffsetLandscape: 40,
+            cameraZOffsetPortrait: -10,
+            cameraLookAheadLandscape: 30,
             cameraLookAheadPortrait: 70,
         }, settings);
 
@@ -631,8 +631,8 @@ export class WebGLRenderer {
 
         // 根据宽高比插值摄像机高度：竖屏→更高（垂直），横屏→更低（平视）
         const aspect = this.camera.aspect;
-        const landscapeAspect = 1.5;     // 横屏阈值
-        const portraitAspect = 0.6;      // 竖屏阈值
+        const landscapeAspect = 1.4;     // 横屏阈值
+        const portraitAspect = 0.7;      // 竖屏阈值
         const yLandscape = this.settings.cameraYOffsetLandscape;
         const yPortrait = this.settings.cameraYOffsetPortrait;
         let t;
