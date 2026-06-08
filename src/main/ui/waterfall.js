@@ -712,15 +712,18 @@ export class WebGLRenderer {
 
                     const startZ = note.startTime * zScale;
                     const endZ = stopTime * zScale;
-                    const noteLength = endZ - startZ;
 
                     const isPlaying = note.startTime < playTime;
                     const age = isPlaying ? playTime - note.startTime : 0;
 
+                    // 裁切已播放部分：显示起始 Z = max(startZ, playZ)
+                    const visibleStartZ = isPlaying ? Math.max(startZ, playZ) : startZ;
+                    const visibleLength = endZ - visibleStartZ;
+
                     const material = this._getOrCreateNoteMaterial(noteId, ch, isPlaying, age);
                     const mesh = this._getMesh(material);
-                    mesh.scale.set(noteWidth, noteHeight, Math.max(noteLength, 0.3));
-                    mesh.position.set(x, channelY, startZ);
+                    mesh.scale.set(noteWidth, noteHeight, Math.max(visibleLength, 0.3));
+                    mesh.position.set(x, channelY, visibleStartZ);
                     mesh.visible = true;
 
                     if (isPlaying && s.highlightNotes) {
@@ -741,8 +744,11 @@ export class WebGLRenderer {
                         if (!this._activeNotes.has(noteId)) {
                             this._starBoost = 1;
                             this._playlineBoost = 1;
+                            // 击键瞬间：环形冲击波
                             this._spawnNotePop(x, channelY + noteHeight, playZ, ch, note.velocity);
                         }
+                        // 持续水花：每帧都生成
+                        this._spawnNoteSplash(x, channelY + noteHeight, playZ, ch, note.velocity, age);
                     }
                 }
             }
@@ -945,8 +951,7 @@ export class WebGLRenderer {
     _spawnNotePop(x, y, z, channel, velocity) {
         const color = new THREE.Color(this.palette[channel]);
         const v = velocity;
-
-        // 环形冲击波：高度方向速度、缩放受力度影响
+        // 仅环形冲击波
         this._spawnPopSprite(this.popRingTexture, color, x, y + 0.1, z, {
             velocity: new THREE.Vector3(0, 0.25 * (0.4 + v * 0.6), 0),
             lifetime: 0.58,
@@ -955,26 +960,33 @@ export class WebGLRenderer {
             opacity: 1,
             spin: (Math.random() - 0.5) * 2
         });
+    }
 
-        // 粒子数量随力度增加
-        const count = Math.floor(3 + v * 12);
-        for (let i = 0; i < count; i++) {
-            const angle = Math.random() * Math.PI * 2;
-            const baseSpeed = 10 + Math.random() * 7;
-            const speed = baseSpeed + v * 8;        // 力度越大速度越快
-            this._spawnPopSprite(this.popDotTexture, color, x, y, z, {
-                velocity: new THREE.Vector3(
-                    Math.cos(angle) * speed * 0.75,
-                    (Math.random() - 0.5) * 5 + v * 0.6,
-                    Math.sin(angle) * speed
-                ),
-                lifetime: 0.75 + Math.random() * 0.35,
-                startScale: (0.65 + Math.random() * 0.7) * (0.4 + v * 0.6),
-                endScale: 0.08,
-                opacity: 0.95,
-                spin: (Math.random() - 0.5) * 8
-            });
-        }
+    _spawnNoteSplash(x, y, z, channel, velocity, age) {
+        const color = new THREE.Color(this.palette[channel]);
+        const v = velocity;
+        const intensity = Math.exp(-this.settings.noteDecay * age) * 4;
+
+        // 使用 Box‑Muller 生成两个独立的标准正态分布随机数
+        let u1, u2;
+        do { u1 = Math.random(); } while (u1 === 0);
+        u2 = Math.random();
+        const z0 = Math.sqrt(-2 * Math.log(u1)) * Math.cos(2 * Math.PI * u2);
+        const z1 = Math.sqrt(-2 * Math.log(u1)) * Math.sin(2 * Math.PI * u2);
+
+        const sigma = (0.5 + v * 1.5) * intensity;
+        const vx = z0 * sigma;   // 水平 X
+        const vy = z1 * sigma;   // 水平 Z
+        const vz = 0;
+
+
+        this._spawnPopSprite(this.popDotTexture, color, x, y, z, {
+            velocity: new THREE.Vector3(vx, vy, vz),   // 正确顺序：X(横向), Y(高度), Z(前后)
+            lifetime: 0.25 * intensity + Math.random() * 0.2,
+            startScale: (0.7 + Math.random() * 0.4) * (0.4 + v * 0.4) * intensity,
+            endScale: 0.05,
+            opacity: 0.8
+        });
     }
 
     _updatePopEffects(deltaTime) {
