@@ -742,7 +742,7 @@ export class WebGLRenderer {
                     if (isPlaying) {
                         nowActive.add(noteId);
                         if (!this._activeNotes.has(noteId)) {
-                            this._starBoost = 1;
+                            if (ch === 9) this._starBoost = 1;
                             this._playlineBoost = 1;
                             // 击键瞬间：环形冲击波
                             this._spawnNotePop(x, channelY + noteHeight, playZ, ch, note.velocity);
