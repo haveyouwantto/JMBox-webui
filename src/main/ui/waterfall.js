@@ -589,7 +589,7 @@ export class WebGLRenderer {
         const dummy = new THREE.Object3D();
         for (let i = 0; i < count; i++) {
             // 扩大分布范围：x 向左右延伸，y 从很低到很高，z 保持前后长距离覆盖
-            const x = (Math.random() - 0.5) * 200;        // -100 ~ 100
+            const x = (Math.random() - 0.5) * 400;        // -200 ~ 200
             const y = -100 + Math.random() * 200;          // -100 ~ 100 (涵盖地下、轨道及高空)
             const z = -300 + Math.random() * 800;         // -300 ~ 500 (更宽广的纵深)
             this._starWorld[i * 3] = x;
