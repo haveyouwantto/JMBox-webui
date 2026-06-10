@@ -19,6 +19,29 @@ export const palette = [
     '#3f51b5', '#673ab7', '#9c27b0', '#e91e63'
 ]
 
+const digitPatterns = [
+    // 0 圆润椭圆
+    [[0,1,1,1,0],[1,0,0,0,1],[1,0,0,0,1],[1,0,0,0,1],[1,0,0,0,1],[1,0,0,0,1],[0,1,1,1,0]],
+    // 1 倾斜竖线
+    [[0,0,1,0,0],[0,1,1,0,0],[0,0,1,0,0],[0,0,1,0,0],[0,0,1,0,0],[0,0,1,0,0],[1,1,1,1,1]],
+    // 2 弯曲底部
+    [[0,1,1,1,0],[1,0,0,0,1],[0,0,0,0,1],[0,0,0,1,0],[0,0,1,0,0],[0,1,0,0,0],[1,1,1,1,1]],
+    // 3 顶部波浪
+    [[0,1,1,1,0],[1,0,0,0,1],[0,0,0,0,1],[0,1,1,1,0],[0,0,0,0,1],[1,0,0,0,1],[0,1,1,1,0]],
+    // 4 开放式
+    [[0,0,0,1,0],[0,0,1,1,0],[0,1,0,1,0],[1,1,1,1,1],[0,0,0,1,0],[0,0,0,1,0],[0,0,0,1,0]],
+    // 5 顶部平直
+    [[1,1,1,1,1],[1,0,0,0,0],[1,0,0,0,0],[1,1,1,1,0],[0,0,0,0,1],[0,0,0,0,1],[1,1,1,1,0]],
+    // 6 下沉圈
+    [[0,1,1,1,0],[1,0,0,0,0],[1,0,0,0,0],[1,1,1,1,0],[1,0,0,0,1],[1,0,0,0,1],[0,1,1,1,0]],
+    // 7 斜线带横
+    [[1,1,1,1,1],[0,0,0,0,1],[0,0,0,1,0],[0,0,1,0,0],[0,1,0,0,0],[0,1,0,0,0],[0,1,0,0,0]],
+    // 8 两个圆
+    [[0,1,1,1,0],[1,0,0,0,1],[1,0,0,0,1],[0,1,1,1,0],[1,0,0,0,1],[1,0,0,0,1],[0,1,1,1,0]],
+    // 9 反6
+    [[0,1,1,1,0],[1,0,0,0,1],[1,0,0,0,1],[0,1,1,1,1],[0,0,0,0,1],[0,0,0,0,1],[0,1,1,1,0]]
+];
+
 const bwr = 12 / 7; // White key = n black key
 const maxNoteDuration = 30;
 
@@ -442,6 +465,14 @@ export class WebGLRenderer {
             cameraZOffsetPortrait: -10,
             cameraLookAheadLandscape: 30,
             cameraLookAheadPortrait: 70,
+
+            // 星云配置
+            nebulaEnabled: true,
+            nebulaViewDistance: 120,
+            nebulaRightX: -50,          // 里程碑固定 X 中心（右侧）
+            nebulaBaseY: 10,           // 数字底部高度
+            nebulaDotSpacing: 2,       // 点阵间距
+            nebulaDigitSpacing: 4,     // 多位数字之间的间距
         }, settings);
 
         this.midiData = null;
@@ -558,50 +589,14 @@ export class WebGLRenderer {
         // ── 背景星星（InstancedMesh + emissive → 支持 Bloom） ──
         this._initStars();
 
+        // 在 this._initStars(); 之后插入
+        this._nebulaSeeds = new Map();          // 缓存已生成的星云数据（key: 分钟数）
+        this._nebulaSprites = [];               // 当前活跃的星云 sprite
+        this._nebulaPool = [];                  // 星云 sprite 池
+
         // Camera initial
         this.camera.position.set(0, this.cameraYOffset, -this.cameraZOffset);
         this.camera.lookAt(0, 1, this.cameraLookAhead);
-    }
-
-    /**
-     * 初始化星星：使用 InstancedMesh 使每个星星拥有 emissive，从而能被 Bloom 捕获。
-     * 材质统一控制 emissiveIntensity，每个实例通过矩阵定位。
-     */
-    _initStars() {
-        const count = this.settings.starCount;
-        const starGeo = new THREE.PlaneGeometry(this.settings.starSize, this.settings.starSize);
-
-        this.starMaterial = new THREE.MeshStandardMaterial({
-            color: this.settings.starColorDim,
-            emissive: new THREE.Color(this.settings.starColorBright),
-            emissiveIntensity: 0,
-            side: THREE.DoubleSide,
-            transparent: true,
-            depthWrite: false,
-            blending: THREE.AdditiveBlending
-        });
-
-        this.starInstancedMesh = new THREE.InstancedMesh(starGeo, this.starMaterial, count);
-        this.starInstancedMesh.frustumCulled = false;
-
-        // 存储每个星星的绝对世界坐标（x, y, z）
-        this._starWorld = new Float32Array(count * 3);
-        const dummy = new THREE.Object3D();
-        for (let i = 0; i < count; i++) {
-            // 扩大分布范围：x 向左右延伸，y 从很低到很高，z 保持前后长距离覆盖
-            const x = (Math.random() - 0.5) * 400;        // -200 ~ 200
-            const y = -100 + Math.random() * 200;          // -100 ~ 100 (涵盖地下、轨道及高空)
-            const z = -300 + Math.random() * 800;         // -300 ~ 500 (更宽广的纵深)
-            this._starWorld[i * 3] = x;
-            this._starWorld[i * 3 + 1] = y;
-            this._starWorld[i * 3 + 2] = z;
-
-            dummy.position.set(x, y, z);
-            dummy.updateMatrix();
-            this.starInstancedMesh.setMatrixAt(i, dummy.matrix);
-        }
-        this.starInstancedMesh.instanceMatrix.needsUpdate = true;
-        this.scene.add(this.starInstancedMesh);
     }
 
     // ── MidiFall interface ──
@@ -797,6 +792,46 @@ export class WebGLRenderer {
             this.starInstancedMesh.setMatrixAt(i, dummy.matrix);
         }
         this.starInstancedMesh.instanceMatrix.needsUpdate = true;
+
+        // ── 星云管理 ──
+        if (s.nebulaEnabled) {
+            const currentMinute = Math.floor(playTime / 60);   // 当前分钟数
+            // 确保当前及前/后一分钟的星云都存在
+            for (let minute = currentMinute - 1; minute <= currentMinute + 1; minute++) {
+                if (minute > 0 && !this._nebulaSeeds.has(minute)) {
+                    const particles = this._createNebula(minute);
+                    this._nebulaSeeds.set(minute, particles);
+                }
+            }
+            // 更新每个活跃星云粒子的透明度（基于距离）
+            const viewZ = playZ;
+            for (let [minute, particles] of this._nebulaSeeds) {
+                const nebulaZ = minute * 60 * 16;
+                const dist = Math.abs(viewZ - nebulaZ);
+                const visible = dist < s.nebulaViewDistance;
+                const alpha = visible ? Math.max(0, 1 - dist / s.nebulaViewDistance) : 0;
+
+                for (let sprite of particles) {
+                    sprite.material.opacity = alpha * (sprite.userData.baseOpacity || 0.5);
+                    sprite.visible = alpha > 0.01;
+                    // 缓慢自转
+                    if (sprite.userData.rotationSpeed) {
+                        sprite.material.rotation += sprite.userData.rotationSpeed * 0.01;
+                    }
+                }
+            }
+            // 清理过远的星云（距离超过两倍可视距离）
+            for (let [minute, particles] of this._nebulaSeeds) {
+                const nebulaZ = minute * 60 * 16;
+                if (Math.abs(viewZ - nebulaZ) > s.nebulaViewDistance * 2) {
+                    for (let sprite of particles) {
+                        sprite.visible = false;
+                        this._nebulaPool.push(sprite);
+                    }
+                    this._nebulaSeeds.delete(minute);
+                }
+            }
+        }
 
         // 摄像机
         const camTargetX = 0;
@@ -1023,6 +1058,167 @@ export class WebGLRenderer {
         if (this.timeList.length % 60 === 0) {
             console.log(`[WebGL PerfMon] ${fps.toFixed(1)} fps, frame ${avgFrame.toFixed(1)}ms, pool ${this._meshPool.length}`);
         }
+    }
+
+
+
+    /**
+     * 初始化星星：使用 InstancedMesh 使每个星星拥有 emissive，从而能被 Bloom 捕获。
+     * 材质统一控制 emissiveIntensity，每个实例通过矩阵定位。
+     */
+    _initStars() {
+        const count = this.settings.starCount;
+        const starGeo = new THREE.PlaneGeometry(this.settings.starSize, this.settings.starSize);
+
+        this.starMaterial = new THREE.MeshStandardMaterial({
+            color: this.settings.starColorDim,
+            emissive: new THREE.Color(this.settings.starColorBright),
+            emissiveIntensity: 0,
+            side: THREE.DoubleSide,
+            transparent: true,
+            depthWrite: false,
+            blending: THREE.AdditiveBlending
+        });
+
+        this.starInstancedMesh = new THREE.InstancedMesh(starGeo, this.starMaterial, count);
+        this.starInstancedMesh.frustumCulled = false;
+
+        // 存储每个星星的绝对世界坐标（x, y, z）
+        this._starWorld = new Float32Array(count * 3);
+        const dummy = new THREE.Object3D();
+        for (let i = 0; i < count; i++) {
+            // 扩大分布范围：x 向左右延伸，y 从很低到很高，z 保持前后长距离覆盖
+            const x = (Math.random() - 0.5) * 400;        // -200 ~ 200
+            const y = -100 + Math.random() * 200;          // -100 ~ 100 (涵盖地下、轨道及高空)
+            const z = -300 + Math.random() * 800;         // -300 ~ 500 (更宽广的纵深)
+            this._starWorld[i * 3] = x;
+            this._starWorld[i * 3 + 1] = y;
+            this._starWorld[i * 3 + 2] = z;
+
+            dummy.position.set(x, y, z);
+            dummy.updateMatrix();
+            this.starInstancedMesh.setMatrixAt(i, dummy.matrix);
+        }
+        this.starInstancedMesh.instanceMatrix.needsUpdate = true;
+        this.scene.add(this.starInstancedMesh);
+    }
+
+    /**
+ * Mulberry32 伪随机数生成器
+ * @param {number} seed
+ * @returns {function} 返回 [0,1) 随机数
+ */
+    _seededRandom(seed) {
+        let t = seed + 0x6D2B79F5;
+        return function () {
+            t = Math.imul(t ^ t >>> 15, t | 1);
+            t ^= t + Math.imul(t ^ t >>> 7, t | 61);
+            return ((t ^ t >>> 14) >>> 0) / 4294967296;
+        }
+    }
+
+    /**
+     * 根据分钟数生成星云（粒子 Sprite 数组）
+     * @param {number} minute - 分钟整数（1, 2, 3 ...）
+     */
+    _createNebula(minute) {
+        const s = this.settings;
+        const rand = this._seededRandom(minute);
+        const particles = [];
+
+        // 随机色相 (HSV/HSL)，S/V 固定高饱和高明度以进入 Bloom
+        const hue = rand();
+        const color = new THREE.Color().setHSL(hue, 1, 0.5);
+
+        // 里程碑数字字符串（如 "1", "12", "105"）
+        const minuteStr = String(minute);
+        const spacing = s.nebulaDotSpacing;
+        const digitSpacing = s.nebulaDigitSpacing;
+
+        // 计算总宽度（全部数字 + 间隔）
+        let totalWidth = 0;
+        for (let i = 0; i < minuteStr.length; i++) {
+            totalWidth += (i > 0 ? digitSpacing : 0) + 5 * spacing;
+        }
+
+        // 起始 X 使数字整体居中于指定右侧 X
+        const centerX = s.nebulaRightX;
+        let startX = centerX - totalWidth / 2;
+        const baseY = s.nebulaBaseY;
+        const z = minute * 60 * 16;   // 世界 Z 坐标对应分钟位置
+
+        // 遍历每个数字并放置粒子
+        for (let d = 0; d < minuteStr.length; d++) {
+            const digit = parseInt(minuteStr[d], 10);
+            const pattern = digitPatterns[digit];
+            const digitOffsetX = startX + d * (5 * spacing + (d > 0 ? digitSpacing : 0));
+
+            for (let row = 0; row < 7; row++) {
+                for (let col = 0; col < 5; col++) {
+                    if (pattern[row][col] === 1) {
+                        const sprite = this._getNebulaSprite();
+                        sprite.visible = false;
+                        sprite.material.color.copy(color);
+                        sprite.material.opacity = 0;
+
+                        // Y 轴：row=0 在顶部，数字整体高度 7*spacing，baseY 为底部
+                        const x = digitOffsetX + (4 - col) * spacing;
+                        const y = baseY + (6 - row) * spacing; // 第0行最高
+
+                        const jitterX = (rand() - 0.5) * spacing * 0.3;  // X轴扰动，不超过半个间距
+                        const jitterZ = (rand() - 0.5) * spacing * 0.3;  // Z轴扰动，稍大一些增加纵深感
+                        sprite.position.set(x + jitterX, y, z + jitterZ);
+                        sprite.userData = {
+                            baseOpacity: 0.6 + rand() * 0.3,
+                            scale: 2 + rand() * 2,
+                            rotationSpeed: 0
+                        };
+                        sprite.scale.setScalar(sprite.userData.scale);
+                        this._nebulaSprites.push(sprite);
+                        particles.push(sprite);
+                    }
+                }
+            }
+        }
+
+        return particles;
+    }
+
+    /**
+     * 从池中获取星云 Sprite，池为空则创建新的
+     */
+    _getNebulaSprite() {
+        if (this._nebulaPool.length > 0) {
+            const sprite = this._nebulaPool.pop();
+            sprite.visible = true;
+            return sprite;
+        }
+        // 创建通用星云纹理（柔和圆形渐变）
+        const canvas = document.createElement('canvas');
+        canvas.width = 64;
+        canvas.height = 64;
+        const ctx = canvas.getContext('2d');
+        const gradient = ctx.createRadialGradient(32, 32, 0, 32, 32, 32);
+        gradient.addColorStop(0, 'rgba(255,255,255,1)');
+        gradient.addColorStop(0.2, 'rgba(255,255,255,0.8)');
+        gradient.addColorStop(0.5, 'rgba(255,255,255,0.3)');
+        gradient.addColorStop(1, 'rgba(255,255,255,0)');
+        ctx.fillStyle = gradient;
+        ctx.fillRect(0, 0, 64, 64);
+        const texture = new THREE.CanvasTexture(canvas);
+
+        const material = new THREE.SpriteMaterial({
+            map: texture,
+            blending: THREE.AdditiveBlending,
+            depthWrite: false,
+            depthTest: true,
+            transparent: true,
+            opacity: 0
+        });
+        const sprite = new THREE.Sprite(material);
+        sprite.visible = false;
+        this.scene.add(sprite);
+        return sprite;
     }
 }
 
