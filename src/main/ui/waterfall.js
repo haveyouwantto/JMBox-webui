@@ -440,6 +440,7 @@ export class WebGLRenderer {
             detailedNotes: false,
             prefmon: false,
             showLyrics: true,
+            fixedDeltaTime: undefined,
             // ── 音符独立 Bloom 参数 ──
             noteDecay: 1.0,
             noteBloomBase: 10,
@@ -503,9 +504,9 @@ export class WebGLRenderer {
         this.trackWidth = 136;
         this.channelLaneStep = 0.18;
         this.channelLaneBase = 0.05;
-        this.cameraYOffset = 46;
-        this.cameraZOffset = 43;
-        this.cameraLookAhead = 50;
+        this.cameraYOffset = this.settings.cameraYOffsetLandscape;
+        this.cameraZOffset = this.settings.cameraZOffsetLandscape;
+        this.cameraLookAhead = this.settings.cameraLookAheadLandscape;
         this.webglSpanDuration = 15;
         this._lastFrameTime = performance.now();
 
@@ -613,9 +614,14 @@ export class WebGLRenderer {
 
     setMidiData(midiData) { this.midiData = midiData; }
 
-    resize() {
-        const container = this.canvas.parentElement || waterfall;
-        const rect = container.getBoundingClientRect();
+    resize(width = null, height = null) {
+        let rect;
+        if (width == null && height == null) {
+            const container = this.canvas.parentElement || waterfall;
+            rect = container.getBoundingClientRect();
+        } else {
+            rect = { width: width, height: height }
+        }
         const w = Math.max(1, Math.round(rect.width));
         const h = Math.max(1, Math.round(rect.height));
         if (w === 0 || h === 0) return;
@@ -657,8 +663,16 @@ export class WebGLRenderer {
         this.lastTime = playTime;
         const s = this.settings;
         const now = performance.now();
-        const deltaTime = Math.min((now - this._lastFrameTime) / 1000, 0.05);
+
+        // 离线渲染优先使用固定 deltaTime，否则实时计算
+        let deltaTime;
+        if (s.fixedDeltaTime !== undefined) {
+            deltaTime = s.fixedDeltaTime;
+        } else {
+            deltaTime = Math.min((now - this._lastFrameTime) / 1000, 0.05);
+        }
         this._lastFrameTime = now;
+
         const zScale = 16;
         const playZ = playTime * zScale;
 
@@ -1125,9 +1139,7 @@ export class WebGLRenderer {
         const rand = this._seededRandom(minute);
         const particles = [];
 
-        // 随机色相 (HSV/HSL)，S/V 固定高饱和高明度以进入 Bloom
-        const hue = rand();
-        const color = new THREE.Color().setHSL(hue, 1, 0.5);
+        const color = new THREE.Color().setHex(parseInt(palette[(minute - 1) % palette.length].replace('#', ''), 16));
 
         // 里程碑数字字符串（如 "1", "12", "105"）
         const minuteStr = String(minute);
