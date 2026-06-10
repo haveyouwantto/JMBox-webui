@@ -585,6 +585,7 @@ export class WebGLRenderer {
         // ── 独立 boost 值：星星 & 播放线 ──
         this._starBoost = 0;
         this._playlineBoost = 0;
+        this._nebulaBoost = 0;
 
         // ── 背景星星（InstancedMesh + emissive → 支持 Bloom） ──
         this._initStars();
@@ -664,6 +665,7 @@ export class WebGLRenderer {
         // ★ 独立衰减：星星 & 播放线
         this._starBoost *= Math.exp(-s.starDecay * deltaTime);
         this._playlineBoost *= Math.exp(-s.playlineDecay * deltaTime);
+        this._nebulaBoost *= Math.exp(-s.playlineDecay * deltaTime);
 
         // ── 清理过期音符材质 ──
         this._cleanExpiredNotes(playTime);
@@ -739,6 +741,7 @@ export class WebGLRenderer {
                         if (!this._activeNotes.has(noteId)) {
                             if (ch === 9) this._starBoost = 1;
                             this._playlineBoost = 1;
+                            this._nebulaBoost = 1;   // 新增
                             // 击键瞬间：环形冲击波
                             this._spawnNotePop(x, channelY + noteHeight, playZ, ch, note.velocity);
                         }
@@ -803,18 +806,14 @@ export class WebGLRenderer {
                     this._nebulaSeeds.set(minute, particles);
                 }
             }
-            // 更新每个活跃星云粒子的透明度（基于距离）
+            // 更新每个活跃星云粒子的透明度
             const viewZ = playZ;
             for (let [minute, particles] of this._nebulaSeeds) {
-                const nebulaZ = minute * 60 * 16;
-                const dist = Math.abs(viewZ - nebulaZ);
-                const visible = dist < s.nebulaViewDistance;
-                const alpha = visible ? Math.max(0, 1 - dist / s.nebulaViewDistance) : 0;
-
+                const boost = Math.max(this._nebulaBoost, 0.1);
                 for (let sprite of particles) {
-                    sprite.material.opacity = alpha * (sprite.userData.baseOpacity || 0.5);
-                    sprite.visible = alpha > 0.01;
-                    // 缓慢自转
+                    const opacity = boost * (sprite.userData.baseOpacity || 0.5);
+                    sprite.material.opacity = opacity;
+                    sprite.visible = opacity > 0.001;
                     if (sprite.userData.rotationSpeed) {
                         sprite.material.rotation += sprite.userData.rotationSpeed * 0.01;
                     }
