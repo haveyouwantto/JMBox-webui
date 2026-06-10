@@ -142,7 +142,8 @@ export class MidiFall {
         this.noteWidth = 0;
         this.keyboardHeight = 0;
         this.blackKeyHeight = 0;
-        this.notesState = Array(128);
+        this.notesState = new Uint8Array(128); // 255 means not pressed, otherwise channel
+        this.notesState.fill(0xff);
         this.dpr = window.devicePixelRatio || 1;
 
         // Performance monitoring
@@ -327,11 +328,11 @@ export class MidiFall {
         for (let i = 0; i < 128; i++) {
             if (!isBlackKey(i)) {
                 let x = getWhiteKeyNumber(i) * bwr;
-                if (this.notesState[i] != null) {
+                if (this.notesState[i] != 0xff) {
                     ctx.fillStyle = palette[this.notesState[i]];
                     ctx.fillRect(this.noteWidth * x, height - this.keyboardHeight, this.noteWidth * bwr, this.keyboardHeight);
                     ctx.fillStyle = 'gray';
-                    this.notesState[i] = null;
+                    this.notesState[i] = 0xff;
                 }
 
                 ctx.fillRect(this.noteWidth * x, height - this.keyboardHeight, 1, this.keyboardHeight); // Draw Seam
@@ -350,9 +351,9 @@ export class MidiFall {
         ctx.fillStyle = 'black';
         for (let i = 0; i < 128; i++) {
             if (isBlackKey(i)) {
-                if (this.notesState[i] != null) {
+                if (this.notesState[i] != 0xff) {
                     ctx.fillStyle = palette[this.notesState[i]];
-                    this.notesState[i] = null;
+                    this.notesState[i] = 0xff;
                 }
                 ctx.fillRect(i * this.noteWidth, height - this.keyboardHeight, this.noteWidth, this.blackKeyHeight);
                 ctx.fillStyle = 'black';
