@@ -648,8 +648,16 @@ export class WebGLRenderer {
 
         w = Math.max(1, w);
         h = Math.max(1, h);
-        console.log(`Resizing canvas to ${w}x${h} (DPR: ${this.dpr})`);
 
+        const currentSize = new THREE.Vector2();
+        this.renderer.getSize(currentSize);
+
+        // 检查尺寸是否变化
+        if (currentSize.x === w && currentSize.y === h) {
+            return;
+        }
+        
+        console.log(`Resizing canvas to ${w}x${h} (DPR: ${this.dpr})`);
         // 注意：不修改 canvas.width / canvas.height，只配置渲染器
         this.renderer.setSize(w, h, false);
         this.composer.setSize(w, h);
