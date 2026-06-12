@@ -1046,7 +1046,7 @@ export class WebGLRenderer {
     _spawnNoteSplash(x, y, z, channel, velocity, age) {
         const color = new THREE.Color(this.palette[channel]);
         const v = velocity;
-        const intensity = Math.exp(-this.settings.noteDecay * age) * 4;
+        const intensity = Math.max(1, Math.exp(-this.settings.noteDecay * age) * 4);
 
         // 使用 Box‑Muller 生成两个独立的标准正态分布随机数
         let u1, u2;
