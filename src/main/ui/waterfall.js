@@ -445,8 +445,8 @@ export class WebGLRenderer {
     constructor(canvas, settings = {}) {
         this.canvas = canvas;
         this.settings = Object.assign({
-            spanDuration: 4,
             maxNoteDuration: 30,
+            zScale: 128,
             noteTransparency: false,
             highlightNotes: true,
             detailedNotes: false,
@@ -470,6 +470,7 @@ export class WebGLRenderer {
             starSize: 0.2,             // 星星面片大小
             starColorDim: '#1a3355',   // 暗态基础色
             starColorBright: '#88bbff', // 亮态 emissive 色
+            starBoostOnAnyNote: true,          // 是否任何音符事件都触发星星闪耀（而非仅打击乐轨道）
 
             cameraYOffsetLandscape: 40,   // 横屏时的摄像机高度
             cameraYOffsetPortrait: 70,    // 竖屏时的摄像机高度（越大越垂直）
@@ -519,7 +520,7 @@ export class WebGLRenderer {
         this.cameraYOffset = this.settings.cameraYOffsetLandscape;
         this.cameraZOffset = this.settings.cameraZOffsetLandscape;
         this.cameraLookAhead = this.settings.cameraLookAheadLandscape;
-        this.webglSpanDuration = 15;
+        this.webglSpanDuration = 256 / this.settings.zScale;
         this._lastFrameTime = performance.now();
 
         // ── Fog ──
@@ -656,7 +657,7 @@ export class WebGLRenderer {
         if (currentSize.x === w && currentSize.y === h) {
             return;
         }
-        
+
         console.log(`Resizing canvas to ${w}x${h} (DPR: ${this.dpr})`);
         // 注意：不修改 canvas.width / canvas.height，只配置渲染器
         this.renderer.setSize(w, h, false);
@@ -706,8 +707,7 @@ export class WebGLRenderer {
         }
         this._lastFrameTime = now;
 
-        const zScale = 16;
-        const playZ = playTime * zScale;
+        const playZ = playTime * this.settings.zScale;
 
         // ★ 独立衰减：星星 & 播放线
         this._starBoost *= Math.exp(-s.starDecay * deltaTime);
@@ -740,7 +740,7 @@ export class WebGLRenderer {
                 const result = fastSpan(
                     this.midiData.channels[ch].notes,
                     playTime,
-                    Math.max(s.spanDuration, this.webglSpanDuration)
+                    this.webglSpanDuration
                 );
 
                 for (const note of result.notes) {
@@ -754,8 +754,8 @@ export class WebGLRenderer {
                     const x = -(note.pitch - 64);
                     const channelY = this._getChannelY(ch, black);
 
-                    const startZ = note.startTime * zScale;
-                    const endZ = stopTime * zScale;
+                    const startZ = note.startTime * this.settings.zScale;
+                    const endZ = stopTime * this.settings.zScale;
 
                     const isPlaying = note.startTime < playTime;
                     const age = isPlaying ? playTime - note.startTime : 0;
@@ -786,7 +786,7 @@ export class WebGLRenderer {
                     if (isPlaying) {
                         nowActive.add(noteId);
                         if (!this._activeNotes.has(noteId)) {
-                            if (ch === 9) this._starBoost = 1;
+                            if (s.starBoostOnAnyNote || ch === 9) this._starBoost = 1;
                             this._playlineBoost = 1;
                             this._nebulaBoost = 1;   // 新增
                             // 击键瞬间：环形冲击波
