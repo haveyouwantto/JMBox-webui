@@ -25,7 +25,7 @@ export async function renderVideo(waterfallSettings, options, progressCallback) 
     const width = options.resolution * 16 / 9; // Assume 16:9
     const height = options.resolution;
     const fps = options.fps;
-    const bitrate = 10000000; // 10Mbps
+    const bitrate = 20000000; // 20Mbps
 
     console.log(`[VideoRender] Config: ${width}x${height} @ ${fps}fps, ${bitrate}bps`);
 

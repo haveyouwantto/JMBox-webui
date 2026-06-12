@@ -446,7 +446,7 @@ export class WebGLRenderer {
         this.canvas = canvas;
         this.settings = Object.assign({
             maxNoteDuration: 30,
-            zScale: 128,
+            zScale: 16,
             noteTransparency: false,
             highlightNotes: true,
             detailedNotes: false,
@@ -518,7 +518,8 @@ export class WebGLRenderer {
         this.channelLaneStep = 0.18;
         this.channelLaneBase = 0.05;
         this.cameraYOffset = this.settings.cameraYOffsetLandscape;
-        this.cameraZOffset = this.settings.cameraZOffsetLandscape;
+        const zScaleFactor = this.settings.zScale / 16;
+        this.cameraZOffset = this.settings.cameraZOffsetLandscape / zScaleFactor;
         this.cameraLookAhead = this.settings.cameraLookAheadLandscape;
         this.webglSpanDuration = 256 / this.settings.zScale;
         this._lastFrameTime = performance.now();
@@ -666,8 +667,8 @@ export class WebGLRenderer {
 
         // 根据纵横比插值摄像机参数
         const aspect = this.camera.aspect;
-        const landscapeAspect = 1.5;
-        const portraitAspect = 0.6;
+        const landscapeAspect = 1.4;
+        const portraitAspect = 0.7;
         const yLandscape = this.settings.cameraYOffsetLandscape;
         const yPortrait = this.settings.cameraYOffsetPortrait;
         let t;
@@ -680,9 +681,11 @@ export class WebGLRenderer {
         }
         this.cameraYOffset = yLandscape * t + yPortrait * (1 - t);
 
+        const zScaleFactor = this.settings.zScale / 16;
+        console.log(zScaleFactor);
         const zLandscape = this.settings.cameraZOffsetLandscape || 43;
         const zPortrait = this.settings.cameraZOffsetPortrait || 28;
-        this.cameraZOffset = zLandscape * t + zPortrait * (1 - t);
+        this.cameraZOffset = (zLandscape * t + zPortrait * (1 - t)) / zScaleFactor;
 
         const lookLandscape = this.settings.cameraLookAheadLandscape || 50;
         const lookPortrait = this.settings.cameraLookAheadPortrait || 30;
@@ -1064,7 +1067,7 @@ export class WebGLRenderer {
         let zDis = (Math.random() - 0.5) * (this.settings.zScale * 0.015);
 
 
-        this._spawnPopSprite(this.popDotTexture, color, x, y, z+zDis, {
+        this._spawnPopSprite(this.popDotTexture, color, x, y, z + zDis, {
             velocity: new THREE.Vector3(vx, vy, vz),   // 正确顺序：X(横向), Y(高度), Z(前后)
             lifetime: 0.25 * intensity + Math.random() * 0.2,
             startScale: (0.7 + Math.random() * 0.4) * (0.4 + v * 0.4) * intensity,
