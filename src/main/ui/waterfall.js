@@ -159,15 +159,26 @@ export class MidiFall {
         this.midiData = midiData;
     }
 
-    resize() {
+    detectSize() {
         let {
-            width: cssWidth,
-            height: cssHeight
+            width: w,
+            height: h
         } = this.canvas.getBoundingClientRect();
 
         this.dpr = window.devicePixelRatio || 1;
-        this.canvas.width = this.dpr * cssWidth;
-        this.canvas.height = this.dpr * cssHeight;
+        w = this.dpr * w;
+        h = this.dpr * h;
+
+        return { w, h };
+    }
+
+    resize() {
+        let {
+            width,
+            height
+        } = this.detectSize();
+        this.canvas.width = this.dpr * width;
+        this.canvas.height = this.dpr * height;
 
         this.noteWidth = this.canvas.width / 128;
         this.keyboardHeight = this.noteWidth * 9;
@@ -615,27 +626,39 @@ export class WebGLRenderer {
 
     setMidiData(midiData) { this.midiData = midiData; }
 
-    resize(width = null, height = null) {
-        let rect;
-        if (width == null && height == null) {
-            const container = this.canvas.parentElement || waterfall;
-            rect = container.getBoundingClientRect();
-        } else {
-            rect = { width: width, height: height }
-        }
-        const w = Math.max(1, Math.round(rect.width));
-        const h = Math.max(1, Math.round(rect.height));
-        if (w === 0 || h === 0) return;
+    detectSize() {
+        let {
+            width: w,
+            height: h
+        } = this.canvas.getBoundingClientRect();
 
-        this.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+        this.dpr = window.devicePixelRatio || 1;
+        w = this.dpr * w;
+        h = this.dpr * h;
+
+        return { w, h };
+    }
+
+    resize() {
+        // 读取 canvas 当前尺寸（外部应已设置好）
+        let { w, h } = this.detectSize();
+
+        w = Math.min(w, 7680);
+        h = Math.min(h, 4320);
+
+        w = Math.max(1, w);
+        h = Math.max(1, h);
+        console.log(`Resizing canvas to ${w}x${h} (DPR: ${this.dpr})`);
+
+        // 注意：不修改 canvas.width / canvas.height，只配置渲染器
         this.renderer.setSize(w, h, false);
         this.composer.setSize(w, h);
         this.camera.aspect = w / h;
 
-        // 根据宽高比插值摄像机高度：竖屏→更高（垂直），横屏→更低（平视）
+        // 根据纵横比插值摄像机参数
         const aspect = this.camera.aspect;
-        const landscapeAspect = 1.4;     // 横屏阈值
-        const portraitAspect = 0.7;      // 竖屏阈值
+        const landscapeAspect = 1.5;
+        const portraitAspect = 0.6;
         const yLandscape = this.settings.cameraYOffsetLandscape;
         const yPortrait = this.settings.cameraYOffsetPortrait;
         let t;
@@ -648,14 +671,15 @@ export class WebGLRenderer {
         }
         this.cameraYOffset = yLandscape * t + yPortrait * (1 - t);
 
-        // 🆕 同步调整摄像机前后距离
-        this.cameraZOffset = this.settings.cameraZOffsetLandscape * t +
-            this.settings.cameraZOffsetPortrait * (1 - t);
-        // 🆕 同步调整摄像机前瞻距离
-        this.cameraLookAhead = this.settings.cameraLookAheadLandscape * t +
-            this.settings.cameraLookAheadPortrait * (1 - t);
+        const zLandscape = this.settings.cameraZOffsetLandscape || 43;
+        const zPortrait = this.settings.cameraZOffsetPortrait || 28;
+        this.cameraZOffset = zLandscape * t + zPortrait * (1 - t);
 
-        this._fitCameraToDisplayWidth();  // 内部已使用最新的 cameraYOffset 计算 FOV
+        const lookLandscape = this.settings.cameraLookAheadLandscape || 50;
+        const lookPortrait = this.settings.cameraLookAheadPortrait || 30;
+        this.cameraLookAhead = lookLandscape * t + lookPortrait * (1 - t);
+
+        this._fitCameraToDisplayWidth();
         this.camera.updateProjectionMatrix();
         this.renderFrame(this.lastTime ?? 0);
     }

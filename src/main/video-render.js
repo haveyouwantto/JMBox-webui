@@ -120,16 +120,12 @@ export async function renderVideo(waterfallSettings, options, progressCallback) 
 
     const midiFall = new WebGLRenderer(canvas, waterfallSettings);
 
-    // // Patch resize for OffscreenCanvas
-    // midiFall.resize = function () {
-    //     this.dpr = 1;
-    //     this.canvas.width = width;
-    //     this.canvas.height = height;
-    //     this.noteWidth = this.canvas.width / 128;
-    //     this.keyboardHeight = this.noteWidth * 9;
-    //     this.blackKeyHeight = this.noteWidth * 5.5;
-    // };
-    midiFall.resize(width, height);
+    // Patch detectSize for OffscreenCanvas
+    midiFall.detectSize = function () {
+        return { w: width, h: height };
+    };
+
+    midiFall.resize();
     midiFall.settings.fixedDeltaTime = 1 / fps;   // 启用固定步长
     midiFall.setMidiData(picoAudio.playData);
 
