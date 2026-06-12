@@ -868,7 +868,7 @@ export class WebGLRenderer {
             }
             // 清理过远的星云（距离超过两倍可视距离）
             for (let [minute, particles] of this._nebulaSeeds) {
-                const nebulaZ = minute * 60 * 16;
+                const nebulaZ = minute * 60 * this.settings.zScale;
                 if (Math.abs(viewZ - nebulaZ) > s.nebulaViewDistance * 2) {
                     for (let sprite of particles) {
                         sprite.visible = false;
@@ -1060,8 +1060,11 @@ export class WebGLRenderer {
         const vy = z1 * sigma;   // 水平 Z
         const vz = 0;
 
+        // z轴随机扰动，使粒子稍微散开
+        let zDis = (Math.random() - 0.5) * (this.settings.zScale * 0.015);
 
-        this._spawnPopSprite(this.popDotTexture, color, x, y, z, {
+
+        this._spawnPopSprite(this.popDotTexture, color, x, y, z+zDis, {
             velocity: new THREE.Vector3(vx, vy, vz),   // 正确顺序：X(横向), Y(高度), Z(前后)
             lifetime: 0.25 * intensity + Math.random() * 0.2,
             startScale: (0.7 + Math.random() * 0.4) * (0.4 + v * 0.4) * intensity,
@@ -1189,7 +1192,7 @@ export class WebGLRenderer {
         const centerX = s.nebulaRightX;
         let startX = centerX - totalWidth / 2;
         const baseY = s.nebulaBaseY;
-        const z = minute * 60 * 16;   // 世界 Z 坐标对应分钟位置
+        const z = minute * 60 * this.settings.zScale;   // 世界 Z 坐标对应分钟位置
 
         // 遍历每个数字并放置粒子
         for (let d = 0; d < minuteStr.length; d++) {
