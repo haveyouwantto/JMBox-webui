@@ -487,6 +487,52 @@ export class WebGLRenderer {
             nebulaBaseY: 10,           // 数字底部高度
             nebulaDotSpacing: 2,       // 点阵间距
             nebulaDigitSpacing: 4,     // 多位数字之间的间距
+
+            // ── 渲染器 & 后处理 ──
+            cameraFov: 55,
+            cameraNear: 0.1,
+            cameraFar: 2000,
+            maxPixelRatio: 2,
+            toneMappingExposure: 1.35,
+            bloomStrength: 0.72,
+            bloomRadius: 0.55,
+            bloomThreshold: 0,
+
+            // ── 场景 ──
+            fogColor: 0x050510,
+            fogDensity: 0.008,
+            webglBackgroundColor: 0x050510,  // WebGL 背景色（与 2D 的 backgroundColor 区分）
+
+            // ── 灯光 ──
+            ambientLightColor: 0x222244,
+            ambientLightIntensity: 0.6,
+            pointLightColor: 0xffffff,
+            pointLightIntensity: 1.2,
+            pointLightDistance: 200,
+            directionalLightColor: 0x8888ff,
+            directionalLightIntensity: 0.4,
+
+            // ── 布局 ──
+            trackWidth: 136,
+            channelLaneStep: 0.18,
+            channelLaneBase: 0.05,
+
+            // ── 网格 ──
+            gridSize: 220,
+            gridDivisions: 128,
+            gridColorCenter: 0x1a1a3a,
+            gridColorEdge: 0x0d0d20,
+
+            // ── 播放线几何 ──
+            playlineRadiusTop: 0.25,
+            playlineRadiusBottom: 0.25,
+            playlineHeight: undefined,     // undefined = 使用 trackWidth
+
+            // ── 侧轨 ──
+            railWidth: 0.15,
+            railHeight: 0.5,
+            railLength: 600,
+            railPositionX: 65,
         }, settings);
 
         this.midiData = null;
@@ -497,26 +543,26 @@ export class WebGLRenderer {
 
         // ── THREE.js core ──
         this.scene = new THREE.Scene();
-        this.camera = new THREE.PerspectiveCamera(55, 1, 0.1, 2000);
+        this.camera = new THREE.PerspectiveCamera(this.settings.cameraFov, 1, this.settings.cameraNear, this.settings.cameraFar);
         this.renderer = new THREE.WebGLRenderer({
             canvas: canvas,
             antialias: true,
             alpha: false
         });
-        this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+        this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, this.settings.maxPixelRatio));
         this.renderer.shadowMap.enabled = false;
         this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
-        this.renderer.toneMappingExposure = 1.35;
+        this.renderer.toneMappingExposure = this.settings.toneMappingExposure;
 
         this.renderPass = new RenderPass(this.scene, this.camera);
-        this.bloomPass = new UnrealBloomPass(new THREE.Vector2(1, 1), 0.72, 0.55, 0);
+        this.bloomPass = new UnrealBloomPass(new THREE.Vector2(1, 1), this.settings.bloomStrength, this.settings.bloomRadius, this.settings.bloomThreshold);
         this.composer = new EffectComposer(this.renderer);
         this.composer.addPass(this.renderPass);
         this.composer.addPass(this.bloomPass);
 
-        this.trackWidth = 136;
-        this.channelLaneStep = 0.18;
-        this.channelLaneBase = 0.05;
+        this.trackWidth = this.settings.trackWidth;
+        this.channelLaneStep = this.settings.channelLaneStep;
+        this.channelLaneBase = this.settings.channelLaneBase;
         this.cameraYOffset = this.settings.cameraYOffsetLandscape;
         const zScaleFactor = this.settings.zScale / 16;
         this.cameraZOffset = this.settings.cameraZOffsetLandscape / zScaleFactor;
@@ -525,18 +571,18 @@ export class WebGLRenderer {
         this._lastFrameTime = performance.now();
 
         // ── Fog ──
-        this.scene.fog = new THREE.FogExp2(0x050510, 0.008);
-        this.scene.background = new THREE.Color(0x050510);
+        this.scene.fog = new THREE.FogExp2(this.settings.fogColor, this.settings.fogDensity);
+        this.scene.background = new THREE.Color(this.settings.webglBackgroundColor);
 
         // ── Lights ──
-        const ambient = new THREE.AmbientLight(0x222244, 0.6);
-        this.scene.add(ambient);
-        this.pointLight = new THREE.PointLight(0xffffff, 1.2, 200);
+        this.ambientLight = new THREE.AmbientLight(this.settings.ambientLightColor, this.settings.ambientLightIntensity);
+        this.scene.add(this.ambientLight);
+        this.pointLight = new THREE.PointLight(this.settings.pointLightColor, this.settings.pointLightIntensity, this.settings.pointLightDistance);
         this.pointLight.position.set(0, 20, 0);
         this.scene.add(this.pointLight);
-        const dirLight = new THREE.DirectionalLight(0x8888ff, 0.4);
-        dirLight.position.set(-30, 40, -20);
-        this.scene.add(dirLight);
+        this.dirLight = new THREE.DirectionalLight(this.settings.directionalLightColor, this.settings.directionalLightIntensity);
+        this.dirLight.position.set(-30, 40, -20);
+        this.scene.add(this.dirLight);
 
         // ── Shared geometry ──
         this.noteGeometry = new THREE.BoxGeometry(1, 1, 1);
@@ -546,12 +592,12 @@ export class WebGLRenderer {
         this.palette = palette;
 
         // ── Grid ──
-        this.gridHelper = new THREE.GridHelper(220, 128, 0x1a1a3a, 0x0d0d20);
+        this.gridHelper = new THREE.GridHelper(this.settings.gridSize, this.settings.gridDivisions, this.settings.gridColorCenter, this.settings.gridColorEdge);
         this.gridHelper.position.y = -0.48;
         this.scene.add(this.gridHelper);
 
         // ── Playline ──
-        const playlineMat = new THREE.MeshStandardMaterial({
+        this.playlineMaterial = new THREE.MeshStandardMaterial({
             color: 0xff2244,
             emissive: 0xff2244,
             emissiveIntensity: this.settings.playlineBaseEmissive,
@@ -560,26 +606,27 @@ export class WebGLRenderer {
             transparent: true,
             opacity: 0.9
         });
-        const playlineGeo = new THREE.CylinderGeometry(0.25, 0.25, this.trackWidth, 8);
+        const playlineHeight = this.settings.playlineHeight !== undefined ? this.settings.playlineHeight : this.trackWidth;
+        const playlineGeo = new THREE.CylinderGeometry(this.settings.playlineRadiusTop, this.settings.playlineRadiusBottom, playlineHeight, 8);
         playlineGeo.rotateZ(Math.PI / 2);
-        this.playline = new THREE.Mesh(playlineGeo, playlineMat);
+        this.playline = new THREE.Mesh(playlineGeo, this.playlineMaterial);
         this.playline.position.y = 0.3;
         this.scene.add(this.playline);
 
         // ── Side rails ──
-        const railMat = new THREE.MeshStandardMaterial({
+        this.railMaterial = new THREE.MeshStandardMaterial({
             color: 0x4444ff,
             emissive: 0x4444ff,
             emissiveIntensity: 0.5,
             transparent: true,
             opacity: 0.5
         });
-        const railGeo = new THREE.BoxGeometry(0.15, 0.5, 600);
-        this.leftRail = new THREE.Mesh(railGeo, railMat);
-        this.leftRail.position.set(-65, 0, 0);
+        const railGeo = new THREE.BoxGeometry(this.settings.railWidth, this.settings.railHeight, this.settings.railLength);
+        this.leftRail = new THREE.Mesh(railGeo, this.railMaterial);
+        this.leftRail.position.set(-this.settings.railPositionX, 0, 0);
         this.scene.add(this.leftRail);
-        this.rightRail = new THREE.Mesh(railGeo, railMat);
-        this.rightRail.position.set(65, 0, 0);
+        this.rightRail = new THREE.Mesh(railGeo, this.railMaterial);
+        this.rightRail.position.set(this.settings.railPositionX, 0, 0);
         this.scene.add(this.rightRail);
 
         // ── Particle effects ──
@@ -624,6 +671,45 @@ export class WebGLRenderer {
             this.starMaterial.emissive.set(this.settings.starColorBright);
             this.starMaterial.emissiveIntensity = 0;
         }
+        // 动态更新渲染器
+        if (this.renderer) {
+            this.renderer.toneMappingExposure = this.settings.toneMappingExposure;
+        }
+        // 动态更新场景
+        if (this.scene) {
+            if (this.settings.fogDensity !== undefined) {
+                this.scene.fog = new THREE.FogExp2(this.settings.fogColor, this.settings.fogDensity);
+            }
+            if (this.settings.webglBackgroundColor !== undefined) {
+                this.scene.background = new THREE.Color(this.settings.webglBackgroundColor);
+            }
+        }
+        // 动态更新灯光
+        if (this.ambientLight) {
+            this.ambientLight.color.set(this.settings.ambientLightColor);
+            this.ambientLight.intensity = this.settings.ambientLightIntensity;
+        }
+        if (this.pointLight) {
+            this.pointLight.color.set(this.settings.pointLightColor);
+            this.pointLight.intensity = this.settings.pointLightIntensity;
+            this.pointLight.distance = this.settings.pointLightDistance;
+        }
+        if (this.dirLight) {
+            this.dirLight.color.set(this.settings.directionalLightColor);
+            this.dirLight.intensity = this.settings.directionalLightIntensity;
+        }
+        // 动态更新 bloom
+        if (this.bloomPass) {
+            this.bloomPass.strength = this.settings.bloomStrength;
+            this.bloomPass.radius = this.settings.bloomRadius;
+            this.bloomPass.threshold = this.settings.bloomThreshold;
+        }
+        // 动态更新 channel lane 参数（被 _getChannelY 使用）
+        this.channelLaneStep = this.settings.channelLaneStep;
+        this.channelLaneBase = this.settings.channelLaneBase;
+        // 动态更新 trackWidth & webglSpanDuration（依赖 zScale）
+        this.trackWidth = this.settings.trackWidth;
+        this.webglSpanDuration = 256 / this.settings.zScale;
     }
 
     setMidiData(midiData) { this.midiData = midiData; }
