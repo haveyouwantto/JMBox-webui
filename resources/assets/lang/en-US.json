@@ -97,6 +97,7 @@
     "render.video": "Video",
     "render.audio": "Audio",
     "settings.tab.basic": "BASIC",
+    "settings.tab.picoaudio": "PICOAUDIO",
     "settings.tab.renderer": "RENDERER",
     "settings.tab.pianoroll": "PIANO ROLL",
     "settings.render.mode": "Rendering Mode",

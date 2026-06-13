@@ -266,12 +266,11 @@ export class JMBoxApp {
     }
 
     _createRenderer(canvas) {
-        return new MidiFall(canvas, settings);
-        // const mode = settings.rendererMode || 'webgl';
-        // if (mode === 'canvas2d') {
-        //     return new MidiFall(canvas, settings);
-        // }
-        // return new WebGLRenderer(canvas, settings);
+        const mode = settings.rendererMode || 'webgl';
+        if (mode === 'canvas2d') {
+            return new MidiFall(canvas, settings);
+        }
+        return new WebGLRenderer(canvas, settings);
     }
 
     setPlayMode(mode) {
@@ -563,9 +562,20 @@ export class JMBoxApp {
                 case "showLyrics":
                     this.waterfall.setLyricsVisible(e.value);
                     break;
-                case "rendererMode":
-                    this.waterfall.setRenderer(this._createRenderer(this.midiFall.canvas));
+                case "rendererMode": {
+                    const midiFall = this.waterfall.midiFall;
+                    const currentIsWebGL = midiFall instanceof WebGLRenderer;
+                    const targetIsWebGL = e.value !== 'canvas2d';
+                    if (currentIsWebGL !== targetIsWebGL) {
+                        const oldCanvas = midiFall.canvas;
+                        const newCanvas = document.createElement('canvas');
+                        newCanvas.id = oldCanvas.id;
+                        newCanvas.style.cssText = oldCanvas.style.cssText;
+                        oldCanvas.parentNode.replaceChild(newCanvas, oldCanvas);
+                        this.waterfall.setRenderer(this._createRenderer(newCanvas));
+                    }
                     break;
+                }
             }
             if (this.waterfall) this.waterfall.updateSettings(settings); // Propagate settings to MidiFall
             updateSettingsItem(e.key, e.value);

@@ -174,11 +174,11 @@ export class MidiFall {
 
     resize() {
         let {
-            width,
-            height
+            w,
+            h
         } = this.detectSize();
-        this.canvas.width = this.dpr * width;
-        this.canvas.height = this.dpr * height;
+        this.canvas.width = w;
+        this.canvas.height = h;
 
         this.noteWidth = this.canvas.width / 128;
         this.keyboardHeight = this.noteWidth * 9;
@@ -1447,7 +1447,7 @@ export class MidiFallController {
         // 停止当前动画循环
         const wasRunning = this.animationId != null;
         this.stop();
-        // 销毁旧渲染器持有的 resize observer
+        // 断开旧的 resize observer 和 window resize listener
         if (this.resizeObserver) {
             this.resizeObserver.disconnect();
         }

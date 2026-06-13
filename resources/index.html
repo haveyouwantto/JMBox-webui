@@ -168,6 +168,7 @@
 
         <div class="settings-tab-bar">
             <button class="settings-tab active" data-tab="basic"><locale key="settings.tab.basic">BASIC</locale></button>
+            <button class="settings-tab" data-tab="picoaudio"><locale key="settings.tab.picoaudio">PICOAUDIO</locale></button>
             <button class="settings-tab" data-tab="renderer"><locale key="settings.tab.renderer">RENDERER</locale></button>
             <button class="settings-tab" data-tab="pianoroll"><locale key="settings.tab.pianoroll">PIANO ROLL</locale></button>
         </div>
@@ -243,7 +244,11 @@
                     </button>
                 </section>
 
-                <section class="dialog-section" id="picoaudio-section">
+            </div>
+
+            <!-- ── TAB: PicoAudio ── -->
+            <div class="settings-tab-content" data-tab="picoaudio">
+                <section class="dialog-section">
                     <locale class="dialog-subtitle" key="settings.picoaudio">PicoAudio</locale>
                     <a class="dialog-item" setting="dropDown" key="soundQuality">
                         <icon>&#57353;</icon>
@@ -265,6 +270,10 @@
                         <locale key="settings.picoaudio.max-polyphony"></locale>
                         <input class="right" type="number" min="-1" max="500" step="1" value="-1">
                     </a>
+                </section>
+
+                <section class="dialog-section">
+                    <locale class="dialog-subtitle">Playback</locale>
                     <button class="dialog-item button-flash" setting="toggle" key="skipBeginning">
                         <icon>&#57367;</icon>
                         <locale key="settings.picoaudio.skip-beginning"></locale>
@@ -285,6 +294,10 @@
                         <locale key="settings.picoaudio.global-reverb"></locale>
                         <icon class="right" checker>&#57362;</icon>
                     </button>
+                </section>
+
+                <section class="dialog-section">
+                    <locale class="dialog-subtitle">MIDI Output</locale>
                     <button class="dialog-item button-flash" setting="toggle" key="webmidi" requireSecure="1">
                         <icon>&#57370;</icon>
                         <locale key="settings.picoaudio.web-midi">Use Web MIDI Output</locale>

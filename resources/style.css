@@ -1077,9 +1077,20 @@ html::-webkit-scrollbar-track {
 /* ── Settings Tab Bar (MD2 style) ── */
 .settings-tab-bar {
     display: flex;
+    flex-shrink: 0;
+    min-height: 42px;
     border-bottom: 1px solid var(--hover-color);
     padding: 0 16px;
     background: var(--bg-color);
+    overflow-x: auto;
+    overflow-y: hidden;
+    -webkit-overflow-scrolling: touch;
+    white-space: nowrap;
+    scrollbar-width: none;
+}
+
+.settings-tab-bar::-webkit-scrollbar {
+    display: none;
 }
 
 .settings-tab {
@@ -1095,6 +1106,8 @@ html::-webkit-scrollbar-track {
     position: relative;
     transition: opacity 0.2s;
     text-transform: uppercase;
+    white-space: nowrap;
+    flex-shrink: 0;
 }
 
 .settings-tab:hover {

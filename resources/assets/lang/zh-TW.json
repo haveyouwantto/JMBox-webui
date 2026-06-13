@@ -79,6 +79,7 @@
     "render.video": "影片",
     "render.audio": "音訊",
     "settings.tab.basic": "基本",
+    "settings.tab.picoaudio": "PICOAUDIO",
     "settings.tab.renderer": "渲染",
     "settings.tab.pianoroll": "瀑布",
     "settings.render.mode": "渲染模式",
