@@ -59,6 +59,12 @@ $("*[setting]").forEach(element => {
                 editSetting(key, input2.value);
             });
             break
+        case "color":
+            const colorInput = element.querySelector('input[type=color]');
+            colorInput.addEventListener('input', e => {
+                editSetting(key, colorInput.value);
+            });
+            break
     }
 });
 
@@ -85,6 +91,10 @@ export function updateSettingsItem(key, value) {
             case "string":
                 const input2 = e.element.querySelector('input');
                 input2.value = value;
+                break
+            case "color":
+                const colorInput = e.element.querySelector('input[type=color]');
+                colorInput.value = value;
                 break
         }
     }
@@ -128,3 +138,27 @@ closeSettingsButton.addEventListener('click', () => {
 // darkModeBtn.addEventListener('change', e => {
 //     editSetting('dark', darkModeBtn.value);
 // });
+
+// ── Tab 切换逻辑 ──
+const tabButtons = document.querySelectorAll('.settings-tab');
+const tabContents = document.querySelectorAll('.settings-tab-content');
+
+function switchSettingsTab(tabName) {
+    tabButtons.forEach(btn => {
+        btn.classList.toggle('active', btn.getAttribute('data-tab') === tabName);
+    });
+    tabContents.forEach(content => {
+        content.style.display = content.getAttribute('data-tab') === tabName ? 'block' : 'none';
+    });
+}
+
+tabButtons.forEach(btn => {
+    btn.addEventListener('click', () => {
+        switchSettingsTab(btn.getAttribute('data-tab'));
+    });
+});
+
+// 默认显示第一个 tab
+if (tabButtons.length > 0) {
+    switchSettingsTab(tabButtons[0].getAttribute('data-tab'));
+}

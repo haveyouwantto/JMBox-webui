@@ -29,7 +29,7 @@ export class JMBoxApp {
 
         const waterfallElement = $("#waterfall");
         const canvas = waterfallElement.querySelector('canvas');
-        this.midiFall = new WebGLRenderer(canvas, settings);
+        this.midiFall = this._createRenderer(canvas);
         this.waterfall = new MidiFallController(waterfallElement, this.midiFall, null);
 
         this.player = this.createPlayer(settings.player);
@@ -263,6 +263,15 @@ export class JMBoxApp {
             document.title = this.serverName + " - " + file.name;
             fr.readAsArrayBuffer(file);
         }
+    }
+
+    _createRenderer(canvas) {
+        return new MidiFall(canvas, settings);
+        // const mode = settings.rendererMode || 'webgl';
+        // if (mode === 'canvas2d') {
+        //     return new MidiFall(canvas, settings);
+        // }
+        // return new WebGLRenderer(canvas, settings);
     }
 
     setPlayMode(mode) {
@@ -552,7 +561,11 @@ export class JMBoxApp {
                     else setLocale(e.value);
                     break;
                 case "showLyrics":
-                    this.waterfall.setLyricsVisible(e.value)
+                    this.waterfall.setLyricsVisible(e.value);
+                    break;
+                case "rendererMode":
+                    this.waterfall.setRenderer(this._createRenderer(this.midiFall.canvas));
+                    break;
             }
             if (this.waterfall) this.waterfall.updateSettings(settings); // Propagate settings to MidiFall
             updateSettingsItem(e.key, e.value);

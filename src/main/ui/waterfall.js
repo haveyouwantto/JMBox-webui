@@ -499,17 +499,17 @@ export class WebGLRenderer {
             bloomThreshold: 0,
 
             // ── 场景 ──
-            fogColor: 0x050510,
+            fogColor: '#050510',
             fogDensity: 0.008,
-            webglBackgroundColor: 0x050510,  // WebGL 背景色（与 2D 的 backgroundColor 区分）
+            webglBackgroundColor: '#050510',  // WebGL 背景色（与 2D 的 backgroundColor 区分）
 
             // ── 灯光 ──
-            ambientLightColor: 0x222244,
+            ambientLightColor: '#222244',
             ambientLightIntensity: 0.6,
-            pointLightColor: 0xffffff,
+            pointLightColor: '#ffffff',
             pointLightIntensity: 1.2,
             pointLightDistance: 200,
-            directionalLightColor: 0x8888ff,
+            directionalLightColor: '#8888ff',
             directionalLightIntensity: 0.4,
 
             // ── 布局 ──
@@ -520,13 +520,13 @@ export class WebGLRenderer {
             // ── 网格 ──
             gridSize: 220,
             gridDivisions: 128,
-            gridColorCenter: 0x1a1a3a,
-            gridColorEdge: 0x0d0d20,
+            gridColorCenter: '#1a1a3a',
+            gridColorEdge: '#0d0d20',
 
             // ── 播放线几何 ──
             playlineRadiusTop: 0.25,
             playlineRadiusBottom: 0.25,
-            playlineHeight: undefined,     // undefined = 使用 trackWidth
+            playlineHeight: -1,     // -1 = auto (use trackWidth)
 
             // ── 侧轨 ──
             railWidth: 0.15,
@@ -606,7 +606,7 @@ export class WebGLRenderer {
             transparent: true,
             opacity: 0.9
         });
-        const playlineHeight = this.settings.playlineHeight !== undefined ? this.settings.playlineHeight : this.trackWidth;
+        const playlineHeight = (this.settings.playlineHeight !== undefined && this.settings.playlineHeight >= 0) ? this.settings.playlineHeight : this.trackWidth;
         const playlineGeo = new THREE.CylinderGeometry(this.settings.playlineRadiusTop, this.settings.playlineRadiusBottom, playlineHeight, 8);
         playlineGeo.rotateZ(Math.PI / 2);
         this.playline = new THREE.Mesh(playlineGeo, this.playlineMaterial);
@@ -660,6 +660,10 @@ export class WebGLRenderer {
         // Camera initial
         this.camera.position.set(0, this.cameraYOffset, -this.cameraZOffset);
         this.camera.lookAt(0, 1, this.cameraLookAhead);
+    }
+
+    dispose() {
+        // WebGLRenderer 不需要特殊清理，2D 的不需要 dispose
     }
 
     // ── MidiFall interface ──
@@ -1437,6 +1441,34 @@ export class MidiFallController {
 
     setPlayer(player) {
         this.player = player;
+    }
+
+    setRenderer(newRenderer) {
+        // 停止当前动画循环
+        const wasRunning = this.animationId != null;
+        this.stop();
+        // 销毁旧渲染器持有的 resize observer
+        if (this.resizeObserver) {
+            this.resizeObserver.disconnect();
+        }
+        // 替换渲染器
+        const oldMidiData = this.midiFall.midiData;
+        this.midiFall = newRenderer;
+        // 重新绑定 resize
+        this.resizeObserver = new ResizeObserver(entries => {
+            this.midiFall.resize();
+        });
+        this.resizeObserver.observe(this.midiFall.canvas);
+        // 恢复数据
+        if (oldMidiData) {
+            this.midiFall.setMidiData(oldMidiData);
+        }
+        this.midiFall.resize();
+        // 如果之前在运行，重新开始
+        if (wasRunning) {
+            this.midiFall.lastDrawTime = performance.now();
+            this.animationId = requestAnimationFrame(() => this.drawLoop());
+        }
     }
 
     setMidiData(playData) {
