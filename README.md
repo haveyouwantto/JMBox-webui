@@ -10,7 +10,7 @@ A browser-based MIDI player with real-time waterfall visualization (inspired by 
 -   **3D Renderer** — WebGL render mode with Three.js: per-note glow, playline effects, star particles and nebula background.
 -   **Video Export** — render MIDI playback to WebM video with audio, configurable resolution and frame rate.
 -   **Settings** — extensive configuration for audio, PicoAudio engine, piano roll, 3D rendering, and more.
--   **Multi-language** — locale files with dynamic UI switching.
+-   **Multi-language** — 13 languages: English, 简体中文, 繁體中文, 日本語, 한국어, Español, Français, Русский, العربية, हिन्दी, বাংলা, Português, اردو.
 -   **Dark Mode** — follow system, force light, or force dark.
 -   **Web MIDI Output** — send MIDI events to external hardware synthesizers via Web MIDI API.
 -   **Local Files** — open local MIDI files directly in the browser (note: Server-side Render is unavailable for local files).

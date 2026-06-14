@@ -10,7 +10,16 @@ const localeList = {
     "en-US": "English",
     "zh-CN": "\u7b80\u4f53\u4e2d\u6587",
     "zh-TW": "\u7e41\u9ad4\u4e2d\u6587",
-    "ja-JP": "\u65e5\u672c\u8a9e"
+    "ja-JP": "\u65e5\u672c\u8a9e",
+    "ko": "\ud55c\uad6d\uc5b4",
+    "es": "Espa\u00f1ol",
+    "fr": "Fran\u00e7ais",
+    "ru": "\u0420\u0443\u0441\u0441\u043a\u0438\u0439",
+    "ar": "\u0627\u0644\u0639\u0631\u0628\u064a\u0629",
+    "hi": "\u0939\u093f\u0928\u094d\u0926\u0940",
+    "bn": "\u09ac\u09be\u0982\u09b2\u09be",
+    "pt": "Portugu\u00eas",
+    "ur": "\u0627\u0631\u062f\u0648"
 };
 
 export async function localeInit() {
