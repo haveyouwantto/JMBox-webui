@@ -170,7 +170,7 @@
             <button class="settings-tab active" data-tab="basic"><locale key="settings.tab.basic">BASIC</locale></button>
             <button class="settings-tab" data-tab="picoaudio"><locale key="settings.tab.picoaudio">PICOAUDIO</locale></button>
             <button class="settings-tab" data-tab="renderer"><locale key="settings.tab.renderer">RENDERER</locale></button>
-            <button class="settings-tab" data-tab="pianoroll"><locale key="settings.tab.pianoroll">PIANO ROLL</locale></button>
+            <button class="settings-tab" data-tab="3d"><locale key="settings.tab.3d">3D</locale></button>
         </div>
 
         <div class="dialog-container">
@@ -320,365 +320,18 @@
             <div class="settings-tab-content" data-tab="renderer">
                 <section class="dialog-section">
                     <locale class="dialog-subtitle" key="settings.render.mode"></locale>
-                    <button class="dialog-item button-flash" setting="radio" key="rendererMode" value="webgl">
-                        <icon>&#57344;</icon>
-                        <locale key="settings.render.webgl"></locale>
-                        <icon class="right radio" checker>&#57371;</icon>
-                    </button>
                     <button class="dialog-item button-flash" setting="radio" key="rendererMode" value="canvas2d">
                         <icon>&#57345;</icon>
                         <locale key="settings.render.canvas2d"></locale>
                         <icon class="right radio" checker>&#57371;</icon>
                     </button>
-                </section>
-
-                <section class="dialog-section">
-                    <locale class="dialog-subtitle" key="settings.render.scene"></locale>
-                    <a class="dialog-item" setting="color" key="webglBackgroundColor">
-                        <icon>&#57350;</icon>
-                        <locale key="settings.render.background-color"></locale>
-                        <input class="right" type="color" value="#050510">
-                    </a>
-                    <a class="dialog-item" setting="color" key="fogColor">
-                        <icon>&#57350;</icon>
-                        <locale key="settings.render.fog-color"></locale>
-                        <input class="right" type="color" value="#050510">
-                    </a>
-                    <a class="dialog-item" setting="spinner" key="fogDensity">
-                        <icon>&#57367;</icon>
-                        <locale key="settings.render.fog-density"></locale>
-                        <input class="right" type="number" min="0.001" max="0.05" step="0.001" value="0.008">
-                    </a>
-                </section>
-
-                <section class="dialog-section">
-                    <locale class="dialog-subtitle" key="settings.render.lighting"></locale>
-                    <a class="dialog-item" setting="color" key="ambientLightColor">
-                        <icon>&#57350;</icon>
-                        <locale key="settings.render.ambient-color"></locale>
-                        <input class="right" type="color" value="#222244">
-                    </a>
-                    <a class="dialog-item" setting="spinner" key="ambientLightIntensity">
-                        <icon>&#57367;</icon>
-                        <locale key="settings.render.ambient-intensity"></locale>
-                        <input class="right" type="number" min="0" max="5" step="0.1" value="0.6">
-                    </a>
-                    <a class="dialog-item" setting="color" key="pointLightColor">
-                        <icon>&#57350;</icon>
-                        <locale key="settings.render.point-color"></locale>
-                        <input class="right" type="color" value="#ffffff">
-                    </a>
-                    <a class="dialog-item" setting="spinner" key="pointLightIntensity">
-                        <icon>&#57367;</icon>
-                        <locale key="settings.render.point-intensity"></locale>
-                        <input class="right" type="number" min="0" max="10" step="0.1" value="1.2">
-                    </a>
-                    <a class="dialog-item" setting="spinner" key="pointLightDistance">
-                        <icon>&#57367;</icon>
-                        <locale key="settings.render.point-distance"></locale>
-                        <input class="right" type="number" min="10" max="1000" step="10" value="200">
-                    </a>
-                    <a class="dialog-item" setting="color" key="directionalLightColor">
-                        <icon>&#57350;</icon>
-                        <locale key="settings.render.directional-color"></locale>
-                        <input class="right" type="color" value="#8888ff">
-                    </a>
-                    <a class="dialog-item" setting="spinner" key="directionalLightIntensity">
-                        <icon>&#57367;</icon>
-                        <locale key="settings.render.directional-intensity"></locale>
-                        <input class="right" type="number" min="0" max="5" step="0.1" value="0.4">
-                    </a>
-                </section>
-
-                <section class="dialog-section">
-                    <locale class="dialog-subtitle" key="settings.render.post"></locale>
-                    <a class="dialog-item" setting="spinner" key="toneMappingExposure">
-                        <icon>&#57367;</icon>
-                        <locale key="settings.render.tonemap-exposure"></locale>
-                        <input class="right" type="number" min="0.1" max="5" step="0.05" value="1.35">
-                    </a>
-                    <a class="dialog-item" setting="spinner" key="bloomStrength">
-                        <icon>&#57367;</icon>
-                        <locale key="settings.render.bloom-strength"></locale>
-                        <input class="right" type="number" min="0" max="3" step="0.01" value="0.72">
-                    </a>
-                    <a class="dialog-item" setting="spinner" key="bloomRadius">
-                        <icon>&#57367;</icon>
-                        <locale key="settings.render.bloom-radius"></locale>
-                        <input class="right" type="number" min="0" max="2" step="0.01" value="0.55">
-                    </a>
-                    <a class="dialog-item" setting="spinner" key="bloomThreshold">
-                        <icon>&#57367;</icon>
-                        <locale key="settings.render.bloom-threshold"></locale>
-                        <input class="right" type="number" min="0" max="1" step="0.01" value="0">
-                    </a>
-                    <a class="dialog-item" setting="spinner" key="maxPixelRatio">
-                        <icon>&#57367;</icon>
-                        <locale key="settings.render.max-pixel-ratio"></locale>
-                        <input class="right" type="number" min="1" max="4" step="0.5" value="2">
-                    </a>
-                </section>
-
-                <section class="dialog-section">
-                    <locale class="dialog-subtitle" key="settings.render.stars"></locale>
-                    <a class="dialog-item" setting="spinner" key="starCount">
-                        <icon>&#57367;</icon>
-                        <locale key="settings.render.star-count"></locale>
-                        <input class="right" type="number" min="0" max="10000" step="100" value="2000">
-                    </a>
-                    <a class="dialog-item" setting="spinner" key="starSize">
-                        <icon>&#57367;</icon>
-                        <locale key="settings.render.star-size"></locale>
-                        <input class="right" type="number" min="0.05" max="2" step="0.05" value="0.2">
-                    </a>
-                    <a class="dialog-item" setting="color" key="starColorDim">
-                        <icon>&#57350;</icon>
-                        <locale key="settings.render.star-color-dim"></locale>
-                        <input class="right" type="color" value="#1a3355">
-                    </a>
-                    <a class="dialog-item" setting="color" key="starColorBright">
-                        <icon>&#57350;</icon>
-                        <locale key="settings.render.star-color-bright"></locale>
-                        <input class="right" type="color" value="#88bbff">
-                    </a>
-                    <a class="dialog-item" setting="spinner" key="starBloomBase">
-                        <icon>&#57367;</icon>
-                        <locale key="settings.render.star-bloom-base"></locale>
-                        <input class="right" type="number" min="0" max="50" step="0.5" value="15">
-                    </a>
-                    <a class="dialog-item" setting="spinner" key="starBloomMin">
-                        <icon>&#57367;</icon>
-                        <locale key="settings.render.star-bloom-min"></locale>
-                        <input class="right" type="number" min="0" max="5" step="0.05" value="0.15">
-                    </a>
-                    <a class="dialog-item" setting="spinner" key="starDecay">
-                        <icon>&#57367;</icon>
-                        <locale key="settings.render.star-decay"></locale>
-                        <input class="right" type="number" min="0.1" max="50" step="0.5" value="16">
-                    </a>
-                    <button class="dialog-item button-flash" setting="toggle" key="starBoostOnAnyNote">
-                        <icon>&#57367;</icon>
-                        <locale key="settings.render.star-boost-any"></locale>
-                        <icon class="right" checker>&#57362;</icon>
+                    <button class="dialog-item button-flash" setting="radio" key="rendererMode" value="webgl">
+                        <icon>&#57344;</icon>
+                        <locale key="settings.render.webgl"></locale>
+                        <icon class="right radio" checker>&#57371;</icon>
                     </button>
                 </section>
 
-                <section class="dialog-section">
-                    <locale class="dialog-subtitle" key="settings.render.nebula"></locale>
-                    <button class="dialog-item button-flash" setting="toggle" key="nebulaEnabled">
-                        <icon>&#57367;</icon>
-                        <locale key="settings.render.nebula-enabled"></locale>
-                        <icon class="right" checker>&#57362;</icon>
-                    </button>
-                    <a class="dialog-item" setting="spinner" key="nebulaViewDistance">
-                        <icon>&#57367;</icon>
-                        <locale key="settings.render.nebula-view-distance"></locale>
-                        <input class="right" type="number" min="20" max="500" step="10" value="120">
-                    </a>
-                    <a class="dialog-item" setting="spinner" key="nebulaRightX">
-                        <icon>&#57367;</icon>
-                        <locale key="settings.render.nebula-x"></locale>
-                        <input class="right" type="number" min="-200" max="200" step="1" value="-50">
-                    </a>
-                    <a class="dialog-item" setting="spinner" key="nebulaBaseY">
-                        <icon>&#57367;</icon>
-                        <locale key="settings.render.nebula-y"></locale>
-                        <input class="right" type="number" min="-50" max="100" step="1" value="10">
-                    </a>
-                    <a class="dialog-item" setting="spinner" key="nebulaDotSpacing">
-                        <icon>&#57367;</icon>
-                        <locale key="settings.render.nebula-dot-spacing"></locale>
-                        <input class="right" type="number" min="1" max="10" step="0.5" value="2">
-                    </a>
-                    <a class="dialog-item" setting="spinner" key="nebulaDigitSpacing">
-                        <icon>&#57367;</icon>
-                        <locale key="settings.render.nebula-digit-spacing"></locale>
-                        <input class="right" type="number" min="1" max="20" step="1" value="4">
-                    </a>
-                </section>
-
-                <section class="dialog-section">
-                    <locale class="dialog-subtitle" key="settings.render.layout"></locale>
-                    <a class="dialog-item" setting="spinner" key="trackWidth">
-                        <icon>&#57367;</icon>
-                        <locale key="settings.render.track-width"></locale>
-                        <input class="right" type="number" min="60" max="300" step="1" value="136">
-                    </a>
-                    <a class="dialog-item" setting="spinner" key="channelLaneStep">
-                        <icon>&#57367;</icon>
-                        <locale key="settings.render.channel-lane-step"></locale>
-                        <input class="right" type="number" min="0.05" max="0.5" step="0.01" value="0.18">
-                    </a>
-                    <a class="dialog-item" setting="spinner" key="channelLaneBase">
-                        <icon>&#57367;</icon>
-                        <locale key="settings.render.channel-lane-base"></locale>
-                        <input class="right" type="number" min="0" max="1" step="0.01" value="0.05">
-                    </a>
-                    <a class="dialog-item" setting="spinner" key="zScale">
-                        <icon>&#57367;</icon>
-                        <locale key="settings.render.z-scale"></locale>
-                        <input class="right" type="number" min="4" max="64" step="1" value="16">
-                    </a>
-                </section>
-
-                <section class="dialog-section">
-                    <locale class="dialog-subtitle" key="settings.render.grid"></locale>
-                    <a class="dialog-item" setting="spinner" key="gridSize">
-                        <icon>&#57367;</icon>
-                        <locale key="settings.render.grid-size"></locale>
-                        <input class="right" type="number" min="50" max="500" step="10" value="220">
-                    </a>
-                    <a class="dialog-item" setting="spinner" key="gridDivisions">
-                        <icon>&#57367;</icon>
-                        <locale key="settings.render.grid-divisions"></locale>
-                        <input class="right" type="number" min="16" max="256" step="16" value="128">
-                    </a>
-                    <a class="dialog-item" setting="color" key="gridColorCenter">
-                        <icon>&#57350;</icon>
-                        <locale key="settings.render.grid-center-color"></locale>
-                        <input class="right" type="color" value="#1a1a3a">
-                    </a>
-                    <a class="dialog-item" setting="color" key="gridColorEdge">
-                        <icon>&#57350;</icon>
-                        <locale key="settings.render.grid-edge-color"></locale>
-                        <input class="right" type="color" value="#0d0d20">
-                    </a>
-                </section>
-
-                <section class="dialog-section">
-                    <locale class="dialog-subtitle" key="settings.render.playline"></locale>
-                    <a class="dialog-item" setting="spinner" key="playlineRadiusTop">
-                        <icon>&#57367;</icon>
-                        <locale key="settings.render.playline-radius-top"></locale>
-                        <input class="right" type="number" min="0.05" max="2" step="0.05" value="0.25">
-                    </a>
-                    <a class="dialog-item" setting="spinner" key="playlineRadiusBottom">
-                        <icon>&#57367;</icon>
-                        <locale key="settings.render.playline-radius-bottom"></locale>
-                        <input class="right" type="number" min="0.05" max="2" step="0.05" value="0.25">
-                    </a>
-                    <a class="dialog-item" setting="spinner" key="playlineHeight">
-                        <icon>&#57367;</icon>
-                        <locale key="settings.render.playline-height"></locale>
-                        <input class="right" type="number" min="-1" max="500" step="1" value="-1">
-                    </a>
-                </section>
-
-                <section class="dialog-section">
-                    <locale class="dialog-subtitle" key="settings.render.rails"></locale>
-                    <a class="dialog-item" setting="spinner" key="railWidth">
-                        <icon>&#57367;</icon>
-                        <locale key="settings.render.rail-width"></locale>
-                        <input class="right" type="number" min="0.05" max="1" step="0.05" value="0.15">
-                    </a>
-                    <a class="dialog-item" setting="spinner" key="railHeight">
-                        <icon>&#57367;</icon>
-                        <locale key="settings.render.rail-height"></locale>
-                        <input class="right" type="number" min="0.1" max="2" step="0.1" value="0.5">
-                    </a>
-                    <a class="dialog-item" setting="spinner" key="railLength">
-                        <icon>&#57367;</icon>
-                        <locale key="settings.render.rail-length"></locale>
-                        <input class="right" type="number" min="100" max="2000" step="50" value="600">
-                    </a>
-                    <a class="dialog-item" setting="spinner" key="railPositionX">
-                        <icon>&#57367;</icon>
-                        <locale key="settings.render.rail-position-x"></locale>
-                        <input class="right" type="number" min="30" max="200" step="1" value="65">
-                    </a>
-                </section>
-
-                <section class="dialog-section">
-                    <locale class="dialog-subtitle" key="settings.render.camera"></locale>
-                    <a class="dialog-item" setting="spinner" key="cameraFov">
-                        <icon>&#57367;</icon>
-                        <locale key="settings.render.camera-fov"></locale>
-                        <input class="right" type="number" min="20" max="120" step="1" value="55">
-                    </a>
-                    <a class="dialog-item" setting="spinner" key="cameraNear">
-                        <icon>&#57367;</icon>
-                        <locale key="settings.render.camera-near"></locale>
-                        <input class="right" type="number" min="0.01" max="1" step="0.05" value="0.1">
-                    </a>
-                    <a class="dialog-item" setting="spinner" key="cameraFar">
-                        <icon>&#57367;</icon>
-                        <locale key="settings.render.camera-far"></locale>
-                        <input class="right" type="number" min="500" max="5000" step="100" value="2000">
-                    </a>
-                    <a class="dialog-item" setting="spinner" key="cameraYOffsetLandscape">
-                        <icon>&#57367;</icon>
-                        <locale key="settings.render.camera-y-landscape"></locale>
-                        <input class="right" type="number" min="10" max="200" step="1" value="40">
-                    </a>
-                    <a class="dialog-item" setting="spinner" key="cameraYOffsetPortrait">
-                        <icon>&#57367;</icon>
-                        <locale key="settings.render.camera-y-portrait"></locale>
-                        <input class="right" type="number" min="10" max="200" step="1" value="70">
-                    </a>
-                    <a class="dialog-item" setting="spinner" key="cameraZOffsetLandscape">
-                        <icon>&#57367;</icon>
-                        <locale key="settings.render.camera-z-landscape"></locale>
-                        <input class="right" type="number" min="-50" max="200" step="1" value="40">
-                    </a>
-                    <a class="dialog-item" setting="spinner" key="cameraZOffsetPortrait">
-                        <icon>&#57367;</icon>
-                        <locale key="settings.render.camera-z-portrait"></locale>
-                        <input class="right" type="number" min="-50" max="200" step="1" value="-10">
-                    </a>
-                    <a class="dialog-item" setting="spinner" key="cameraLookAheadLandscape">
-                        <icon>&#57367;</icon>
-                        <locale key="settings.render.camera-lookahead-landscape"></locale>
-                        <input class="right" type="number" min="0" max="200" step="1" value="30">
-                    </a>
-                    <a class="dialog-item" setting="spinner" key="cameraLookAheadPortrait">
-                        <icon>&#57367;</icon>
-                        <locale key="settings.render.camera-lookahead-portrait"></locale>
-                        <input class="right" type="number" min="0" max="200" step="1" value="70">
-                    </a>
-                </section>
-
-                <section class="dialog-section">
-                    <locale class="dialog-subtitle" key="settings.render.note-bloom"></locale>
-                    <a class="dialog-item" setting="spinner" key="noteDecay">
-                        <icon>&#57367;</icon>
-                        <locale key="settings.render.note-decay"></locale>
-                        <input class="right" type="number" min="0.1" max="10" step="0.1" value="1">
-                    </a>
-                    <a class="dialog-item" setting="spinner" key="noteBloomBase">
-                        <icon>&#57367;</icon>
-                        <locale key="settings.render.note-bloom-base"></locale>
-                        <input class="right" type="number" min="0" max="50" step="0.5" value="10">
-                    </a>
-                    <a class="dialog-item" setting="spinner" key="noteBloomIdle">
-                        <icon>&#57367;</icon>
-                        <locale key="settings.render.note-bloom-idle"></locale>
-                        <input class="right" type="number" min="0" max="5" step="0.1" value="0.5">
-                    </a>
-                    <a class="dialog-item" setting="spinner" key="noteBloomMin">
-                        <icon>&#57367;</icon>
-                        <locale key="settings.render.note-bloom-min"></locale>
-                        <input class="right" type="number" min="0" max="5" step="0.1" value="1">
-                    </a>
-                    <a class="dialog-item" setting="spinner" key="playlineDecay">
-                        <icon>&#57367;</icon>
-                        <locale key="settings.render.playline-decay"></locale>
-                        <input class="right" type="number" min="0.1" max="10" step="0.1" value="2.5">
-                    </a>
-                    <a class="dialog-item" setting="spinner" key="playlineBaseEmissive">
-                        <icon>&#57367;</icon>
-                        <locale key="settings.render.playline-base-emissive"></locale>
-                        <input class="right" type="number" min="0" max="5" step="0.05" value="0.25">
-                    </a>
-                    <a class="dialog-item" setting="spinner" key="playlineBoostMultiplier">
-                        <icon>&#57367;</icon>
-                        <locale key="settings.render.playline-boost-multiplier"></locale>
-                        <input class="right" type="number" min="0.1" max="10" step="0.1" value="2.8">
-                    </a>
-                </section>
-            </div>
-
-            <!-- ── TAB: 钢琴卷帘 ── -->
-            <div class="settings-tab-content" data-tab="pianoroll">
                 <section class="dialog-section">
                     <locale class="dialog-subtitle" key="settings.piano-roll">Piano Roll</locale>
                     <a class="dialog-item" setting="spinner" key="spanDuration">
@@ -716,6 +369,145 @@
                         <locale key="settings.piano-roll.show-lyrics">Show Lyrics</locale>
                         <icon class="right" checker>&#57362;</icon>
                     </button>
+                </section>
+            </div>
+
+            <!-- ── TAB: 3D ── -->
+            <div class="settings-tab-content" data-tab="3d">
+                <section class="dialog-section">
+                    <locale class="dialog-subtitle" key="settings.render.bloom"></locale>
+                    <a class="dialog-item" setting="spinner" key="bloomStrength">
+                        <icon>&#57367;</icon>
+                        <locale key="settings.render.bloom-strength"></locale>
+                        <input class="right" type="number" min="0" max="3" step="0.01" value="0.72">
+                    </a>
+                    <a class="dialog-item" setting="spinner" key="bloomRadius">
+                        <icon>&#57367;</icon>
+                        <locale key="settings.render.bloom-radius"></locale>
+                        <input class="right" type="number" min="0" max="2" step="0.01" value="0.55">
+                    </a>
+                    <a class="dialog-item" setting="spinner" key="bloomThreshold">
+                        <icon>&#57367;</icon>
+                        <locale key="settings.render.bloom-threshold"></locale>
+                        <input class="right" type="number" min="0" max="1" step="0.01" value="0">
+                    </a>
+                </section>
+
+                <section class="dialog-section">
+                    <locale class="dialog-subtitle" key="settings.render.camera"></locale>
+                    <a class="dialog-item" setting="spinner" key="zScale">
+                        <icon>&#57367;</icon>
+                        <locale key="settings.render.z-scale"></locale>
+                        <input class="right" type="number" min="4" max="64" step="1" value="16">
+                    </a>
+                    <a class="dialog-item" setting="spinner" key="cameraYOffsetLandscape">
+                        <icon>&#57367;</icon>
+                        <locale key="settings.render.camera-y-landscape"></locale>
+                        <input class="right" type="number" min="10" max="200" step="1" value="40">
+                    </a>
+                    <a class="dialog-item" setting="spinner" key="cameraYOffsetPortrait">
+                        <icon>&#57367;</icon>
+                        <locale key="settings.render.camera-y-portrait"></locale>
+                        <input class="right" type="number" min="10" max="200" step="1" value="70">
+                    </a>
+                    <a class="dialog-item" setting="spinner" key="cameraZOffsetLandscape">
+                        <icon>&#57367;</icon>
+                        <locale key="settings.render.camera-z-landscape"></locale>
+                        <input class="right" type="number" min="-50" max="200" step="1" value="40">
+                    </a>
+                    <a class="dialog-item" setting="spinner" key="cameraZOffsetPortrait">
+                        <icon>&#57367;</icon>
+                        <locale key="settings.render.camera-z-portrait"></locale>
+                        <input class="right" type="number" min="-50" max="200" step="1" value="-10">
+                    </a>
+                    <a class="dialog-item" setting="spinner" key="cameraLookAheadLandscape">
+                        <icon>&#57367;</icon>
+                        <locale key="settings.render.camera-lookahead-landscape"></locale>
+                        <input class="right" type="number" min="0" max="200" step="1" value="30">
+                    </a>
+                    <a class="dialog-item" setting="spinner" key="cameraLookAheadPortrait">
+                        <icon>&#57367;</icon>
+                        <locale key="settings.render.camera-lookahead-portrait"></locale>
+                        <input class="right" type="number" min="0" max="200" step="1" value="70">
+                    </a>
+                </section>
+
+                <section class="dialog-section">
+                    <locale class="dialog-subtitle" key="settings.render.decay"></locale>
+                    <a class="dialog-item" setting="spinner" key="noteDecay">
+                        <icon>&#57367;</icon>
+                        <locale key="settings.render.note-decay"></locale>
+                        <input class="right" type="number" min="0.1" max="10" step="0.1" value="1">
+                    </a>
+                    <a class="dialog-item" setting="spinner" key="noteBloomBase">
+                        <icon>&#57367;</icon>
+                        <locale key="settings.render.note-bloom-base"></locale>
+                        <input class="right" type="number" min="0" max="50" step="0.5" value="10">
+                    </a>
+                    <a class="dialog-item" setting="spinner" key="noteBloomIdle">
+                        <icon>&#57367;</icon>
+                        <locale key="settings.render.note-bloom-idle"></locale>
+                        <input class="right" type="number" min="0" max="5" step="0.1" value="0.5">
+                    </a>
+                    <a class="dialog-item" setting="spinner" key="noteBloomMin">
+                        <icon>&#57367;</icon>
+                        <locale key="settings.render.note-bloom-min"></locale>
+                        <input class="right" type="number" min="0" max="5" step="0.1" value="1">
+                    </a>
+                    <a class="dialog-item" setting="spinner" key="playlineDecay">
+                        <icon>&#57367;</icon>
+                        <locale key="settings.render.playline-decay"></locale>
+                        <input class="right" type="number" min="0.1" max="10" step="0.1" value="2.5">
+                    </a>
+                    <a class="dialog-item" setting="spinner" key="playlineBaseEmissive">
+                        <icon>&#57367;</icon>
+                        <locale key="settings.render.playline-base-emissive"></locale>
+                        <input class="right" type="number" min="0" max="5" step="0.05" value="0.25">
+                    </a>
+                    <a class="dialog-item" setting="spinner" key="playlineBoostMultiplier">
+                        <icon>&#57367;</icon>
+                        <locale key="settings.render.playline-boost-multiplier"></locale>
+                        <input class="right" type="number" min="0.1" max="10" step="0.1" value="2.8">
+                    </a>
+                    <a class="dialog-item" setting="spinner" key="starDecay">
+                        <icon>&#57367;</icon>
+                        <locale key="settings.render.star-decay"></locale>
+                        <input class="right" type="number" min="0.1" max="50" step="0.5" value="16">
+                    </a>
+                    <a class="dialog-item" setting="spinner" key="starBloomBase">
+                        <icon>&#57367;</icon>
+                        <locale key="settings.render.star-bloom-base"></locale>
+                        <input class="right" type="number" min="0" max="50" step="0.5" value="15">
+                    </a>
+                    <a class="dialog-item" setting="spinner" key="starBloomMin">
+                        <icon>&#57367;</icon>
+                        <locale key="settings.render.star-bloom-min"></locale>
+                        <input class="right" type="number" min="0" max="5" step="0.05" value="0.15">
+                    </a>
+                    <button class="dialog-item button-flash" setting="toggle" key="starBoostOnAnyNote">
+                        <icon>&#57367;</icon>
+                        <locale key="settings.render.star-boost-any"></locale>
+                        <icon class="right" checker>&#57362;</icon>
+                    </button>
+                </section>
+
+                <section class="dialog-section">
+                    <locale class="dialog-subtitle" key="settings.render.nebula"></locale>
+                    <button class="dialog-item button-flash" setting="toggle" key="nebulaEnabled">
+                        <icon>&#57367;</icon>
+                        <locale key="settings.render.nebula-enabled"></locale>
+                        <icon class="right" checker>&#57362;</icon>
+                    </button>
+                    <a class="dialog-item" setting="spinner" key="nebulaRightX">
+                        <icon>&#57367;</icon>
+                        <locale key="settings.render.nebula-x"></locale>
+                        <input class="right" type="number" min="-200" max="200" step="1" value="-50">
+                    </a>
+                    <a class="dialog-item" setting="spinner" key="nebulaBaseY">
+                        <icon>&#57367;</icon>
+                        <locale key="settings.render.nebula-y"></locale>
+                        <input class="right" type="number" min="-50" max="100" step="1" value="10">
+                    </a>
                 </section>
             </div>
         </div>

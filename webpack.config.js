@@ -67,15 +67,6 @@ module.exports = {
         use: [MiniCssExtractPlugin.loader, "css-loader"]
       },
       {
-        test: /\.json$/,
-        type: "asset",
-        parser: {
-          dataUrlCondition: {
-            maxSize: 1024
-          }
-        }
-      },
-      {
         test: /\.html$/,
         use: ["html-loader"]
       },

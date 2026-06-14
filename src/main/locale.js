@@ -1,7 +1,10 @@
 import { $ } from "./utils";
+import { settings } from "./settings";
 import defaultLocale from "../../resources/assets/lang/en-US.json"
 
 let currentLocale = {};
+
+console.log(defaultLocale, settings);
 
 const localeList = {
     "en-US": "English",

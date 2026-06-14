@@ -453,86 +453,37 @@ export class WebGLRenderer {
             prefmon: false,
             showLyrics: true,
             fixedDeltaTime: undefined,
-            // ── 音符独立 Bloom 参数 ──
-            noteDecay: 1.0,
-            noteBloomBase: 10,
-            noteBloomIdle: 0.5,
-            noteBloomMin: 1,
-            // ── 播放线独立 Bloom 参数 ──
-            playlineDecay: 2.5,
-            playlineBaseEmissive: 0.25,
-            playlineBoostMultiplier: 2.8,
-            // ── 星星独立 Bloom 参数（新） ──
-            starDecay: 16.0,
-            starBloomBase: 15.0,        // note-on 瞬间 emissive 强度
-            starBloomMin: 0.15,        // 最暗时的 emissive 强度
-            starCount: 2000,
-            starSize: 0.2,             // 星星面片大小
-            starColorDim: '#1a3355',   // 暗态基础色
-            starColorBright: '#88bbff', // 亮态 emissive 色
-            starBoostOnAnyNote: true,          // 是否任何音符事件都触发星星闪耀（而非仅打击乐轨道）
 
-            cameraYOffsetLandscape: 40,   // 横屏时的摄像机高度
-            cameraYOffsetPortrait: 70,    // 竖屏时的摄像机高度（越大越垂直）
-
+            // ── 摄像机 ──
+            cameraYOffsetLandscape: 40,
+            cameraYOffsetPortrait: 70,
             cameraZOffsetLandscape: 40,
             cameraZOffsetPortrait: -10,
             cameraLookAheadLandscape: 30,
             cameraLookAheadPortrait: 70,
 
-            // 星云配置
+            // ── 星云 ──
             nebulaEnabled: true,
-            nebulaViewDistance: 120,
-            nebulaRightX: -50,          // 里程碑固定 X 中心（右侧）
-            nebulaBaseY: 10,           // 数字底部高度
-            nebulaDotSpacing: 2,       // 点阵间距
-            nebulaDigitSpacing: 4,     // 多位数字之间的间距
+            nebulaRightX: -50,
+            nebulaBaseY: 10,
 
-            // ── 渲染器 & 后处理 ──
-            cameraFov: 55,
-            cameraNear: 0.1,
-            cameraFar: 2000,
-            maxPixelRatio: 2,
-            toneMappingExposure: 1.35,
+            // ── 后处理 ──
             bloomStrength: 0.72,
             bloomRadius: 0.55,
             bloomThreshold: 0,
 
-            // ── 场景 ──
-            fogColor: '#050510',
-            fogDensity: 0.008,
-            webglBackgroundColor: '#050510',  // WebGL 背景色（与 2D 的 backgroundColor 区分）
-
-            // ── 灯光 ──
-            ambientLightColor: '#222244',
-            ambientLightIntensity: 0.6,
-            pointLightColor: '#ffffff',
-            pointLightIntensity: 1.2,
-            pointLightDistance: 200,
-            directionalLightColor: '#8888ff',
-            directionalLightIntensity: 0.4,
-
-            // ── 布局 ──
-            trackWidth: 136,
-            channelLaneStep: 0.18,
-            channelLaneBase: 0.05,
-
-            // ── 网格 ──
-            gridSize: 220,
-            gridDivisions: 128,
-            gridColorCenter: '#1a1a3a',
-            gridColorEdge: '#0d0d20',
-
-            // ── 播放线几何 ──
-            playlineRadiusTop: 0.25,
-            playlineRadiusBottom: 0.25,
-            playlineHeight: -1,     // -1 = auto (use trackWidth)
-
-            // ── 侧轨 ──
-            railWidth: 0.15,
-            railHeight: 0.5,
-            railLength: 600,
-            railPositionX: 65,
+            // ── 衰减 & 强度 ──
+            noteDecay: 1,
+            noteBloomBase: 10,
+            noteBloomIdle: 0.5,
+            noteBloomMin: 1,
+            playlineDecay: 2.5,
+            playlineBaseEmissive: 0.25,
+            playlineBoostMultiplier: 2.8,
+            starDecay: 16,
+            starBloomBase: 15,
+            starBloomMin: 0.15,
+            starBoostOnAnyNote: true,
         }, settings);
 
         this.midiData = null;
@@ -543,16 +494,16 @@ export class WebGLRenderer {
 
         // ── THREE.js core ──
         this.scene = new THREE.Scene();
-        this.camera = new THREE.PerspectiveCamera(this.settings.cameraFov, 1, this.settings.cameraNear, this.settings.cameraFar);
+        this.camera = new THREE.PerspectiveCamera(55, 1, 0.1, 2000);
         this.renderer = new THREE.WebGLRenderer({
             canvas: canvas,
             antialias: true,
             alpha: false
         });
-        this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, this.settings.maxPixelRatio));
+        this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
         this.renderer.shadowMap.enabled = false;
         this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
-        this.renderer.toneMappingExposure = this.settings.toneMappingExposure;
+        this.renderer.toneMappingExposure = 1.35;
 
         this.renderPass = new RenderPass(this.scene, this.camera);
         this.bloomPass = new UnrealBloomPass(new THREE.Vector2(1, 1), this.settings.bloomStrength, this.settings.bloomRadius, this.settings.bloomThreshold);
@@ -560,9 +511,9 @@ export class WebGLRenderer {
         this.composer.addPass(this.renderPass);
         this.composer.addPass(this.bloomPass);
 
-        this.trackWidth = this.settings.trackWidth;
-        this.channelLaneStep = this.settings.channelLaneStep;
-        this.channelLaneBase = this.settings.channelLaneBase;
+        this.trackWidth = 136;
+        this.channelLaneStep = 0.18;
+        this.channelLaneBase = 0.05;
         this.cameraYOffset = this.settings.cameraYOffsetLandscape;
         const zScaleFactor = this.settings.zScale / 16;
         this.cameraZOffset = this.settings.cameraZOffsetLandscape / zScaleFactor;
@@ -571,16 +522,16 @@ export class WebGLRenderer {
         this._lastFrameTime = performance.now();
 
         // ── Fog ──
-        this.scene.fog = new THREE.FogExp2(this.settings.fogColor, this.settings.fogDensity);
-        this.scene.background = new THREE.Color(this.settings.webglBackgroundColor);
+        this.scene.fog = new THREE.FogExp2(0x050510, 0.008);
+        this.scene.background = new THREE.Color(0x050510);
 
         // ── Lights ──
-        this.ambientLight = new THREE.AmbientLight(this.settings.ambientLightColor, this.settings.ambientLightIntensity);
+        this.ambientLight = new THREE.AmbientLight(0x222244, 0.6);
         this.scene.add(this.ambientLight);
-        this.pointLight = new THREE.PointLight(this.settings.pointLightColor, this.settings.pointLightIntensity, this.settings.pointLightDistance);
+        this.pointLight = new THREE.PointLight(0xffffff, 1.2, 200);
         this.pointLight.position.set(0, 20, 0);
         this.scene.add(this.pointLight);
-        this.dirLight = new THREE.DirectionalLight(this.settings.directionalLightColor, this.settings.directionalLightIntensity);
+        this.dirLight = new THREE.DirectionalLight(0x8888ff, 0.4);
         this.dirLight.position.set(-30, 40, -20);
         this.scene.add(this.dirLight);
 
@@ -592,7 +543,7 @@ export class WebGLRenderer {
         this.palette = palette;
 
         // ── Grid ──
-        this.gridHelper = new THREE.GridHelper(this.settings.gridSize, this.settings.gridDivisions, this.settings.gridColorCenter, this.settings.gridColorEdge);
+        this.gridHelper = new THREE.GridHelper(220, 128, 0x1a1a3a, 0x0d0d20);
         this.gridHelper.position.y = -0.48;
         this.scene.add(this.gridHelper);
 
@@ -600,14 +551,13 @@ export class WebGLRenderer {
         this.playlineMaterial = new THREE.MeshStandardMaterial({
             color: 0xff2244,
             emissive: 0xff2244,
-            emissiveIntensity: this.settings.playlineBaseEmissive,
+            emissiveIntensity: 0.25,
             metalness: 0.0,
             roughness: 0.3,
             transparent: true,
             opacity: 0.9
         });
-        const playlineHeight = (this.settings.playlineHeight !== undefined && this.settings.playlineHeight >= 0) ? this.settings.playlineHeight : this.trackWidth;
-        const playlineGeo = new THREE.CylinderGeometry(this.settings.playlineRadiusTop, this.settings.playlineRadiusBottom, playlineHeight, 8);
+        const playlineGeo = new THREE.CylinderGeometry(0.25, 0.25, this.trackWidth, 8);
         playlineGeo.rotateZ(Math.PI / 2);
         this.playline = new THREE.Mesh(playlineGeo, this.playlineMaterial);
         this.playline.position.y = 0.3;
@@ -621,12 +571,12 @@ export class WebGLRenderer {
             transparent: true,
             opacity: 0.5
         });
-        const railGeo = new THREE.BoxGeometry(this.settings.railWidth, this.settings.railHeight, this.settings.railLength);
+        const railGeo = new THREE.BoxGeometry(0.15, 0.5, 600);
         this.leftRail = new THREE.Mesh(railGeo, this.railMaterial);
-        this.leftRail.position.set(-this.settings.railPositionX, 0, 0);
+        this.leftRail.position.set(-65, 0, 0);
         this.scene.add(this.leftRail);
         this.rightRail = new THREE.Mesh(railGeo, this.railMaterial);
-        this.rightRail.position.set(this.settings.railPositionX, 0, 0);
+        this.rightRail.position.set(65, 0, 0);
         this.scene.add(this.rightRail);
 
         // ── Particle effects ──
@@ -649,6 +599,22 @@ export class WebGLRenderer {
         this._playlineBoost = 0;
         this._nebulaBoost = 0;
 
+        // ── 内部常量（不暴露在 settings） ──
+        this._starDecay = 16;
+        this._starCount = 2000;
+        this._playlineDecay = 2.5;
+        this._playlineEmissiveBase = 0.25;
+        this._playlineEmissiveMultiplier = 2.8;
+        this._noteDecay = 1;
+        this._noteBloomBase = 10;
+        this._noteBloomIdle = 0.5;
+        this._noteBloomMin = 1;
+        this._starBloomBase = 15;
+        this._starBloomMin = 0.15;
+        this._nebulaDotSpacing = 2;
+        this._nebulaDigitSpacing = 4;
+        this._nebulaViewDistance = 120;
+
         // ── 背景星星（InstancedMesh + emissive → 支持 Bloom） ──
         this._initStars();
 
@@ -669,50 +635,13 @@ export class WebGLRenderer {
     // ── MidiFall interface ──
     updateSettings(settings) {
         Object.assign(this.settings, settings);
-        // 动态更新星星颜色
-        if (this.starMaterial) {
-            this.starMaterial.color.set(this.settings.starColorDim);
-            this.starMaterial.emissive.set(this.settings.starColorBright);
-            this.starMaterial.emissiveIntensity = 0;
-        }
-        // 动态更新渲染器
-        if (this.renderer) {
-            this.renderer.toneMappingExposure = this.settings.toneMappingExposure;
-        }
-        // 动态更新场景
-        if (this.scene) {
-            if (this.settings.fogDensity !== undefined) {
-                this.scene.fog = new THREE.FogExp2(this.settings.fogColor, this.settings.fogDensity);
-            }
-            if (this.settings.webglBackgroundColor !== undefined) {
-                this.scene.background = new THREE.Color(this.settings.webglBackgroundColor);
-            }
-        }
-        // 动态更新灯光
-        if (this.ambientLight) {
-            this.ambientLight.color.set(this.settings.ambientLightColor);
-            this.ambientLight.intensity = this.settings.ambientLightIntensity;
-        }
-        if (this.pointLight) {
-            this.pointLight.color.set(this.settings.pointLightColor);
-            this.pointLight.intensity = this.settings.pointLightIntensity;
-            this.pointLight.distance = this.settings.pointLightDistance;
-        }
-        if (this.dirLight) {
-            this.dirLight.color.set(this.settings.directionalLightColor);
-            this.dirLight.intensity = this.settings.directionalLightIntensity;
-        }
         // 动态更新 bloom
         if (this.bloomPass) {
             this.bloomPass.strength = this.settings.bloomStrength;
             this.bloomPass.radius = this.settings.bloomRadius;
             this.bloomPass.threshold = this.settings.bloomThreshold;
         }
-        // 动态更新 channel lane 参数（被 _getChannelY 使用）
-        this.channelLaneStep = this.settings.channelLaneStep;
-        this.channelLaneBase = this.settings.channelLaneBase;
-        // 动态更新 trackWidth & webglSpanDuration（依赖 zScale）
-        this.trackWidth = this.settings.trackWidth;
+        // 动态更新 webglSpanDuration（依赖 zScale）
         this.webglSpanDuration = 256 / this.settings.zScale;
     }
 
@@ -879,7 +808,7 @@ export class WebGLRenderer {
                     if (isPlaying) {
                         nowActive.add(noteId);
                         if (!this._activeNotes.has(noteId)) {
-                            if (s.starBoostOnAnyNote || ch === 9) this._starBoost = 1;
+                        if (s.starBoostOnAnyNote || ch === 9) this._starBoost = 1;
                             this._playlineBoost = 1;
                             this._nebulaBoost = 1;   // 新增
                             // 击键瞬间：环形冲击波
@@ -906,14 +835,14 @@ export class WebGLRenderer {
 
         // 星星 emissiveIntensity（独立三参数）
         const starEmissive = Math.max(
-            s.starBloomBase * this._starBoost,   // boost 本身已指数衰减
-            s.starBloomMin
+            this._starBloomBase * this._starBoost,   // boost 本身已指数衰减
+            this._starBloomMin
         );
         this.starMaterial.emissiveIntensity = starEmissive;
 
         // 星星位置循环（仍用 InstancedMesh 更新矩阵）
         const dummy = new THREE.Object3D();
-        const count = s.starCount;
+        const count = this._starCount;
         const viewBack = playZ - 250;      // 可视区后边界（较远）
         const viewFront = playZ + 350;     // 可视区前边界（较近）
 
@@ -962,7 +891,7 @@ export class WebGLRenderer {
             // 清理过远的星云（距离超过两倍可视距离）
             for (let [minute, particles] of this._nebulaSeeds) {
                 const nebulaZ = minute * 60 * this.settings.zScale;
-                if (Math.abs(viewZ - nebulaZ) > s.nebulaViewDistance * 2) {
+                if (Math.abs(viewZ - nebulaZ) > this._nebulaViewDistance * 2) {
                     for (let sprite of particles) {
                         sprite.visible = false;
                         this._nebulaPool.push(sprite);
@@ -995,14 +924,14 @@ export class WebGLRenderer {
         if (material) {
             material.color.set(this.palette[channel]);
             material.emissive.set(this.palette[channel]);
-            material.emissiveIntensity = isPlaying ? this.settings.noteBloomBase : this.settings.noteBloomIdle;
+            material.emissiveIntensity = isPlaying ? this._noteBloomBase : this._noteBloomIdle;
             material.opacity = 0.92;
             material.transparent = true;
         } else {
             material = new THREE.MeshStandardMaterial({
                 color: this.palette[channel],
                 emissive: new THREE.Color(this.palette[channel]),
-                emissiveIntensity: isPlaying ? this.settings.noteBloomBase : this.settings.noteBloomIdle,
+                emissiveIntensity: isPlaying ? this._noteBloomBase : this._noteBloomIdle,
                 metalness: 0.18,
                 roughness: 0.36,
                 transparent: true,
@@ -1139,7 +1068,7 @@ export class WebGLRenderer {
     _spawnNoteSplash(x, y, z, channel, velocity, age) {
         const color = new THREE.Color(this.palette[channel]);
         const v = velocity;
-        const intensity = Math.max(1, Math.exp(-this.settings.noteDecay * age) * 4);
+        const intensity = Math.max(1, Math.exp(-this._noteDecay * age) * 4);
 
         // 使用 Box‑Muller 生成两个独立的标准正态分布随机数
         let u1, u2;
@@ -1209,12 +1138,12 @@ export class WebGLRenderer {
      * 材质统一控制 emissiveIntensity，每个实例通过矩阵定位。
      */
     _initStars() {
-        const count = this.settings.starCount;
-        const starGeo = new THREE.PlaneGeometry(this.settings.starSize, this.settings.starSize);
+        const count = 2000;
+        const starGeo = new THREE.PlaneGeometry(0.2, 0.2);
 
         this.starMaterial = new THREE.MeshStandardMaterial({
-            color: this.settings.starColorDim,
-            emissive: new THREE.Color(this.settings.starColorBright),
+            color: '#1a3355',
+            emissive: new THREE.Color('#88bbff'),
             emissiveIntensity: 0,
             side: THREE.DoubleSide,
             transparent: true,
@@ -1272,8 +1201,8 @@ export class WebGLRenderer {
 
         // 里程碑数字字符串（如 "1", "12", "105"）
         const minuteStr = String(minute);
-        const spacing = s.nebulaDotSpacing;
-        const digitSpacing = s.nebulaDigitSpacing;
+        const spacing = this._nebulaDotSpacing;
+        const digitSpacing = this._nebulaDigitSpacing;
 
         // 计算总宽度（全部数字 + 间隔）
         let totalWidth = 0;
