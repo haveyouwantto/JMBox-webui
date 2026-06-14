@@ -591,7 +591,9 @@ export class JMBoxApp {
 
                 if (renderDialog.isVideoEnabled()) {
                     import('./video-render').then(m => {
-                        m.renderVideo(settings, {
+                        m.renderVideo(
+                            this.waterfall.midiFall.constructor,
+                            settings, {
                             audio: renderDialog.isAudioEnabled(),
                             resolution: renderDialog.getResolution(),
                             fps: renderDialog.getFps(),

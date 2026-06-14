@@ -3,7 +3,7 @@ import { MidiFall, WebGLRenderer } from "./ui/waterfall";
 import picoAudio from "./picoaudio";
 import { renderAudio } from "./wav-render";
 
-export async function renderVideo(waterfallSettings, options, progressCallback) {
+export async function renderVideo(renderer, waterfallSettings, options, progressCallback) {
     console.log("[VideoRender] Starting video render...", options);
 
     // Dynamic import webm-muxer
@@ -118,7 +118,7 @@ export async function renderVideo(waterfallSettings, options, progressCallback) 
     waterfallSettings.backgroundColor = backgroundColor;
     console.log(`[VideoRender] Detected background color: ${waterfallSettings.backgroundColor}`);
 
-    const midiFall = new WebGLRenderer(canvas, waterfallSettings);
+    const midiFall = new renderer(canvas, waterfallSettings);
 
     // Patch detectSize for OffscreenCanvas
     midiFall.detectSize = function () {
