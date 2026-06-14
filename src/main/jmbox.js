@@ -400,7 +400,7 @@ export class JMBoxApp {
                         renderDialog.setRendering(false); // Disable if no data
                     }
                     break;
-                case 'upload':
+                case 'open-local':
                     document.getElementById("uploader").click();
                     break;
                 case 'full screen':
