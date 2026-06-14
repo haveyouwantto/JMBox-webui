@@ -39,6 +39,21 @@ module.exports = {
   ],
   optimization: {
     minimize: true,
+    splitChunks: {
+      chunks: 'all',
+      cacheGroups: {
+        three: {
+          test: /[\\/]node_modules[\\/]three/,
+          name: 'three',
+          priority: 20,
+        },
+        webmMuxer: {
+          test: /[\\/]node_modules[\\/]webm-muxer/,
+          name: 'webm-muxer',
+          priority: 20,
+        },
+      },
+    },
     minimizer: [
       new TerserPlugin({
         terserOptions: {
@@ -69,6 +84,16 @@ module.exports = {
       {
         test: /\.html$/,
         use: ["html-loader"]
+      },
+      // JSON base64 inline loader
+      {
+        test: /^manifest\.json$/,
+        type: "asset",
+        parser: {
+          dataUrlCondition: {
+            maxSize: 10 * 1024 // 10KB
+          }
+        }
       },
     ]
   }
