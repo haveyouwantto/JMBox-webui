@@ -64,10 +64,16 @@ export function serverUrlDialog(errorMsg) {
 
         const connectBtn = dialog.createDialogItem(getLocale("server-url.connect") || "Connect", true);
         connectBtn.classList.add('dialog-button');
+        connectBtn.disabled = true;
         connectBtn.addEventListener('click', () => {
+            if (!input.value.trim()) return;
             const url = input.value.trim();
             dialog.setVisible(false);
-            resolve(url || null);
+            resolve(url);
+        });
+
+        input.addEventListener('input', () => {
+            connectBtn.disabled = !input.value.trim();
         });
 
         btnRow.appendChild(connectBtn);

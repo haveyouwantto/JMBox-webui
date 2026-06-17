@@ -1,9 +1,13 @@
 import { JMBoxApp } from "./main/jmbox";
 import { serverUrlDialog } from "./main/ui/quick-dialog";
+import { localeInit } from "./main/locale";
 import '../resources/style.css';
 import '../resources/waterfall.css';
 
-function start() {
+async function start() {
+    // Ensure locale is loaded before any UI (dialog) interaction
+    await localeInit();
+
     let url = localStorage.getItem('serverUrl');
     if (url && !url.endsWith('/')) url += '/';
     const app = url ? new JMBoxApp(url) : new JMBoxApp();
