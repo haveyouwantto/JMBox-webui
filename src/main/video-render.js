@@ -36,7 +36,8 @@ async function getBestWebCodecsConfig(width = 1920, height = 1080) {
             codec: v.codec,
             width: width,
             height: height,
-            bitrate: 20_000_000
+            bitrate: 20_000_000,
+            hardwareAcceleration: "prefer-hardware"
         };
 
         try {
@@ -73,26 +74,26 @@ async function getBestWebCodecsConfig(width = 1920, height = 1080) {
 
     // 返回最终匹配到的最佳组合
     return {
-        video: bestVideo,
+        video: bestVideo ? bestVideo : "vp09.00.10.08",
         audio: bestAudio
     };
 }
 
 // WebCodecs 名字/前缀 到 WebM Codec ID 的映射
 const WEBM_CODEC_ID_MAP = {
-  // --- 视频编码映射 ---
-  'AV1': 'V_AV1',
-  'VP9': 'V_VP9',
-  'VP8': 'V_VP8',
-  'H264': 'V_MPEG4/ISO/AVC', // 注意：标准 WebM 不支持，如果是 MKV 容器才支持
-  'HEVC': 'V_MPEGH/ISO/HEVC', // 注意：标准 WebM 不支持
+    // --- 视频编码映射 ---
+    'AV1': 'V_AV1',
+    'VP9': 'V_VP9',
+    'VP8': 'V_VP8',
+    'H264': 'V_MPEG4/ISO/AVC', // 注意：标准 WebM 不支持，如果是 MKV 容器才支持
+    'HEVC': 'V_MPEGH/ISO/HEVC', // 注意：标准 WebM 不支持
 
-  // --- 音频编码映射 ---
-  'Opus': 'A_OPUS',
-  'Vorbis': 'A_VORBIS',
-  'AAC': 'A_AAC',             // 注意：标准 WebM 不支持
-  'FLAC': 'A_FLAC',
-  'MP3': 'A_MPEG/L3'
+    // --- 音频编码映射 ---
+    'Opus': 'A_OPUS',
+    'Vorbis': 'A_VORBIS',
+    'AAC': 'A_AAC',             // 注意：标准 WebM 不支持
+    'FLAC': 'A_FLAC',
+    'MP3': 'A_MPEG/L3'
 };
 
 export async function renderVideo(renderer, waterfallSettings, options, progressCallback) {
@@ -137,13 +138,13 @@ export async function renderVideo(renderer, waterfallSettings, options, progress
     const muxer = new Muxer({
         target: new ArrayBufferTarget(),
         video: {
-            codec: WEBM_CODEC_ID_MAP[ codecResult.video.name],
+            codec: WEBM_CODEC_ID_MAP[codecResult.video.name],
             width,
             height,
             frameRate: fps
         },
         audio: options.audio ? {
-            codec:WEBM_CODEC_ID_MAP[ codecResult.audio.name],
+            codec: WEBM_CODEC_ID_MAP[codecResult.audio.name],
             sampleRate: audioBuffer.sampleRate,
             numberOfChannels: audioBuffer.numberOfChannels
         } : undefined
