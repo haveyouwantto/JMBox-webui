@@ -7,8 +7,8 @@ async function getBestWebCodecsConfig(width = 1920, height = 1080) {
     // 1. 定义视频编码优先级列表 (严格符合 WebCodecs 规范的 codec 字符串)
     const videoCodecs = [
         { name: 'AV1', codec: 'av01.0.05M.08' },          // AV1 Main Profile, level 3.0
-        { name: 'HEVC', codec: 'hvc1.1.6.L120.90' },      // HEVC Main Profile, Main Tier, Level 4.0
-        { name: 'H264', codec: 'avc1.4d002a' },           // H.264 Main Profile, Level 4.2
+        // { name: 'HEVC', codec: 'hvc1.1.6.L120.90' },      // HEVC Main Profile, Main Tier, Level 4.0
+        // { name: 'H264', codec: 'avc1.4d002a' },           // H.264 Main Profile, Level 4.2
         { name: 'VP9', codec: 'vp09.00.10.08' },          // VP9 Profile 0, 8-bit
         { name: 'VP8', codec: 'vp8' }                     // VP8
     ];
@@ -16,7 +16,7 @@ async function getBestWebCodecsConfig(width = 1920, height = 1080) {
     // 2. 定义音频编码优先级列表
     const audioCodecs = [
         { name: 'FLAC', codec: 'flac' },
-        { name: 'AAC', codec: 'mp4a.40.2' },              // AAC-LC
+        // { name: 'AAC', codec: 'mp4a.40.2' },              // AAC-LC
         { name: 'MP3', codec: 'mp3' },
         { name: 'Vorbis', codec: 'vorbis' },
         { name: 'Opus', codec: 'opus' },
