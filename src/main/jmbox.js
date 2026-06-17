@@ -74,12 +74,12 @@ export class JMBoxApp {
         });
     }
 
-    setNoPlayMode(b){
-        if (b){
-            settingChangeListener.on("player","PicoAudioPlayer");
+    setNoPlayMode(b) {
+        if (b) {
+            settingChangeListener.on("player", "PicoAudioPlayer");
             $("#player-section").classList.add('hidden')
             $("#audio-section").classList.add('hidden')
-        }else {
+        } else {
             $("#player-section").classList.remove('hidden')
             $("#audio-section").classList.remove('hidden')
         }
