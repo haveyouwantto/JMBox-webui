@@ -1,4 +1,6 @@
 {
+    "title": "JMBox",
+    "title.offline": "JMBox (Offline)",
     "menu.refresh": "Refresh",
     "menu.settings": "Settings",
     "menu.about": "About",

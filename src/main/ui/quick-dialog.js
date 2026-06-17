@@ -25,27 +25,35 @@ export function aboutDialog() {
  * Show a dialog to enter server URL, with an option to skip for offline mode.
  * @returns {Promise<string|null>} Server URL or null for offline mode
  */
-export function serverUrlDialog() {
+export function serverUrlDialog(errorMsg) {
     return new Promise((resolve, reject) => {
         dialog.clear();
         dialog.setTitle(getLocale("server-url.title") || "Server URL");
 
-        const item = dialog.createDialogItem(null);
-        item.style.display = 'flex';
-        item.style.flexDirection = 'column';
-        item.style.gap = '8px';
+        // Hide the default close button
+        const closeBtn = document.getElementById("close-dialog-button");
+        if (closeBtn) closeBtn.style.display = 'none';
+
+        if (errorMsg) {
+            const errEl = document.createElement('div');
+            errEl.className = 'dialog-error';
+            errEl.textContent = errorMsg;
+            dialog.addElement(errEl);
+        }
 
         const input = document.createElement('input');
         input.type = 'text';
         input.placeholder = 'https://example.com/';
-        input.style.cssText = 'padding:8px;border-radius:4px;border:1px solid var(--border-color);width:100%;';
+        input.classList.add('input');
+
+        const item = dialog.createDialogItem(null);
         item.appendChild(input);
 
         dialog.addElement(item);
 
         // Button row
         const btnRow = document.createElement('div');
-        btnRow.style.cssText = 'display:flex;gap:8px;justify-content:flex-end;margin-top:8px;';
+        btnRow.className = 'dialog-button-container';
 
         const offlineBtn = dialog.createDialogItem(getLocale("server-url.offline") || "Offline Mode", true);
         offlineBtn.classList.add('dialog-button');
@@ -62,8 +70,8 @@ export function serverUrlDialog() {
             resolve(url || null);
         });
 
-        btnRow.appendChild(offlineBtn);
         btnRow.appendChild(connectBtn);
+        btnRow.appendChild(offlineBtn);
         dialog.addElement(btnRow);
 
         // Enter key submits

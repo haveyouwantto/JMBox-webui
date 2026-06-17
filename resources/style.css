@@ -701,6 +701,11 @@ dialog.fade-out::backdrop {
     transition: background-color 0s;
 }
 
+.dialog-error {
+    color: #d32f2f;
+    margin: 8px 16px;
+}
+
 .dialog-button {
     color: var(--theme-color);
     font-size: 0.875rem;

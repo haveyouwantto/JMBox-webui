@@ -251,20 +251,22 @@ export class JMBoxApp {
             fr.onload = () => {
                 try {
                     const buffer = fr.result;
-                    console.log('Loaded local file:', file.name, buffer);
+
+                    // Save a COPY before parseSMF mutates the data, then refresh file list in offline mode
+                    midiStorage.save(file.name, buffer.slice(0), {
+                        date: file.lastModified
+                    }).then(() => {
+                        if (this._browsingSavedFiles) {
+                            this.showSavedFiles();
+                        }
+                    }).catch(e => {
+                        console.warn('Failed to save MIDI to browser storage:', e);
+                    });
+
                     loadMIDI(buffer);
                     this.waterfall.setMidiData(picoAudio.playData);
                     this.player.play();
                     renderDialog.setAvailable(true);
-
-                    // Auto-save to IndexedDB in no-backend mode
-                    midiStorage.save(file.name, buffer, {
-                        date: file.lastModified
-                    }).then(() => {
-                        console.log('MIDI file saved to browser storage: ' + file.name);
-                    }).catch(e => {
-                        console.warn('Failed to save MIDI to browser storage:', e);
-                    });
                 } catch (error) {
                     dialog.clear()
                     dialog.setTitle(getLocale("general.error"))
@@ -284,23 +286,7 @@ export class JMBoxApp {
     enterOfflineMode() {
         this.setName('JMBox（离线模式）');
         this._browsingSavedFiles = true;
-
-        midiStorage.list().then(files => {
-            filelist.setLoading(false);
-            if (files.length === 0) {
-                filelist.clear();
-                filelist.setFilelist([]);
-                filelist.load(); // shows "Empty" placeholder
-                return;
-            }
-
-            filelist.clear();
-            filelist.setFilelist(files);
-            const savedPath = '#saved';
-            this.cwd = new Playlist(savedPath, filelist.load());
-        }).catch(e => {
-            console.error('Failed to list saved files:', e);
-        });
+        this.showSavedFiles();
     }
 
     /**
@@ -308,7 +294,7 @@ export class JMBoxApp {
      * Used by menu item (kept for future use).
      */
     showSavedFiles() {
-        this._browsingSavedFiles = true;
+        this._browsingSavedFiles = true
         midiStorage.list().then(files => {
             if (files.length === 0) {
                 dialog.clear();
@@ -321,6 +307,7 @@ export class JMBoxApp {
             // Show as file list in main area with temporary path
             filelist.clear();
             filelist.setFilelist(files);
+            filelist.setLoading(false);
 
             // Override the playlist with a virtual one pointing to saved files
             const savedPath = '#saved';
@@ -344,12 +331,11 @@ export class JMBoxApp {
      */
     loadSavedFile(id, name) {
         midiStorage.get(id).then(record => {
-            console.log(record)
             if (!record || !record.data) {
                 throw new Error('File not found in storage');
             }
             if (this.player instanceof PicoAudioPlayer) {
-                loadMIDI(record.data.buffer);
+                loadMIDI(record.data);
                 this.waterfall.setMidiData(picoAudio.playData);
                 renderDialog.setAvailable(true);
                 this.player.play();

@@ -15,18 +15,32 @@ function start() {
         window.app = app;
     })
         .catch(() => {
-            serverUrlDialog().then(newUrl => {
-                if (newUrl) {
-                    if (!newUrl.endsWith('/')) newUrl += '/';
-                    localStorage.setItem('serverUrl', newUrl);
-                    start();
-                } else {
-                    // Cancel / offline mode
-                    app.enterOfflineMode();
-                    window.app = app;
-                }
-            });
+            promptServerUrl(app);
         });
+}
+
+function promptServerUrl(app, errorMsg) {
+    serverUrlDialog(errorMsg).then(newUrl => {
+        if (newUrl) {
+            if (!newUrl.endsWith('/')) newUrl += '/';
+            localStorage.setItem('serverUrl', newUrl);
+            const newApp = new JMBoxApp(newUrl);
+            newApp.info().then(() => {
+                const path = location.hash.slice(2);
+                newApp.setPath(path);
+                newApp.list(true);
+                window.app = newApp;
+            }).catch(() => {
+                setTimeout(() => {
+                    localStorage.removeItem('serverUrl');
+                promptServerUrl(newApp, 'Failed to connect to server');
+                }, 1000);
+            });
+        } else {
+            app.enterOfflineMode();
+            window.app = app;
+        }
+    });
 }
 
 

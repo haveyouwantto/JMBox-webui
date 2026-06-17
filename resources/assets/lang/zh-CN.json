@@ -1,4 +1,6 @@
 {
+    "title": "JMBox",
+    "title.offline": "JMBox (离线模式)",
     "menu.refresh": "刷新",
     "menu.settings": "设置",
     "menu.about": "关于",
