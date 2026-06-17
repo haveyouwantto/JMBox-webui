@@ -74,7 +74,14 @@ async function getBestWebCodecsConfig(width = 1920, height = 1080) {
 
     // 返回最终匹配到的最佳组合
     return {
-        video: bestVideo ? bestVideo : "vp09.00.10.08",
+        video: bestVideo ? bestVideo : {
+            name: 'VP9', codec: 'vp09.00.10.08', config: {
+                codec: 'vp09.00.10.08',
+                width: width,
+                height: height,
+                bitrate: 20_000_000
+            }
+        },
         audio: bestAudio
     };
 }
@@ -133,7 +140,6 @@ export async function renderVideo(renderer, waterfallSettings, options, progress
 
     // Detect codec
     let codecResult = await getBestWebCodecsConfig(width, height)
-    console.log(codecResult)
 
     const muxer = new Muxer({
         target: new ArrayBufferTarget(),
@@ -155,13 +161,7 @@ export async function renderVideo(renderer, waterfallSettings, options, progress
         error: e => console.error("[VideoEncoder] Error:", e)
     });
 
-    videoEncoder.configure({
-        codec: codecResult.video.codec,
-        width,
-        height,
-        bitrate,
-        framerate: fps
-    });
+    videoEncoder.configure(codecResult.video.config);
 
     let audioEncoder = null;
     if (options.audio) {
@@ -169,12 +169,7 @@ export async function renderVideo(renderer, waterfallSettings, options, progress
             output: (chunk, meta) => muxer.addAudioChunk(chunk, meta),
             error: e => console.error("[AudioEncoder] Error:", e)
         });
-        audioEncoder.configure({
-            codec: codecResult.audio.codec,
-            sampleRate: audioBuffer.sampleRate,
-            numberOfChannels: audioBuffer.numberOfChannels,
-            bitrate: 128000
-        });
+        audioEncoder.configure(codecResult.audio.config);
     }
 
     const padding = 50;

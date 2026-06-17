@@ -546,7 +546,6 @@ export class JMBoxApp {
                     if (item) newList.push(item);
                 });
 
-                console.log(newList);
                 this.playlist = new Playlist(this.cwd.path, newList);
             } else {
                 this.playlist = this.cwd;
@@ -602,7 +601,6 @@ export class JMBoxApp {
         })
 
         settingChangeListener.setEventListener('settingchange', e => {
-            console.log(e);
             switch (e.key) {
                 case "dark":
                     setDarkMode(e.value);

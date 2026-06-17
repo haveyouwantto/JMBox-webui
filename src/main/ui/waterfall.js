@@ -701,7 +701,6 @@ export class WebGLRenderer {
         this.cameraYOffset = yLandscape * t + yPortrait * (1 - t);
 
         const zScaleFactor = this.settings.zScale / 16;
-        console.log(zScaleFactor);
         const zLandscape = this.settings.cameraZOffsetLandscape || 43;
         const zPortrait = this.settings.cameraZOffsetPortrait || 28;
         this.cameraZOffset = (zLandscape * t + zPortrait * (1 - t)) / zScaleFactor;

@@ -4,8 +4,6 @@ import defaultLocale from "../../resources/assets/lang/en-US.json"
 
 let currentLocale = {};
 
-console.log(defaultLocale, settings);
-
 const localeList = {
     "en-US": "English",
     "zh-CN": "\u7b80\u4f53\u4e2d\u6587",
