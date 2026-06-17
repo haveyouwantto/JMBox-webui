@@ -32,13 +32,16 @@ class FileList {
         this.sortFunc = sorting[func];
     }
 
-    setLoading(value){
-        if(value) this.#loading.style.display = 'block';
+    setLoading(value) {
+        if (value) this.#loading.style.display = 'block';
         else this.#loading.style.display = 'none';
     }
 
     clear() {
         this.#content.innerHTML = '';
+    }
+
+    setEmptyMessage(b) {
     }
 
     load() {
@@ -48,10 +51,11 @@ class FileList {
         this.#filelist.sort(this.sortFunc);
         if (this.reversed) this.#filelist.reverse();
 
-        if (this.#filelist.length > 0)
-            this.#empty.style.display = "none";
-        else
-            this.#empty.style.display = "block";
+        if (this.#filelist.length == 0) {
+            console.log(1)
+            this.#empty.style.setProperty('display', 'block', 'important')
+        }
+        else this.#empty.style.display = 'none';
 
         for (let element of this.#filelist) {
             let file = document.createElement("button");

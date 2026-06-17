@@ -702,7 +702,7 @@ dialog.fade-out::backdrop {
 }
 
 .dialog-error {
-    color: #d32f2f;
+    color: #d32f2f; 
     margin: 8px 16px;
 }
 

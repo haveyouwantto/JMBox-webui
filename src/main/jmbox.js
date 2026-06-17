@@ -295,19 +295,13 @@ export class JMBoxApp {
      */
     showSavedFiles() {
         this._browsingSavedFiles = true
+        navbar.setTitle(getLocale("title.offline"));
         midiStorage.list().then(files => {
-            if (files.length === 0) {
-                dialog.clear();
-                dialog.setTitle(getLocale("menu.saved-files"));
-                dialog.addText(getLocale("storage.empty"));
-                dialog.setVisible(true);
-                return;
-            }
+            filelist.setLoading(false);
+            filelist.clear();
 
             // Show as file list in main area with temporary path
-            filelist.clear();
             filelist.setFilelist(files);
-            filelist.setLoading(false);
 
             // Override the playlist with a virtual one pointing to saved files
             const savedPath = '#saved';
@@ -316,7 +310,6 @@ export class JMBoxApp {
             // Set up playback for saved files
             navbar.setBackButtonVisibility(false);
             navbar.setHomeButtonVisibility(false);
-            navbar.setTitle(getLocale("menu.saved-files"));
         }).catch(e => {
             console.error('Failed to list saved files:', e);
             dialog.clear();
