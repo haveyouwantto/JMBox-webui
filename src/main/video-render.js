@@ -3,7 +3,7 @@ import { MidiFall, WebGLRenderer } from "./ui/waterfall";
 import picoAudio from "./picoaudio";
 import { renderAudio } from "./wav-render";
 
-async function getBestWebCodecsConfig(width = 1920, height = 1080) {
+async function getBestWebCodecsConfig(width = 1920, height = 1080, sampleRate = 48000) {
     // 1. 定义视频编码优先级列表 (严格符合 WebCodecs 规范的 codec 字符串)
     const videoCodecs = [
         { name: 'AV1', codec: 'av01.0.05M.08' },          // AV1 Main Profile, level 3.0
@@ -15,7 +15,7 @@ async function getBestWebCodecsConfig(width = 1920, height = 1080) {
 
     // 2. 定义音频编码优先级列表
     const audioCodecs = [
-        { name: 'FLAC', codec: 'flac' },
+        // { name: 'FLAC', codec: 'flac' },
         // { name: 'AAC', codec: 'mp4a.40.2' },              // AAC-LC
         { name: 'MP3', codec: 'mp3' },
         { name: 'Vorbis', codec: 'vorbis' },
@@ -57,7 +57,7 @@ async function getBestWebCodecsConfig(width = 1920, height = 1080) {
         const audioConfig = {
             codec: a.codec,
             numberOfChannels: 2,
-            sampleRate: 48000,
+            sampleRate: sampleRate,
             bitrate: 128000, // 128 kbps 示例
         };
 
@@ -139,7 +139,8 @@ export async function renderVideo(renderer, waterfallSettings, options, progress
     }
 
     // Detect codec
-    let codecResult = await getBestWebCodecsConfig(width, height)
+    let codecResult = await getBestWebCodecsConfig(width, height, audioBuffer.sampleRate)
+    console.log(codecResult)
 
     const muxer = new Muxer({
         target: new ArrayBufferTarget(),
