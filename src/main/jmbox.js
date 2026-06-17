@@ -70,7 +70,7 @@ export class JMBoxApp {
         return fetch(this.baseUrl + 'api/info').then(r => r.json()).then(result => {
             this.setName(result.serverName);
             this.setThemeColor(result.themeColor);
-            this.setNoPlayMode(result.capabilities?.play || true)
+            this.setNoPlayMode(!(result.capabilities?.play || false))
         });
     }
 
