@@ -52,10 +52,9 @@ class FileList {
         if (this.reversed) this.#filelist.reverse();
 
         if (this.#filelist.length == 0) {
-            console.log(1)
-            this.#empty.style.setProperty('display', 'block', 'important')
+            this.#empty.classList.remove('hidden')
         }
-        else this.#empty.style.display = 'none';
+          else  this.#empty.classList.add('hidden')
 
         for (let element of this.#filelist) {
             let file = document.createElement("button");

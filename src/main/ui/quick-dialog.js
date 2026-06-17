@@ -55,9 +55,14 @@ export function serverUrlDialog(errorMsg) {
         const btnRow = document.createElement('div');
         btnRow.className = 'dialog-button-container';
 
+        function restoreCloseBtn() {
+            if (closeBtn) closeBtn.style.display = '';
+        }
+
         const offlineBtn = dialog.createDialogItem(getLocale("server-url.offline") || "Offline Mode", true);
         offlineBtn.classList.add('dialog-button');
         offlineBtn.addEventListener('click', () => {
+            restoreCloseBtn();
             dialog.setVisible(false);
             resolve(null);
         });
@@ -68,6 +73,7 @@ export function serverUrlDialog(errorMsg) {
         connectBtn.addEventListener('click', () => {
             if (!input.value.trim()) return;
             const url = input.value.trim();
+            restoreCloseBtn();
             dialog.setVisible(false);
             resolve(url);
         });
@@ -84,6 +90,7 @@ export function serverUrlDialog(errorMsg) {
         input.addEventListener('keydown', (e) => {
             if (e.key === 'Enter') {
                 const url = input.value.trim();
+                restoreCloseBtn();
                 dialog.setVisible(false);
                 resolve(url || null);
             }

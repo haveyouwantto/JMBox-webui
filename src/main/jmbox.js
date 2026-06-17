@@ -70,7 +70,19 @@ export class JMBoxApp {
         return fetch(this.baseUrl + 'api/info').then(r => r.json()).then(result => {
             this.setName(result.serverName);
             this.setThemeColor(result.themeColor);
+            this.setNoPlayMode(result.capabilities?.play || true)
         });
+    }
+
+    setNoPlayMode(b){
+        if (b){
+            settingChangeListener.on("player","PicoAudioPlayer");
+            $("#player-section").classList.add('hidden')
+            $("#audio-section").classList.add('hidden')
+        }else {
+            $("#player-section").classList.remove('hidden')
+            $("#audio-section").classList.remove('hidden')
+        }
     }
 
     list(ignoreCache = false, back = false) {
@@ -295,6 +307,7 @@ export class JMBoxApp {
      */
     showSavedFiles() {
         this._browsingSavedFiles = true
+        this.setNoPlayMode(true);
         navbar.setTitle(getLocale("title.offline"));
         midiStorage.list().then(files => {
             filelist.setLoading(false);
