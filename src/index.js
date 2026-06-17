@@ -1,4 +1,5 @@
 import { JMBoxApp } from "./main/jmbox";
+import { serverUrlDialog } from "./main/ui/quick-dialog";
 import '../resources/style.css';
 import '../resources/waterfall.css';
 
@@ -11,16 +12,20 @@ function start() {
         const path = location.hash.slice(2);
         app.setPath(path);
         app.list(true);
-
         window.app = app;
     })
         .catch(() => {
-            let newUrl = prompt("Enter server url:");
-            if (newUrl) {
-                if (!newUrl.endsWith('/')) newUrl += '/';
-                localStorage.setItem('serverUrl', newUrl);
-                start();
-            }
+            serverUrlDialog().then(newUrl => {
+                if (newUrl) {
+                    if (!newUrl.endsWith('/')) newUrl += '/';
+                    localStorage.setItem('serverUrl', newUrl);
+                    start();
+                } else {
+                    // Cancel / offline mode
+                    app.enterOfflineMode();
+                    window.app = app;
+                }
+            });
         });
 }
 

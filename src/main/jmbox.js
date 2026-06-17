@@ -1,5 +1,6 @@
 import FileCache from "./files/filecache";
 import PathMan from "./files/pathman";
+import midiStorage from "./files/midi-storage";
 import * as dialog from "./ui/dialog";
 import * as renderDialog from "./ui/render-dialog"
 import { filelist } from "./ui/filelist";
@@ -249,9 +250,21 @@ export class JMBoxApp {
             const fr = new FileReader()
             fr.onload = () => {
                 try {
-                    loadMIDI(fr.result);
+                    const buffer = fr.result;
+                    console.log('Loaded local file:', file.name, buffer);
+                    loadMIDI(buffer);
                     this.waterfall.setMidiData(picoAudio.playData);
-                    this.player.play()
+                    this.player.play();
+                    renderDialog.setAvailable(true);
+
+                    // Auto-save to IndexedDB in no-backend mode
+                    midiStorage.save(file.name, buffer, {
+                        date: file.lastModified
+                    }).then(() => {
+                        console.log('MIDI file saved to browser storage: ' + file.name);
+                    }).catch(e => {
+                        console.warn('Failed to save MIDI to browser storage:', e);
+                    });
                 } catch (error) {
                     dialog.clear()
                     dialog.setTitle(getLocale("general.error"))
@@ -263,6 +276,93 @@ export class JMBoxApp {
             document.title = this.serverName + " - " + file.name;
             fr.readAsArrayBuffer(file);
         }
+    }
+
+    /**
+     * Enter offline mode: set title and auto-load saved files from IndexedDB.
+     */
+    enterOfflineMode() {
+        this.setName('JMBox（离线模式）');
+        this._browsingSavedFiles = true;
+
+        midiStorage.list().then(files => {
+            filelist.setLoading(false);
+            if (files.length === 0) {
+                filelist.clear();
+                filelist.setFilelist([]);
+                filelist.load(); // shows "Empty" placeholder
+                return;
+            }
+
+            filelist.clear();
+            filelist.setFilelist(files);
+            const savedPath = '#saved';
+            this.cwd = new Playlist(savedPath, filelist.load());
+        }).catch(e => {
+            console.error('Failed to list saved files:', e);
+        });
+    }
+
+    /**
+     * Show the list of MIDI files saved in browser IndexedDB storage.
+     * Used by menu item (kept for future use).
+     */
+    showSavedFiles() {
+        this._browsingSavedFiles = true;
+        midiStorage.list().then(files => {
+            if (files.length === 0) {
+                dialog.clear();
+                dialog.setTitle(getLocale("menu.saved-files"));
+                dialog.addText(getLocale("storage.empty"));
+                dialog.setVisible(true);
+                return;
+            }
+
+            // Show as file list in main area with temporary path
+            filelist.clear();
+            filelist.setFilelist(files);
+
+            // Override the playlist with a virtual one pointing to saved files
+            const savedPath = '#saved';
+            this.cwd = new Playlist(savedPath, filelist.load());
+
+            // Set up playback for saved files
+            navbar.setBackButtonVisibility(false);
+            navbar.setHomeButtonVisibility(false);
+            navbar.setTitle(getLocale("menu.saved-files"));
+        }).catch(e => {
+            console.error('Failed to list saved files:', e);
+            dialog.clear();
+            dialog.setTitle(getLocale("general.error"));
+            dialog.addText(e.message || String(e));
+            dialog.setVisible(true);
+        });
+    }
+
+    /**
+     * Load a MIDI file from IndexedDB by record ID.
+     */
+    loadSavedFile(id, name) {
+        midiStorage.get(id).then(record => {
+            console.log(record)
+            if (!record || !record.data) {
+                throw new Error('File not found in storage');
+            }
+            if (this.player instanceof PicoAudioPlayer) {
+                loadMIDI(record.data.buffer);
+                this.waterfall.setMidiData(picoAudio.playData);
+                renderDialog.setAvailable(true);
+                this.player.play();
+                playerBar.setSongName(name);
+                document.title = this.serverName + " - " + name;
+            }
+        }).catch(e => {
+            console.error('Failed to load saved file:', e);
+            dialog.clear();
+            dialog.setTitle(getLocale("general.error"));
+            dialog.addText(getLocale("player.failed"));
+            dialog.setVisible(true);
+        });
     }
 
     _createRenderer(canvas) {
@@ -403,6 +503,9 @@ export class JMBoxApp {
                 case 'open-local':
                     document.getElementById("uploader").click();
                     break;
+                case 'saved-files':
+                    this.showSavedFiles();
+                    break;
                 case 'full screen':
                     if (!document.fullscreenElement) {
                         document.documentElement.requestFullscreen();
@@ -430,6 +533,17 @@ export class JMBoxApp {
         })
 
         filelist.setEventListener('play', name => {
+            // Handle saved files from IndexedDB
+            if (this._browsingSavedFiles) {
+                const file = this.cwd.list.find(f => f.name === name);
+                if (file && file.id != null) {
+                    this.playlist = this.cwd;
+                    this.playlist.setPlaying(name);
+                    this.loadSavedFile(file.id, name);
+                    return;
+                }
+            }
+
             if (settings.shuffle) {
                 const randomList = generatePlaylist(this.cwd.list.map(f => f.name), name, 5);
 
