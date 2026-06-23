@@ -42,6 +42,11 @@ module.exports = {
     splitChunks: {
       chunks: 'all',
       cacheGroups: {
+        picoaudio: {
+          test: /[\\/]lib[\\/]PicoAudio/,
+          name: 'picoaudio',
+          priority: 20,
+        },
         three: {
           test: /[\\/]node_modules[\\/]three/,
           name: 'three',

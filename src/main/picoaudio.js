@@ -38,6 +38,20 @@ export function loadMIDI(buffer) {
     }
 }
 
+export async function loadWavetable(path) {
+    const r = await fetch('wavetable.bin');
+    const b = await r.arrayBuffer();
+    picoAudio.loadWaves(b);
+        // fetch('soundfont.bin').then(r => {
+        //     if (r.ok) return r.arrayBuffer()
+        // }).then(b => {
+        //     picoAudio.loadSamples(b)
+        //     soundfontLoaded = true;
+        // })
+}
+
+loadWavetable();
+
 window.picoAudio = picoAudio;
 
 export default picoAudio;
