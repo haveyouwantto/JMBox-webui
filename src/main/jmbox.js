@@ -13,7 +13,7 @@ import { editSetting, loadSettings, settingChangeListener, settings } from "./se
 import { createLocaleItem, localeInit, setLocale, getLocale } from "./locale";
 import { aboutDialog, languageDialog, midiInfoDialog, playModeSelectionDialog } from "./ui/quick-dialog";
 import { setDarkMode } from "./ui/ui-etc";
-import picoAudio, { loadMIDI, loadMIDIUrl, loadSoundfont } from "./picoaudio";
+import picoAudio, { loadMIDI, loadMIDIUrl, loadSoundfont, loadSoundFontSF2 } from "./picoaudio";
 import { setDropDownItems, setSettingItemEnabled, setSettingsDialogVisible, updateSettingsItem } from "./ui/settings-dialog";
 import players from "./player/player-registry";
 import PicoAudioPlayer from "./player/picoaudio-player";
@@ -624,6 +624,10 @@ export class JMBoxApp {
                     break;
                 case "soundQuality":
                     if (parseInt(e.value) == 3) loadSoundfont();
+                    if (parseInt(e.value) == 4) {
+                        // Load SF2 SoundFont from a configured path or default "soundfont.sf2"
+                        loadSoundFontSF2('Neo1MGM.sf2');
+                    }
                     picoAudio.settings.soundQuality = parseInt(e.value)
                     break;
                 case "basePitch":
