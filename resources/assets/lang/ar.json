@@ -130,5 +130,13 @@
     "settings.render.star-decay": "اضمحلال النجوم",
     "settings.render.star-bloom-base": "قاعدة توهج النجوم",
     "settings.render.star-bloom-min": "الحد الأدنى لتوهج النجوم",
-    "settings.render.star-boost-any": "تعزيز النجوم عند أي نغمة"
+    "settings.render.star-boost-any": "تعزيز النجوم عند أي نغمة",
+    "settings.picoaudio.sf2": "SF2",
+    "settings.picoaudio.sf2.upload": "رفع SF2",
+    "settings.picoaudio.sf2.restore": "استعادة الافتراضي",
+    "settings.picoaudio.sf2.current": "SF2 الحالي",
+    "sf2.uploaded": "تم رفع SF2 وتحميله",
+    "sf2.loadFailed": "فشل تحميل ملف SF2.",
+    "sf2.restored": "تم استعادة SF2 الافتراضي",
+    "sf2.restoreFailed": "فشل استعادة SF2 الافتراضي"
 }

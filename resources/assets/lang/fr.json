@@ -130,5 +130,13 @@
     "settings.render.star-decay": "Déclin des étoiles",
     "settings.render.star-bloom-base": "Lueur de base des étoiles",
     "settings.render.star-bloom-min": "Lueur minimale des étoiles",
-    "settings.render.star-boost-any": "Boost d'étoile sur toute note"
+    "settings.render.star-boost-any": "Boost d'étoile sur toute note",
+    "settings.picoaudio.sf2": "SF2",
+    "settings.picoaudio.sf2.upload": "Téléverser SF2",
+    "settings.picoaudio.sf2.restore": "Restaurer par défaut",
+    "settings.picoaudio.sf2.current": "SF2 actuel",
+    "sf2.uploaded": "SF2 téléversé et chargé",
+    "sf2.loadFailed": "Échec du chargement du fichier SF2.",
+    "sf2.restored": "SF2 par défaut restauré",
+    "sf2.restoreFailed": "Échec de la restauration du SF2 par défaut"
 }

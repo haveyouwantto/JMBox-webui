@@ -130,5 +130,13 @@
     "settings.render.star-decay": "Затухание звёзд",
     "settings.render.star-bloom-base": "Базовое свечение звёзд",
     "settings.render.star-bloom-min": "Мин. свечение звёзд",
-    "settings.render.star-boost-any": "Усиление звёзд на любой ноте"
+    "settings.render.star-boost-any": "Усиление звёзд на любой ноте",
+    "settings.picoaudio.sf2": "SF2",
+    "settings.picoaudio.sf2.upload": "Загрузить SF2",
+    "settings.picoaudio.sf2.restore": "Восстановить по умолчанию",
+    "settings.picoaudio.sf2.current": "Текущий SF2",
+    "sf2.uploaded": "SF2 загружен и установлен",
+    "sf2.loadFailed": "Не удалось загрузить файл SF2.",
+    "sf2.restored": "Восстановлен SF2 по умолчанию",
+    "sf2.restoreFailed": "Не удалось восстановить SF2 по умолчанию"
 }

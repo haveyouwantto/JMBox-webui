@@ -130,5 +130,13 @@
     "settings.render.star-decay": "Decaimiento de estrella",
     "settings.render.star-bloom-base": "Resplandor base de estrella",
     "settings.render.star-bloom-min": "Resplandor mínimo de estrella",
-    "settings.render.star-boost-any": "Impulso de estrella en cualquier nota"
+    "settings.render.star-boost-any": "Impulso de estrella en cualquier nota",
+    "settings.picoaudio.sf2": "SF2",
+    "settings.picoaudio.sf2.upload": "Subir SF2",
+    "settings.picoaudio.sf2.restore": "Restaurar por defecto",
+    "settings.picoaudio.sf2.current": "SF2 actual",
+    "sf2.uploaded": "SF2 subido y cargado",
+    "sf2.loadFailed": "Error al cargar archivo SF2.",
+    "sf2.restored": "SF2 por defecto restaurado",
+    "sf2.restoreFailed": "Error al restaurar SF2 por defecto"
 }

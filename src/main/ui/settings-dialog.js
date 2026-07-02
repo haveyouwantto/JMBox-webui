@@ -1,5 +1,8 @@
 import { editSetting, settings } from "../settings";
 import { $, updateChecker } from "../utils";
+import { saveSF2File, loadStoredSF2IfAny, restoreDefaultSF2, getCurrentSF2Name } from "../picoaudio";
+import * as dialog from './dialog';
+import { getLocale } from '../locale';
 
 const settingsDialog = $("#settings-dialog");
 const closeSettingsButton = $("#close-settings-button");
@@ -10,6 +13,9 @@ export function setSettingsDialogVisible(value) {
     if (value) {
         document.documentElement.classList.add('noscroll');
         settingsDialog.classList.remove("fade-out");
+        // Update current SF2 name display before showing
+        const el = document.getElementById('current-sf2-name');
+        if (el) el.textContent = getCurrentSF2Name();
         settingsDialog.showModal();
     } else {
         document.documentElement.classList.remove('noscroll');
@@ -129,6 +135,63 @@ settingsDialog.addEventListener('animationend', function () {
         settingsDialog.close();
     }
 });
+
+// SF2 upload handlers
+const sf2Uploader = document.getElementById('sf2-uploader');
+if (sf2Uploader) {
+    sf2Uploader.addEventListener('change', async e => {
+        const f = sf2Uploader.files && sf2Uploader.files[0];
+        if (!f) return;
+        const ok = await saveSF2File(f);
+        if (ok) {
+            const el = document.getElementById('current-sf2-name');
+            if (el) el.textContent = f.name;
+            dialog.clear();
+            dialog.setTitle(getLocale('settings.picoaudio.sf2'));
+            dialog.addText(getLocale('sf2.uploaded') + ': ' + f.name);
+            dialog.setVisible(true);
+        } else {
+            dialog.clear();
+            dialog.setTitle(getLocale('settings.picoaudio.sf2'));
+            dialog.addText(getLocale('sf2.loadFailed'));
+            dialog.setVisible(true);
+        }
+        sf2Uploader.value = '';
+    });
+}
+
+const sf2UploadBtn = document.getElementById('sf2-upload-btn');
+if (sf2UploadBtn && sf2Uploader) {
+    sf2UploadBtn.addEventListener('click', e => {
+        sf2Uploader.click();
+    });
+}
+
+const restoreBtn = document.getElementById('restore-default-sf2');
+if (restoreBtn) {
+    restoreBtn.addEventListener('click', async e => {
+        const ok = await restoreDefaultSF2();
+        if (ok) {
+            const el = document.getElementById('current-sf2-name');
+            if (el) el.textContent = getCurrentSF2Name();
+            dialog.clear();
+            dialog.setTitle(getLocale('settings.picoaudio.sf2'));
+            dialog.addText(getLocale('sf2.restored'));
+            dialog.setVisible(true);
+        } else {
+            dialog.clear();
+            dialog.setTitle(getLocale('settings.picoaudio.sf2'));
+            dialog.addText(getLocale('sf2.restoreFailed'));
+            dialog.setVisible(true);
+        }
+    });
+}
+
+// Try loading any stored SF2 on startup (quietly)
+loadStoredSF2IfAny().then(ok => {
+    const el = document.getElementById('current-sf2-name');
+    if (el) el.textContent = getCurrentSF2Name();
+}).catch(()=>{});
 
 closeSettingsButton.addEventListener('click', () => {
     setSettingsDialogVisible(false);

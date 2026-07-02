@@ -153,4 +153,13 @@
     "settings.render.star-bloom-base": "Star Bloom Base",
     "settings.render.star-bloom-min": "Star Bloom Min",
     "settings.render.star-boost-any": "Star Boost on Any Note"
+    ,
+    "settings.picoaudio.sf2": "SF2",
+    "settings.picoaudio.sf2.upload": "Upload SF2",
+    "settings.picoaudio.sf2.restore": "Restore Default",
+    "settings.picoaudio.sf2.current": "Current SF2",
+    "sf2.uploaded": "SF2 uploaded and loaded",
+    "sf2.loadFailed": "Failed to load SF2 file.",
+    "sf2.restored": "Restored default SF2",
+    "sf2.restoreFailed": "Failed to restore default SF2"
 }

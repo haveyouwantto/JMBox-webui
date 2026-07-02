@@ -151,5 +151,13 @@
     "settings.render.star-decay": "星星衰减",
     "settings.render.star-bloom-base": "星星辉光基准",
     "settings.render.star-bloom-min": "星星辉光最小",
-    "settings.render.star-boost-any": "任意音符触发星星"
+    "settings.render.star-boost-any": "任意音符触发星星",
+    "settings.picoaudio.sf2": "SF2",
+    "settings.picoaudio.sf2.upload": "上传 SF2",
+    "settings.picoaudio.sf2.restore": "恢复默认",
+    "settings.picoaudio.sf2.current": "当前 SF2",
+    "sf2.uploaded": "SF2 上传并已加载",
+    "sf2.loadFailed": "加载 SF2 文件失败。",
+    "sf2.restored": "已恢复默认 SF2",
+    "sf2.restoreFailed": "恢复默认 SF2 失败"
 }

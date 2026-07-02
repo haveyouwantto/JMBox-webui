@@ -130,5 +130,13 @@
     "settings.render.star-decay": "তারা ক্ষয়",
     "settings.render.star-bloom-base": "তারা ব্লুম ভিত্তি",
     "settings.render.star-bloom-min": "তারা ব্লুম সর্বনিম্ন",
-    "settings.render.star-boost-any": "যেকোনো স্বরে তারা বুস্ট"
+    "settings.render.star-boost-any": "যেকোনো স্বরে তারা বুস্ট",
+    "settings.picoaudio.sf2": "SF2",
+    "settings.picoaudio.sf2.upload": "SF2 আপলোড",
+    "settings.picoaudio.sf2.restore": "ডিফল্ট পুনরুদ্ধার",
+    "settings.picoaudio.sf2.current": "বর্তমান SF2",
+    "sf2.uploaded": "SF2 আপলোড করা হয়েছে এবং লোড করা হয়েছে",
+    "sf2.loadFailed": "SF2 ফাইল লোডে ব্যর্থ হয়েছে।",
+    "sf2.restored": "ডিফল্ট SF2 পুনরুদ্ধার করা হয়েছে",
+    "sf2.restoreFailed": "ডিফল্ট SF2 পুনরুদ্ধার ব্যর্থ"
 }

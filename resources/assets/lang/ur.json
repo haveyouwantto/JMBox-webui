@@ -130,5 +130,13 @@
     "settings.render.star-decay": "ستارہ تنزل",
     "settings.render.star-bloom-base": "ستارہ بلوم بنیاد",
     "settings.render.star-bloom-min": "ستارہ بلوم کم از کم",
-    "settings.render.star-boost-any": "کسی بھی نوٹ پر ستارہ بوسٹ"
+    "settings.render.star-boost-any": "کسی بھی نوٹ پر ستارہ بوسٹ",
+    "settings.picoaudio.sf2": "SF2",
+    "settings.picoaudio.sf2.upload": "SF2 اپ لوڈ کریں",
+    "settings.picoaudio.sf2.restore": "ڈیفالٹ بحال کریں",
+    "settings.picoaudio.sf2.current": "موجودہ SF2",
+    "sf2.uploaded": "SF2 اپ لوڈ اور لوڈ ہو گیا ہے",
+    "sf2.loadFailed": "SF2 فائل لوڈ کرنے میں ناکام۔",
+    "sf2.restored": "ڈیفالٹ SF2 بحال ہو گیا ہے",
+    "sf2.restoreFailed": "ڈیفالٹ SF2 بحال کرنے میں ناکام"
 }

@@ -130,5 +130,13 @@
     "settings.render.star-decay": "별 감쇠",
     "settings.render.star-bloom-base": "별 블룸 기준",
     "settings.render.star-bloom-min": "별 블룸 최소",
-    "settings.render.star-boost-any": "모든 음표에 별 부스트"
+    "settings.render.star-boost-any": "모든 음표에 별 부스트",
+    "settings.picoaudio.sf2": "SF2",
+    "settings.picoaudio.sf2.upload": "SF2 업로드",
+    "settings.picoaudio.sf2.restore": "기본값 복원",
+    "settings.picoaudio.sf2.current": "현재 SF2",
+    "sf2.uploaded": "SF2 업로드 및 로드됨",
+    "sf2.loadFailed": "SF2 파일을 불러오는데 실패했습니다.",
+    "sf2.restored": "기본 SF2가 복원되었습니다",
+    "sf2.restoreFailed": "기본 SF2 복원 실패"
 }

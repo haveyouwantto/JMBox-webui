@@ -315,6 +315,22 @@
                         <input class="right" type="number" min="50" max="1500" step="10" value="100">
                     </a>
                 </section>
+                <section class="dialog-section">
+                    <locale class="dialog-subtitle" key="settings.picoaudio.sf2">SF2</locale>
+                    <button class="dialog-item button-flash" id="sf2-upload-btn">
+                        <icon>&#57368;</icon>
+                        <locale key="settings.picoaudio.sf2.upload">Upload SF2</locale>
+                    </button>
+                    <button class="dialog-item button-flash" id="restore-default-sf2">
+                        <icon>&#57368;</icon>
+                        <locale key="settings.picoaudio.sf2.restore">Restore Default</locale>
+                    </button>
+                    <a class="dialog-item">
+                        <icon>&#57368;</icon>
+                        <locale key="settings.picoaudio.sf2.current">Current SF2</locale>
+                        <span class="right" id="current-sf2-name">Default</span>
+                    </a>
+                </section>
             </div>
 
             <!-- ── TAB: 渲染器 ── -->
@@ -616,6 +632,7 @@
     </dialog>
 
     <input type="file" hidden id="uploader" accept="audio/midi">
+    <input type="file" hidden id="sf2-uploader" accept=".sf2">
 
     <!-- <script src="bundle.js"></script> -->
 </body>

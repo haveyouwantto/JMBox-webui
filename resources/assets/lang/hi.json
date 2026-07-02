@@ -130,5 +130,13 @@
     "settings.render.star-decay": "तारा क्षय",
     "settings.render.star-bloom-base": "तारा ब्लूम आधार",
     "settings.render.star-bloom-min": "तारा ब्लूम न्यूनतम",
-    "settings.render.star-boost-any": "किसी भी स्वर पर तारा बूस्ट"
+    "settings.render.star-boost-any": "किसी भी स्वर पर तारा बूस्ट",
+    "settings.picoaudio.sf2": "SF2",
+    "settings.picoaudio.sf2.upload": "SF2 अपलोड करें",
+    "settings.picoaudio.sf2.restore": "डिफ़ॉल्ट पुनर्स्थापित करें",
+    "settings.picoaudio.sf2.current": "वर्तमान SF2",
+    "sf2.uploaded": "SF2 अपलोड और लोड किया गया",
+    "sf2.loadFailed": "SF2 फ़ाइल लोड करने में विफल।",
+    "sf2.restored": "डिफ़ॉल्ट SF2 पुनर्स्थापित किया गया",
+    "sf2.restoreFailed": "डिफ़ॉल्ट SF2 पुनर्स्थापित करने में विफल"
 }
