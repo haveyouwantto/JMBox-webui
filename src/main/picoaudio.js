@@ -17,25 +17,32 @@ export function loadSoundfont() {
 }
 
 let sf2Loaded = false;
-export function loadSoundFontSF2(path) {
-    if (!sf2Loaded) {
-        return fetch(path).then(r => {
-            if (r.ok) return r.arrayBuffer()
-            else throw new Error('Failed to load SF2: ' + r.statusText)
-        }).then(b => {
-            const ok = picoAudio.loadSF2(b)
-            if (ok) {
-                sf2Loaded = true;
-                localStorage.setItem('jmbox.currentSF2Name', path);
-                console.log('SF2 SoundFont loaded successfully from', path);
-            }
-            return ok;
-        }).catch(e => {
-            console.error(e);
-            return false;
-        });
+let currentSF2Path = null;
+export function loadSoundFontSF2(path, force = false) {
+    if (sf2Loaded && !force && currentSF2Path === path) {
+        return Promise.resolve(true);
     }
-    return Promise.resolve(true);
+    return fetch(path).then(r => {
+        if (r.ok) return r.arrayBuffer();
+        else throw new Error('Failed to load SF2: ' + r.statusText);
+    }).then(b => {
+        const ok = picoAudio.loadSF2(b);
+        if (ok) {
+            sf2Loaded = true;
+            currentSF2Path = path;
+            localStorage.setItem('jmbox.currentSF2Name', path);
+            console.log('SF2 SoundFont loaded successfully from', path);
+        } else {
+            sf2Loaded = false;
+            currentSF2Path = null;
+        }
+        return ok;
+    }).catch(e => {
+        console.error(e);
+        sf2Loaded = false;
+        currentSF2Path = null;
+        return false;
+    });
 }
 
 // --- IndexedDB helpers for storing user-uploaded SF2 ---
@@ -124,8 +131,8 @@ export async function restoreDefaultSF2() {
     try {
         await clearDBEntry();
         localStorage.removeItem('jmbox.currentSF2Name');
-        // Load embedded default SF2 from resources/assets if available
-        return loadSoundFontSF2('assets/Neo1MGM.sf2');
+        // Force reload the default embedded SF2
+        return loadSoundFontSF2('Neo1MGM.sf2', true);
     } catch (e) {
         console.error('restoreDefaultSF2 failed', e);
         return false;

@@ -628,7 +628,7 @@ export class JMBoxApp {
                         // Try loading a user-stored SF2 first; fall back to the default if none.
                         loadStoredSF2IfAny().then(ok => {
                             if (!ok) {
-                                // Load SF2 SoundFont from a configured path or default
+                                // Load SF2 SoundFont from the embedded default path
                                 loadSoundFontSF2('Neo1MGM.sf2');
                             }
                         });
