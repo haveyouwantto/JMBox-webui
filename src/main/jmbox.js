@@ -159,9 +159,17 @@ export class JMBoxApp {
     }
 
     play(name) {
-        this.load(name).then(() => {
-            this.player.play();
-        }).catch(e => console.log(e));
+        if (this._browsingSavedFiles) {
+            const file = this.cwd.list.find(f => f.name === name);
+            if (file && file.id != null) {
+                this.playlist = this.cwd;
+                this.playlist.setPlaying(name);
+                this.loadSavedFile(file.id, name);
+            }
+        } else
+            this.load(name).then(() => {
+                this.player.play();
+            }).catch(e => console.log(e));
     }
 
     createPlayer(name) {
@@ -248,13 +256,6 @@ export class JMBoxApp {
             });
         }
 
-        document.querySelector('html').addEventListener('drop', e => {
-            this.loadLocalFile(e.dataTransfer.files[0]);
-            e.preventDefault();
-        })
-        document.querySelector('html').addEventListener('dragover', e => {
-            e.preventDefault();
-        });
     }
 
     loadLocalFile(file) {
@@ -762,6 +763,13 @@ export class JMBoxApp {
             this.loadLocalFile(uploader.files[0]);
         });
 
+        document.querySelector('html').addEventListener('drop', e => {
+            this.loadLocalFile(e.dataTransfer.files[0]);
+            e.preventDefault();
+        });
+        document.querySelector('html').addEventListener('dragover', e => {
+            e.preventDefault();
+        });
 
         if ('mediaSession' in navigator) {
             navigator.mediaSession.metadata = new MediaMetadata({
