@@ -256,7 +256,7 @@ function getBarBeat(time, tempoTrack, beatTrack, resolution) {
     return { bar, beat, tick: barRelativeTick % ticksPerBeat };
 }
 
-// ── Extract chord/lyric text markers from MIDI messages ──
+// ── Extract text/lyrics/marker events from MIDI messages ──
 function extractChordMarkers(midiData) {
     if (!midiData || !midiData.messages || !midiData.smfData) return [];
     const markers = [];
@@ -265,8 +265,8 @@ function extractChordMarkers(midiData) {
         for (const msg of midiData.messages) {
             const p = msg.smfPtr;
             const len = msg.smfPtrLen;
-            if (len > 0 && smf[p] === 0xFF && (smf[p+1] === 1 || smf[p+1] === 5)) {
-                // Text event or Lyrics event
+            if (len > 0 && smf[p] === 0xFF && (smf[p+1] === 1 || smf[p+1] === 5 || smf[p+1] === 6)) {
+                // 0x01=Text, 0x05=Lyrics, 0x06=Marker
                 const textLen = smf[p + 2];
                 const bytes = smf.slice(p + 3, p + 3 + textLen);
                 let text;
@@ -276,7 +276,7 @@ function extractChordMarkers(midiData) {
                     text = '';
                 }
                 if (text) {
-                    markers.push({ time: msg.time, tick: msg.tick, text });
+                    markers.push({ time: msg.time, tick: msg.tick, text, type: smf[p+1] });
                 }
             }
         }
@@ -763,8 +763,8 @@ export class MidiFall {
         for (let i = 0; i < markers.length; i++) {
             const m = markers[i];
             const markerTime = m.time;
-            // Only show markers in the visible time window (a bit before/after)
-            if (markerTime < playTime - 1 || markerTime > playTime + span + 1) continue;
+            // Only show markers in the future, within the visible window
+            if (markerTime <= playTime || markerTime > playTime + span + 1) continue;
 
             const y = y0 - (markerTime - playTime) * scaling;
 
