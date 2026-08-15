@@ -773,18 +773,16 @@ export class MidiFall {
             let text = m.text;
             if (text.length > maxChars) text = text.substring(0, maxChars - 1) + '…';
 
-            // Highlight the current/last chord
-            const isActive = markerTime <= playTime;
-            ctx.fillStyle = isActive ? '#ff88ff' : '#ff99ff60';
+            ctx.fillStyle = '#ff88ff';
 
             // Draw a small decorative dot at the time position
-            ctx.fillStyle = isActive ? '#ff66ff' : '#ff99ff40';
+            ctx.fillStyle = '#ff66ff';
             ctx.beginPath();
             ctx.arc(8 * this.dpr, y, 4 * this.dpr, 0, Math.PI * 2);
             ctx.fill();
 
             // Draw chord text
-            ctx.fillStyle = isActive ? '#ff88ff' : '#ff99ff60';
+            ctx.fillStyle = '#ff88ff' ;
             ctx.fillText(text, 18 * this.dpr, y);
         }
 
@@ -1712,6 +1710,7 @@ export class MidiFallController {
         // Lyrics support
         this.lrc = new LyricsRoll();
         this.lrcDiv = $("#lyrics");
+        this.lastLyricsTime = null;
         this.setupLyrics();
 
         // Bind resize
@@ -1847,7 +1846,14 @@ export class MidiFallController {
         this.midiFall.renderFrame(currentTime);
 
         if (this.midiFall.settings.showLyrics && this.player && !this.player.paused) {
-            this.lrc.update(currentTime);
+            // update() only advances; when playback moves backwards (seek back
+            // or loop wrap-around) re-sync lyrics from the new position.
+            if (this.lastLyricsTime != null && currentTime < this.lastLyricsTime) {
+                this.lrc.seek(currentTime);
+            } else {
+                this.lrc.update(currentTime);
+            }
+            this.lastLyricsTime = currentTime;
         }
 
         if (this.player && this.player.paused) {

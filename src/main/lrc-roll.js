@@ -85,7 +85,10 @@ export default class LyricsRoll {
                 let lrc = this.#lyrics[i];
                 if (lrc == null || lrc.time > t) {
                     if (this.onseek != null) {
-                        this.onseek(this.#lyrics[Math.min(i, this.#lyrics.length - 1)]);
+                        // The current lyric is the last one whose time <= t;
+                        // null means nothing has been sung yet (seek before
+                        // the first lyric), so onseek clears the highlight.
+                        this.onseek(i > 0 ? this.#lyrics[i - 1] : null);
                     }
                     this.#index = i;
                     break;

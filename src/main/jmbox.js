@@ -218,6 +218,11 @@ export class JMBoxApp {
             playerBar.setDuration(this.player.duration);
             playerBar.setProgress(time);
             playerBar.setBufferLength(this.player.bufferLength);
+            // Seek changes fire 'timeupdate'; re-sync lyrics so they can move
+            // backwards as well as forwards.
+            if (this.waterfall && this.waterfall.lrc) {
+                this.waterfall.lrc.seek(time);
+            }
         });
 
         this.player.setEventListener('ended', () => {
