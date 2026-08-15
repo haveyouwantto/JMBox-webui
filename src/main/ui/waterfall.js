@@ -212,48 +212,184 @@ function tickToTime(tick, tempoTrack, resolution) {
     return ref.time + (tick - ref.timing) / ticksPerSecond;
 }
 
+// ── Build bar boundary segments from the time signature track ──
+// Each segment describes a run of bars sharing one time signature:
+//   { startTick, endTick, ticksPerBar, ticksPerBeat, sigNum, sigDen, firstBar }
+// A time signature change always begins a new bar at its tick (a change may
+// close the current bar early if it does not land on an existing barline).
+function buildBarSegments(beatTrack, resolution) {
+    const segments = [];
+    const push = (startTick, sigNum, sigDen, firstBar) => {
+        const last = segments[segments.length - 1];
+        if (last && startTick === last.startTick) return; // signature applied to same bar start
+        const ticksPerBeat = resolution * 4 / sigDen;
+        segments.push({
+            startTick,
+            endTick: Infinity,
+            ticksPerBar: sigNum * ticksPerBeat,
+            ticksPerBeat,
+            sigNum,
+            sigDen,
+            firstBar
+        });
+    };
+
+    // Collect and sort signature events; if several share a tick, the last wins.
+    let events = [];
+    if (beatTrack && beatTrack.length > 0) {
+        events = beatTrack
+            .filter(e => e && e.value && e.value[0] > 0 && e.value[1] > 0)
+            .map(e => ({ timing: Math.max(0, e.timing), value: e.value }))
+            .sort((a, b) => a.timing - b.timing)
+            .filter((e, i, arr) => i === arr.length - 1 || arr[i + 1].timing !== e.timing);
+    }
+
+    let cursor = 0;              // tick of the current bar start
+    let barNum = 1;              // bar number at cursor
+    let sigNum = 4, sigDen = 4;  // signature in effect at cursor
+
+    for (const ev of events) {
+        if (ev.timing <= cursor) {
+            // Change at the current bar start: that bar adopts the new signature.
+            sigNum = ev.value[0];
+            sigDen = ev.value[1];
+            continue;
+        }
+        const ticksPerBar = sigNum * resolution * 4 / sigDen;
+        const delta = ev.timing - cursor;
+        const barsElapsed = Math.floor(delta / ticksPerBar);
+        const onBarline = delta % ticksPerBar === 0;
+        push(cursor, sigNum, sigDen, barNum);
+        // Advance to the bar that starts at the change tick. On a barline the
+        // change governs the bar starting there; mid-bar it closes the current
+        // (partial) bar and the next bar number starts at the change.
+        barNum += barsElapsed + (onBarline ? 0 : 1);
+        cursor = ev.timing;
+        sigNum = ev.value[0];
+        sigDen = ev.value[1];
+    }
+
+    push(cursor, sigNum, sigDen, barNum);
+    for (let i = 0; i + 1 < segments.length; i++) {
+        segments[i].endTick = segments[i + 1].startTick;
+    }
+    return segments;
+}
+
+// ── Find the bar segment in effect at a tick ──
+function getSegmentAtTick(tick, barSegments) {
+    let lo = 0, hi = barSegments.length - 1;
+    while (lo <= hi) {
+        const mid = (lo + hi) >> 1;
+        if (barSegments[mid].startTick <= tick) lo = mid + 1;
+        else hi = mid - 1;
+    }
+    return barSegments[Math.min(hi, barSegments.length - 1)];
+}
+
+// ── Bar/beat info for a tick, honoring time signature changes ──
+function getBarInfoAtTick(tick, barSegments, resolution) {
+    const segments = barSegments || buildBarSegments(null, resolution);
+    const seg = getSegmentAtTick(Math.max(0, tick), segments);
+    const offset = Math.max(0, tick - seg.startTick);
+    const barsInto = Math.floor(offset / seg.ticksPerBar);
+    const barStart = seg.startTick + barsInto * seg.ticksPerBar;
+    return {
+        barStart,
+        bar: seg.firstBar + barsInto,
+        beat: Math.floor((tick - barStart) / seg.ticksPerBeat) + 1,
+        tick: (tick - barStart) % seg.ticksPerBeat,
+        seg
+    };
+}
+
 // ── Helper: compute bar number and beat within bar at a given time ──
 function getBarBeat(time, tempoTrack, beatTrack, resolution) {
     const tick = timeToTick(time, tempoTrack, resolution);
     if (tick < 0) return { bar: 1, beat: 1, tick: 0 };
+    const info = getBarInfoAtTick(tick, buildBarSegments(beatTrack, resolution), resolution);
+    return { bar: info.bar, beat: info.beat, tick: info.tick };
+}
 
-    // Get active time signature
-    let sigNum = 4, sigDen = 4;
-    if (beatTrack && beatTrack.length > 0) {
-        let lo = 0, hi = beatTrack.length - 1;
-        while (lo <= hi) {
-            const mid = Math.floor((lo + hi) / 2);
-            if (beatTrack[mid].timing <= tick) {
-                lo = mid + 1;
-            } else {
-                hi = mid - 1;
+// ── Font size proportional to the canvas' shorter edge (CSS px), clamped ──
+// Size is computed in CSS pixels so HiDPI canvases render proportionally,
+// and the minimum keeps text readable in portrait (small width).
+function scaledFontSize(width, height, dpr, divisor = 56, min = 16, max = 38) {
+    const cssW = width / dpr, cssH = height / dpr;
+    return Math.round(Math.max(min, Math.min(max, Math.min(cssW, cssH) / divisor)) * dpr);
+}
+
+// ── Whether the app is currently in light mode ──
+function isLightMode() {
+    const root = document.documentElement;
+    if (root.classList.contains('light')) return true;
+    if (root.classList.contains('dark')) return false;
+    return !!(window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches);
+}
+
+const sharpNames = ['C', 'G', 'D', 'A', 'E', 'B', 'F♯', 'C♯'];
+const flatNames = ['C', 'F', 'B♭', 'E♭', 'A♭', 'D♭', 'G♭', 'C♭'];
+
+// ── Key signature display name (e.g. "F♯m") ──
+function keySigName(sf, mi) {
+    if (sf >= 0) return sharpNames[Math.min(sf, 7)] + (mi ? 'm' : '');
+    return flatNames[Math.min(-sf, 7)] + (mi ? 'm' : '');
+}
+
+// ── Extract key signature changes from SMF messages (cached on midiData) ──
+function getKeySigEvents(midiData) {
+    if (!midiData) return [];
+    if (!midiData._keySigCache) {
+        if (!midiData.messages || !midiData.smfData) return [];
+        const smf = midiData.smfData;
+        const ks = [];
+        for (const msg of midiData.messages) {
+            const p = msg.smfPtr;
+            const len = msg.smfPtrLen;
+            if (len >= 4 && smf[p] === 0xFF && smf[p+1] === 0x59) {
+                // FF 59 02 sf mi
+                const sf = smf[p+3] > 127 ? smf[p+3] - 256 : smf[p+3]; // signed
+                const mi = smf[p+4]; // 0=major, 1=minor
+                ks.push({ tick: msg.tick, time: msg.time, sf, mi });
             }
         }
-        const idx = Math.min(hi, beatTrack.length - 1);
-        if (idx >= 0) {
-            sigNum = beatTrack[idx].value[0];
-            sigDen = beatTrack[idx].value[1];
-        }
+        midiData._keySigCache = ks;
+    }
+    return midiData._keySigCache;
+}
+
+// ── Prominent divider events: time/key signature changes ──
+function buildChangeEvents(midiData) {
+    const events = [];
+    if (!midiData) return events;
+    const push = (tick, label) => {
+        events.push({ tick, parts: [{ label }] });
+    };
+
+    // Time signature changes (changes at tick 0 are the initial signature)
+    let sig = '4/4';
+    const beatTrack = midiData.beatTrack || [];
+    for (const e of beatTrack) {
+        if (!e || !e.value) continue;
+        const next = e.value[0] + '/' + e.value[1];
+        if (e.timing > 0) push(e.timing, next);
+        sig = next;
     }
 
-    // Handle time signature changes within a bar by tracking bars from start
-    // Simple approach: calculate based on current signature from the last beat change
-    const ticksPerBeat = resolution;
-    const ticksPerBar = sigNum * ticksPerBeat;
-
-    // For simplicity, compute bar starting from the beginning with current signature
-    // A more accurate approach would track bar lines through time signature changes
-    let barTick = tick;
-    if (beatTrack && beatTrack.length > 0) {
-        // find the bar start tick from the last signature change
-        barTick = tick;
+    // Key signature changes
+    for (const k of getKeySigEvents(midiData)) {
+        const next = keySigName(k.sf, k.mi);
+        if (k.tick > 0) push(k.tick, next);
     }
 
-    const bar = Math.floor(barTick / ticksPerBar) + 1;
-    const barRelativeTick = barTick % ticksPerBar;
-    const beat = Math.floor(barRelativeTick / ticksPerBeat) + 1;
-
-    return { bar, beat, tick: barRelativeTick % ticksPerBeat };
+    events.sort((a, b) => a.tick - b.tick);
+    const merged = [];
+    for (const ev of events) {
+        const last = merged[merged.length - 1];
+        if (last && last.tick === ev.tick) last.parts.push(...ev.parts);
+        else merged.push(ev);
+    }
+    return merged;
 }
 
 // ── Extract text/lyrics/marker events from MIDI messages ──
@@ -287,24 +423,7 @@ function extractChordMarkers(midiData) {
 
 // ── Extract key signature at a given tick from SMF messages ──
 function getKeySignatureAtPlayTime(playTime, tempoTrack, resolution, midiData) {
-    if (!midiData || !midiData.messages || !midiData.smfData) return '';
-    if (!midiData._keySigCache) {
-        // walk all messages, collect key signature changes
-        const smf = midiData.smfData;
-        const ks = [];
-        for (const msg of midiData.messages) {
-            const p = msg.smfPtr;
-            const len = msg.smfPtrLen;
-            if (len >= 4 && smf[p] === 0xFF && smf[p+1] === 0x59) {
-                // FF 59 02 sf mi
-                const sf = smf[p+3] > 127 ? smf[p+3] - 256 : smf[p+3]; // signed
-                const mi = smf[p+4]; // 0=major, 1=minor
-                ks.push({ tick: msg.tick, time: msg.time, sf, mi });
-            }
-        }
-        midiData._keySigCache = ks;
-    }
-    const ks = midiData._keySigCache;
+    const ks = getKeySigEvents(midiData);
     if (ks.length === 0) return '';
 
     const tick = timeToTick(playTime, tempoTrack, resolution);
@@ -320,14 +439,7 @@ function getKeySignatureAtPlayTime(playTime, tempoTrack, resolution, midiData) {
     const idx = Math.min(hi, ks.length - 1);
     if (idx < 0) return '';
     const s = ks[idx];
-
-    const sharpNames = ['C', 'G', 'D', 'A', 'E', 'B', 'F♯', 'C♯'];
-    const flatNames = ['C', 'F', 'B♭', 'E♭', 'A♭', 'D♭', 'G♭', 'C♭'];
-    if (s.sf >= 0) {
-        return sharpNames[Math.min(s.sf, 7)] + (s.mi ? 'm' : '');
-    } else {
-        return flatNames[Math.min(-s.sf, 7)] + (s.mi ? 'm' : '');
-    }
+    return keySigName(s.sf, s.mi);
 }
 
 export class MidiFall {
@@ -341,7 +453,9 @@ export class MidiFall {
             highlightNotes: true,
             detailedNotes: false,
             prefmon: false,
-            showLyrics: true
+            showLyrics: true,
+            showBarLines: true,
+            showInfoOverlay: true
         }, settings);
 
         this.midiData = null;
@@ -363,6 +477,10 @@ export class MidiFall {
 
     setMidiData(midiData) {
         this.midiData = midiData;
+        this._barSegments = midiData
+            ? buildBarSegments(midiData.beatTrack, midiData.header ? midiData.header.resolution : 480)
+            : null;
+        this._changeEvents = midiData ? buildChangeEvents(midiData) : null;
     }
 
     detectSize() {
@@ -400,6 +518,7 @@ export class MidiFall {
         const ctx = this.ctx;
         const settings = this.settings;
         this.lastTime = playTime;
+        this._light = isLightMode();
 
         ctx.globalCompositeOperation = 'copy';
         if (settings.backgroundColor) {
@@ -537,6 +656,14 @@ export class MidiFall {
             }
         }
 
+        // ── Synthesia-style bar/beat lines & signature-change dividers ──
+        // Drawn before the keyboard so the keys cover their bottom edge.
+        if (settings.showBarLines !== false) {
+            this._drawBarLines(playTime, scaling);
+            this._drawSignatureChangeMarkers(playTime, scaling);
+            this._drawMarkers(playTime, scaling);
+        }
+
         // Draw white keys
         ctx.fillStyle = 'white';
         ctx.fillRect(0, height - this.keyboardHeight, width, this.keyboardHeight);
@@ -582,18 +709,52 @@ export class MidiFall {
         ctx.shadowBlur = 0;
         ctx.shadowColor = "transparent";
 
-        // ── Synthesia-style bar/beat lines across the piano roll ──
-        this._drawBarLines(playTime, scaling);
-
         // ── Draw info overlay (tempo, signature, key) in bottom-left ──
-        this._drawInfoOverlay(playTime);
-
-        // ── Draw chord markers at their time positions ──
-        this._drawChordMarkers(playTime, scaling);
+        if (settings.showInfoOverlay !== false) {
+            this._drawInfoOverlay(playTime);
+        }
 
         if (settings.prefmon) {
             this.drawPerfMon(renderCount, noteCount);
         }
+    }
+
+    // ── Colors for the current theme (dark/light) ──
+    _getThemeColors() {
+        const light = this._light === undefined ? isLightMode() : this._light;
+        return light ? {
+            barLine: 'rgba(0,0,0,0.32)',
+            beatLine: 'rgba(0,0,0,0.13)',
+            barNumber: 'rgba(0,0,0,0.65)',
+            tempo: '#9a6700',
+            sig: '#0066aa',
+            key: '#6a3fd1',
+            divider: '#d84315',
+            dividerText: '#8d3f00',
+            textShadow: 'rgba(255,255,255,0.9)',
+            markerText: '#007c91',       // 0x01 Text
+            markerTextDot: '#006064',
+            markerLyrics: '#b23cb2',     // 0x05 Lyrics
+            markerLyricsDot: '#a026a0',
+            markerMarker: '#2e7d32',     // 0x06 Marker
+            markerMarkerDot: '#1b5e20'
+        } : {
+            barLine: '#ffffff40',
+            beatLine: '#ffffff15',
+            barNumber: '#ffffff80',
+            tempo: '#ffcc66',
+            sig: '#66ccff',
+            key: '#aa88ff',
+            divider: '#ffa726',
+            dividerText: '#ffcc80',
+            textShadow: 'rgba(0,0,0,0.8)',
+            markerText: '#4dd0e1',       // 0x01 Text
+            markerTextDot: '#26c6da',
+            markerLyrics: '#ff88ff',     // 0x05 Lyrics
+            markerLyricsDot: '#ff66ff',
+            markerMarker: '#81c784',     // 0x06 Marker
+            markerMarkerDot: '#66bb6a'
+        };
     }
 
     // ── Draw tempo, time signature, key signature in bottom-left (above keyboard) ──
@@ -612,32 +773,36 @@ export class MidiFall {
         const key = getKeySignatureAtPlayTime(playTime, tempoTrack, resolution, md);
 
         const y0 = height - this.keyboardHeight;
+        const c = this._getThemeColors();
+        const fontSize = scaledFontSize(width, height, this.dpr);
+        const unit = fontSize / 11; // scale positions with the font
 
         ctx.save();
         ctx.textBaseline = 'bottom';
         ctx.shadowOffsetX = 0;
         ctx.shadowOffsetY = 0;
-        ctx.shadowBlur = 4 * this.dpr;
-        ctx.shadowColor = 'rgba(0,0,0,0.8)';
+        ctx.shadowBlur = Math.max(2, Math.round(unit * 4));
+        ctx.shadowColor = c.textShadow;
 
-        const infoX = 6 * this.dpr;
-        const fontSize = Math.round(11 * this.dpr);
+        const infoX = Math.round(unit * 3);
+        // Keep the text just above the red strip on top of the keyboard
+        const infoY = y0 - this.noteWidth * 0.5 - Math.round(unit * 2);
 
         // Tempo
-        ctx.fillStyle = '#ffcc66';
+        ctx.fillStyle = c.tempo;
         ctx.font = `bold ${fontSize}px sans-serif`;
-        ctx.fillText(`♩=${Math.round(bpm)}`, infoX, y0 - fontSize - 2 * this.dpr);
+        ctx.fillText(`♩=${Math.round(bpm)}`, infoX, infoY);
 
         // Time signature
-        ctx.fillStyle = '#66ccff';
+        ctx.fillStyle = c.sig;
         const sigText = sig;
-        ctx.fillText(sigText, infoX + 48* this.dpr, y0 - fontSize - 2 * this.dpr);
+        ctx.fillText(sigText, infoX + Math.round(unit * 48), infoY);
 
         // Key signature
         if (key) {
-            ctx.fillStyle = '#aa88ff';
+            ctx.fillStyle = c.key;
             ctx.font = `${fontSize}px sans-serif`;
-            ctx.fillText(key, infoX + 80*this.dpr, y0 - fontSize - 2 * this.dpr);
+            ctx.fillText(key, infoX + Math.round(unit * 80), infoY);
         }
 
         ctx.restore();
@@ -651,57 +816,36 @@ export class MidiFall {
         if (!md) return;
 
         const tempoTrack = md.tempoTrack;
-        const beatTrack = md.beatTrack;
         const resolution = md.header ? md.header.resolution : 480;
-
-        // Get active time signature
-        const tick = timeToTick(playTime, tempoTrack, resolution);
-        let sigNum = 4, sigDen = 4;
-        if (beatTrack && beatTrack.length > 0) {
-            let lo = 0, hi = beatTrack.length - 1;
-            while (lo <= hi) {
-                const mid = Math.floor((lo + hi) / 2);
-                if (beatTrack[mid].timing <= tick) {
-                    lo = mid + 1;
-                } else {
-                    hi = mid - 1;
-                }
-            }
-            const idx = Math.min(hi, beatTrack.length - 1);
-            if (idx >= 0) { sigNum = beatTrack[idx].value[0]; sigDen = beatTrack[idx].value[1]; }
-        }
-        const ticksPerBeat = resolution;
-        const ticksPerBar = sigNum * ticksPerBeat;
-
-        // Get the tick at playTime
-        const playTick = tick;
-        // Find the bar start tick (bar 1 starts at tick 0)
-        const barStartTick = Math.floor(playTick / ticksPerBar) * ticksPerBar;
+        const segments = this._barSegments || buildBarSegments(md.beatTrack, resolution);
         const span = this.settings.spanDuration;
         const y0 = height - this.keyboardHeight;
 
-        // Compute visible time range in ticks
-        const visibleStartTime = playTime;
-        const visibleEndTime = playTime + span;
-        const visibleStartTick = timeToTick(visibleStartTime, tempoTrack, resolution);
-        const visibleEndTick = timeToTick(visibleEndTime, tempoTrack, resolution);
+        // Compute visible tick range
+        const visibleStartTick = Math.max(0, timeToTick(playTime, tempoTrack, resolution));
+        const visibleEndTick = timeToTick(playTime + span, tempoTrack, resolution);
 
         // Draw bar and beat lines within visible range
         ctx.save();
         ctx.lineWidth = 1 * this.dpr;
+        const c = this._getThemeColors();
+        const fontSize = scaledFontSize(width, height, this.dpr);
+        const unit = fontSize / 11;
 
-        // Advance from bar start tick backward/forward to cover visible range
-        let barTick = barStartTick;
-        while (barTick > visibleStartTick - ticksPerBar) barTick -= ticksPerBar;
-        while (barTick <= visibleEndTick + ticksPerBar) {
-            const isBar = true;
+        // Start from the bar containing the top edge of the visible window and
+        // walk forward bar by bar; a time signature change closes a bar early.
+        let info = getBarInfoAtTick(visibleStartTick, segments, resolution);
+        let barTick = info.barStart;
+        let barNum = info.bar;
+
+        while (barTick <= visibleEndTick) {
+            const seg = info.seg;
+            const barEnd = Math.min(barTick + seg.ticksPerBar, seg.endTick);
             const barTime = tickToTime(barTick, tempoTrack, resolution);
             const y = y0 - (barTime - playTime) * scaling;
             if (y >= -10 && y <= y0 + 10) {
-                const barNum = Math.floor(barTick / ticksPerBar) + 1;
-
                 // Bar line: bright, thick
-                ctx.strokeStyle = '#ffffff40';
+                ctx.strokeStyle = c.barLine;
                 ctx.lineWidth = 2 * this.dpr;
                 ctx.beginPath();
                 ctx.moveTo(0, y);
@@ -709,21 +853,22 @@ export class MidiFall {
                 ctx.stroke();
 
                 // Bar number label on the right edge
-                ctx.fillStyle = '#ffffff80';
-                ctx.font = `bold ${Math.round(11 * this.dpr)}px sans-serif`;
+                ctx.fillStyle = c.barNumber;
+                ctx.font = `bold ${fontSize}px sans-serif`;
                 ctx.textAlign = 'right';
                 ctx.textBaseline = 'bottom';
-                ctx.fillText(barNum, width - 6 * this.dpr, y - 2 * this.dpr);
+                ctx.fillText(barNum, width - Math.round(unit * 6), y - Math.round(unit * 2));
             }
 
             // Beat lines within this bar
-            if (sigNum > 1) {
-                for (let beat = 1; beat < sigNum; beat++) {
-                    const beatTick = barTick + beat * ticksPerBeat;
+            if (seg.sigNum > 1) {
+                for (let beat = 1; beat < seg.sigNum; beat++) {
+                    const beatTick = barTick + beat * seg.ticksPerBeat;
+                    if (beatTick >= barEnd) break;
                     if (beatTick < visibleStartTick - 100 || beatTick > visibleEndTick + 100) continue;
                     const beatTime = tickToTime(beatTick, tempoTrack, resolution);
                     const by = y0 - (beatTime - playTime) * scaling;
-                    ctx.strokeStyle = '#ffffff15';
+                    ctx.strokeStyle = c.beatLine;
                     ctx.lineWidth = 1 * this.dpr;
                     ctx.beginPath();
                     ctx.moveTo(0, by);
@@ -732,14 +877,67 @@ export class MidiFall {
                 }
             }
 
-            barTick += ticksPerBar;
+            barTick = barEnd;
+            barNum++;
+            if (barTick <= visibleEndTick) info = getBarInfoAtTick(barTick, segments, resolution);
         }
 
         ctx.restore();
     }
 
-    // ── Synthesia-style: draw chord markers at their time positions ──
-    _drawChordMarkers(playTime, scaling) {
+    // ── Prominent divider + change info when time/key signature changes ──
+    _drawSignatureChangeMarkers(playTime, scaling) {
+        const ctx = this.ctx;
+        const { width, height } = this.canvas;
+        const md = this.midiData;
+        if (!md || !this._changeEvents || this._changeEvents.length === 0) return;
+
+        const tempoTrack = md.tempoTrack;
+        const resolution = md.header ? md.header.resolution : 480;
+        const y0 = height - this.keyboardHeight;
+        const span = this.settings.spanDuration;
+        const visibleStartTick = Math.max(0, timeToTick(playTime, tempoTrack, resolution));
+        const visibleEndTick = timeToTick(playTime + span, tempoTrack, resolution);
+        const c = this._getThemeColors();
+        const fontSize = scaledFontSize(width, height, this.dpr);
+        const unit = fontSize / 11;
+
+        ctx.save();
+        ctx.textBaseline = 'middle';
+        ctx.shadowOffsetX = 0;
+        ctx.shadowOffsetY = 0;
+        ctx.shadowBlur = Math.max(2, Math.round(unit * 4));
+        ctx.shadowColor = c.textShadow;
+
+        for (const ev of this._changeEvents) {
+            if (ev.tick <= 0 || ev.tick < visibleStartTick || ev.tick > visibleEndTick) continue;
+            const t = tickToTime(ev.tick, tempoTrack, resolution);
+            const y = y0 - (t - playTime) * scaling;
+            if (y < -30 || y > y0 + 30) continue;
+
+            // Prominent divider line
+            ctx.strokeStyle = c.divider;
+            ctx.lineWidth = Math.max(2, Math.round(unit * 2));
+            ctx.setLineDash([unit * 8, unit * 5]);
+            ctx.beginPath();
+            ctx.moveTo(0, y);
+            ctx.lineTo(width, y);
+            ctx.stroke();
+            ctx.setLineDash([]);
+
+            // Change info label
+            const text = ev.parts.map(p => p.label).join('  ');
+            ctx.fillStyle = c.dividerText;
+            ctx.font = `bold ${fontSize}px sans-serif`;
+            ctx.textAlign = 'left';
+            ctx.fillText(text, Math.round(unit * 8), y - Math.round(unit * 10));
+        }
+
+        ctx.restore();
+    }
+
+    // ── Synthesia-style: draw text/lyrics/marker events at their time positions ──
+    _drawMarkers(playTime, scaling) {
         const ctx = this.ctx;
         const { width, height } = this.canvas;
         const md = this.midiData;
@@ -750,15 +948,25 @@ export class MidiFall {
 
         const span = this.settings.spanDuration;
         const y0 = height - this.keyboardHeight;
+        const c = this._getThemeColors();
+        const fontSize = scaledFontSize(width, height, this.dpr);
+        const unit = fontSize / 12;
 
         ctx.save();
-        ctx.font = `bold ${Math.round(12 * this.dpr)}px sans-serif`;
+        ctx.font = `bold ${fontSize}px sans-serif`;
         ctx.textBaseline = 'middle';
         ctx.shadowOffsetX = 0;
         ctx.shadowOffsetY = 0;
-        ctx.shadowBlur = 6 * this.dpr;
-        ctx.shadowColor = 'rgba(0,0,0,0.9)';
+        ctx.shadowBlur = Math.max(2, Math.round(unit * 6));
+        ctx.shadowColor = c.textShadow;
         ctx.textAlign = 'left';
+
+        // Color per marker type: 0x01 Text, 0x05 Lyrics, 0x06 Marker
+        const markerStyle = {
+            0x01: { dot: c.markerTextDot, text: c.markerText },
+            0x05: { dot: c.markerLyricsDot, text: c.markerLyrics },
+            0x06: { dot: c.markerMarkerDot, text: c.markerMarker }
+        };
 
         for (let i = 0; i < markers.length; i++) {
             const m = markers[i];
@@ -767,23 +975,22 @@ export class MidiFall {
             if (markerTime <= playTime || markerTime > playTime + span + 1) continue;
 
             const y = y0 - (markerTime - playTime) * scaling;
+            const st = markerStyle[m.type] || markerStyle[0x05];
 
             // Short text
             const maxChars = 24;
             let text = m.text;
             if (text.length > maxChars) text = text.substring(0, maxChars - 1) + '…';
 
-            ctx.fillStyle = '#ff88ff';
-
             // Draw a small decorative dot at the time position
-            ctx.fillStyle = '#ff66ff';
+            ctx.fillStyle = st.dot;
             ctx.beginPath();
-            ctx.arc(8 * this.dpr, y, 4 * this.dpr, 0, Math.PI * 2);
+            ctx.arc(Math.round(unit * 8), y, Math.max(2, Math.round(unit * 4)), 0, Math.PI * 2);
             ctx.fill();
 
-            // Draw chord text
-            ctx.fillStyle = '#ff88ff' ;
-            ctx.fillText(text, 18 * this.dpr, y);
+            // Draw marker text
+            ctx.fillStyle = st.text;
+            ctx.fillText(text, Math.round(unit * 18), y);
         }
 
         ctx.restore();

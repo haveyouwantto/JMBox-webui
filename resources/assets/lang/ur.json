@@ -60,6 +60,8 @@
     "settings.piano-roll.highlight-playing-notes": "چلنے والے نوٹ نمایاں کریں",
     "settings.piano-roll.show-note-counter": "نوٹ کاؤنٹر دکھائیں",
     "settings.piano-roll.prefmon": "کارکردگی مانیٹر",
+    "settings.piano-roll.show-bar-lines": "بار لائنیں دکھائیں",
+    "settings.piano-roll.show-info-overlay": "معلومات دکھائیں",
     "settings.piano-roll.show-lyrics": "بول دکھائیں",
     "settings.piano-roll.lyrics-encoding": "بول انکوڈنگ",
     "settings.close-btn": "بند کریں",

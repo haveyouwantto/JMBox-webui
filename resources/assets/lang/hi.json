@@ -60,6 +60,8 @@
     "settings.piano-roll.highlight-playing-notes": "बज रहे स्वरों को हाइलाइट करें",
     "settings.piano-roll.show-note-counter": "स्वर गणक दिखाएं",
     "settings.piano-roll.prefmon": "प्रदर्शन मॉनिटर",
+    "settings.piano-roll.show-bar-lines": "बार रेखाएँ दिखाएँ",
+    "settings.piano-roll.show-info-overlay": "जानकारी दिखाएँ",
     "settings.piano-roll.show-lyrics": "गीत दिखाएं",
     "settings.piano-roll.lyrics-encoding": "गीत एन्कोडिंग",
     "settings.close-btn": "बंद करें",

@@ -59,6 +59,8 @@
   "settings.piano-roll.detailed-notes": "詳細な音符コントロールを描画する",
   "settings.piano-roll.highlight-playing-notes": "演奏音符のハイライト表示",
   "settings.piano-roll.prefmon": "パフォーマンスモニター",
+  "settings.piano-roll.show-bar-lines": "小節線を表示",
+  "settings.piano-roll.show-info-overlay": "情報を表示",
   "settings.piano-roll.show-lyrics": "歌詞の表示",
   "settings.piano-roll.lyrics-encoding": "歌詞のエンコーディング",
   "settings.close-btn": "閉じる",

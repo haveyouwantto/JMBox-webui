@@ -60,6 +60,8 @@
     "settings.piano-roll.highlight-playing-notes": "연주 중인 음표 강조",
     "settings.piano-roll.show-note-counter": "음표 카운터 표시",
     "settings.piano-roll.prefmon": "성능 모니터",
+    "settings.piano-roll.show-bar-lines": "마디선 표시",
+    "settings.piano-roll.show-info-overlay": "정보 표시",
     "settings.piano-roll.show-lyrics": "가사 표시",
     "settings.piano-roll.lyrics-encoding": "가사 인코딩",
     "settings.close-btn": "닫기",

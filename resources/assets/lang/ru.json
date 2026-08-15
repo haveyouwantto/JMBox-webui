@@ -60,6 +60,8 @@
     "settings.piano-roll.highlight-playing-notes": "Подсветка играющих нот",
     "settings.piano-roll.show-note-counter": "Счётчик нот",
     "settings.piano-roll.prefmon": "Монитор производительности",
+    "settings.piano-roll.show-bar-lines": "Показывать тактовые линии",
+    "settings.piano-roll.show-info-overlay": "Показывать информацию",
     "settings.piano-roll.show-lyrics": "Показывать текст песни",
     "settings.piano-roll.lyrics-encoding": "Кодировка текста",
     "settings.close-btn": "Закрыть",

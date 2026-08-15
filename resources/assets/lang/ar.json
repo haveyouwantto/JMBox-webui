@@ -60,6 +60,8 @@
     "settings.piano-roll.highlight-playing-notes": "تمييز النغمات قيد التشغيل",
     "settings.piano-roll.show-note-counter": "إظهار عداد النغمات",
     "settings.piano-roll.prefmon": "مراقب الأداء",
+    "settings.piano-roll.show-bar-lines": "إظهار خطوط المازورة",
+    "settings.piano-roll.show-info-overlay": "إظهار المعلومات",
     "settings.piano-roll.show-lyrics": "إظهار كلمات الأغنية",
     "settings.piano-roll.lyrics-encoding": "ترميز كلمات الأغنية",
     "settings.close-btn": "إغلاق",

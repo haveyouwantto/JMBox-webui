@@ -62,6 +62,8 @@
     "settings.piano-roll.detailed-notes": "绘制音符详细控件",
     "settings.piano-roll.highlight-playing-notes": "高亮弹奏中的音符",
     "settings.piano-roll.prefmon": "性能监视器",
+    "settings.piano-roll.show-bar-lines": "显示小节线",
+    "settings.piano-roll.show-info-overlay": "显示信息",
     "settings.piano-roll.show-lyrics": "显示歌词",
     "settings.piano-roll.lyrics-encoding": "歌词编码",
     "settings.close-btn": "关闭",

@@ -33,6 +33,8 @@ const defaultValue = {
     showLyrics: true,
     lyricsEncoding: "UTF-8",
     detailedNotes: false,
+    showBarLines: true,
+    showInfoOverlay: true,
 
     // ── 渲染器模式 ──
     rendererMode: "canvas2d",  // "webgl" | "canvas2d"

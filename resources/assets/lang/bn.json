@@ -60,6 +60,8 @@
     "settings.piano-roll.highlight-playing-notes": "চলমান স্বর হাইলাইট করুন",
     "settings.piano-roll.show-note-counter": "স্বর গণক দেখান",
     "settings.piano-roll.prefmon": "পারফরম্যান্স মনিটর",
+    "settings.piano-roll.show-bar-lines": "বার লাইন দেখান",
+    "settings.piano-roll.show-info-overlay": "তথ্য দেখান",
     "settings.piano-roll.show-lyrics": "গানের কথা দেখান",
     "settings.piano-roll.lyrics-encoding": "গানের এনকোডিং",
     "settings.close-btn": "বন্ধ করুন",

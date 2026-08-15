@@ -60,6 +60,8 @@
     "settings.piano-roll.highlight-playing-notes": "Resaltar notas sonando",
     "settings.piano-roll.show-note-counter": "Mostrar contador de notas",
     "settings.piano-roll.prefmon": "Monitor de rendimiento",
+    "settings.piano-roll.show-bar-lines": "Mostrar líneas de compás",
+    "settings.piano-roll.show-info-overlay": "Mostrar información",
     "settings.piano-roll.show-lyrics": "Mostrar letras",
     "settings.piano-roll.lyrics-encoding": "Codificación de letras",
     "settings.close-btn": "Cerrar",
