@@ -1917,6 +1917,11 @@ export class MidiFallController {
         // Lyrics support
         this.lrc = new LyricsRoll();
         this.lrcDiv = $("#lyrics");
+        this.lyricsWrap = $("#lyrics-wrap");
+        this.lyricsToggle = $("#lyrics-toggle");
+        if (this.lyricsToggle) {
+            this.lyricsToggle.addEventListener('click', () => this.toggleLyricsCollapsed());
+        }
         this.lastLyricsTime = null;
         this.setupLyrics();
 
@@ -1942,16 +1947,18 @@ export class MidiFallController {
 
     setupLyrics() {
         this.lrc.onload = (lyricsList) => {
-            this.lrcDiv.innerText = '';
+            this.lrcDiv.querySelectorAll('.lyrics-line').forEach(e => e.remove());
             if (lyricsList.length > 0) {
                 for (let i = 0; i < lyricsList.length; i++) {
                     const lyrics = lyricsList[i];
                     let segment = document.createElement('span');
                     segment.id = 'lyrics-' + lyrics.ord;
+                    segment.className = 'lyrics-line';
                     segment.innerText = lyrics.text;
                     this.lrcDiv.appendChild(segment);
                 }
             }
+            if (this.lyricsToggle) this.lyricsToggle.classList.toggle('hidden', lyricsList.length === 0);
         }
 
         this.lrc.onlyrics = (lyrics) => {
@@ -2110,12 +2117,24 @@ export class MidiFallController {
         if (visible) {
             // Reload lyrics if data exists (handled in setMidiData or check existing)
             // For now assume lrc object manages its state, we just ensure it updates
+            if (this.lyricsToggle) {
+                this.lyricsToggle.classList.toggle('hidden', this.lrcDiv.querySelectorAll('.lyrics-line').length === 0);
+            }
         } else {
             this.lrc.clear(); // Or just hide? logic was clear() before
-            this.lrcDiv.innerText = '';
+            this.lrcDiv.querySelectorAll('.lyrics-line').forEach(e => e.remove());
+            if (this.lyricsToggle) this.lyricsToggle.classList.add('hidden');
             // we really should reload if enabled again, 
             // but the original logic relied on loading from picoAudio.playData
         }
+    }
+
+    toggleLyricsCollapsed() {
+        this.setLyricsCollapsed(!this.lyricsWrap.classList.contains('collapsed'));
+    }
+
+    setLyricsCollapsed(collapsed) {
+        if (this.lyricsWrap) this.lyricsWrap.classList.toggle('collapsed', collapsed);
     }
 
     acquireWakelock() {

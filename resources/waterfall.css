@@ -17,18 +17,61 @@
     animation: waterfallOpen 0.25s ease-out 0s;
 }
 
-#lyrics {
+#lyrics-wrap {
     position: absolute;
     top: 0;
     left: 0;
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+#lyrics {
+    width: 100%;
+    flex: 1 1 auto;
+    min-height: 0;
+    max-height: calc(40vh - 2rem);
     color: var(--text-color);
     background-color: var(--transparent-bg-color);
     overflow-y: auto;
-    width: 100%;
-    max-height: 40%;
     text-align: center;
     overflow-wrap: anywhere;
     font-size: 1.25rem;
+    transition: max-height 0.3s ease;
+}
+
+#lyrics-wrap.collapsed #lyrics {
+    max-height: 1.5rem;
+    overflow: hidden;
+}
+
+#lyrics-toggle {
+    flex: 0 0 auto;
+    border: none;
+    background: var(--transparent-bg-color);
+    color: var(--text-color);
+    font-size: 0.9rem;
+    line-height: 1;
+    padding: 6px 20px 10px;
+    border-radius: 0 0 14px 14px;
+    cursor: pointer;
+    opacity: 0.85;
+}
+
+#lyrics-toggle:hover {
+    opacity: 1;
+}
+
+#lyrics-toggle::before {
+    content: '\25BC'; /* ▼ rotated 180° → ▲ when expanded */
+    display: inline-block;
+    transform: rotate(180deg);
+    transition: transform 0.25s ease;
+}
+
+#lyrics-wrap.collapsed #lyrics-toggle::before {
+    transform: rotate(0deg); /* ▼ when collapsed */
 }
 
 .lyrics-highlight {
