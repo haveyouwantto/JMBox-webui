@@ -790,7 +790,7 @@ export class MidiFall {
 
         // Tempo
         ctx.fillStyle = c.tempo;
-        ctx.font = `bold ${fontSize}px sans-serif`;
+        ctx.font = `${fontSize}px sans-serif`;
         ctx.fillText(`♩=${Math.round(bpm)}`, infoX, infoY);
 
         // Time signature
@@ -854,7 +854,7 @@ export class MidiFall {
 
                 // Bar number label on the right edge
                 ctx.fillStyle = c.barNumber;
-                ctx.font = `bold ${fontSize}px sans-serif`;
+                ctx.font = `${fontSize}px sans-serif`;
                 ctx.textAlign = 'right';
                 ctx.textBaseline = 'bottom';
                 ctx.fillText(barNum, width - Math.round(unit * 6), y - Math.round(unit * 2));
@@ -928,7 +928,7 @@ export class MidiFall {
             // Change info label
             const text = ev.parts.map(p => p.label).join('  ');
             ctx.fillStyle = c.dividerText;
-            ctx.font = `bold ${fontSize}px sans-serif`;
+            ctx.font = `${fontSize}px sans-serif`;
             ctx.textAlign = 'left';
             ctx.fillText(text, Math.round(unit * 8), y - Math.round(unit * 10));
         }
@@ -953,7 +953,7 @@ export class MidiFall {
         const unit = fontSize / 12;
 
         ctx.save();
-        ctx.font = `bold ${fontSize}px sans-serif`;
+        ctx.font = `${fontSize}px sans-serif`;
         ctx.textBaseline = 'middle';
         ctx.shadowOffsetX = 0;
         ctx.shadowOffsetY = 0;
