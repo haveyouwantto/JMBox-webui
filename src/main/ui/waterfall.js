@@ -311,14 +311,6 @@ function getBarBeat(time, tempoTrack, beatTrack, resolution) {
     return { bar: info.bar, beat: info.beat, tick: info.tick };
 }
 
-// ── Font size proportional to the canvas' shorter edge (CSS px), clamped ──
-// Size is computed in CSS pixels so HiDPI canvases render proportionally,
-// and the minimum keeps text readable in portrait (small width).
-function scaledFontSize(width, height, dpr, divisor = 56, min = 16, max = 38) {
-    const cssW = width / dpr, cssH = height / dpr;
-    return Math.round(Math.max(min, Math.min(max, Math.min(cssW, cssH) / divisor)) * dpr);
-}
-
 // ── Whether the app is currently in light mode ──
 function isLightMode() {
     const root = document.documentElement;
@@ -774,7 +766,7 @@ export class MidiFall {
 
         const y0 = height - this.keyboardHeight;
         const c = this._getThemeColors();
-        const fontSize = scaledFontSize(width, height, this.dpr);
+        const fontSize = Math.max(width / 64, 12 * this.dpr) 
         const unit = fontSize / 11; // scale positions with the font
 
         ctx.save();
@@ -829,7 +821,7 @@ export class MidiFall {
         ctx.save();
         ctx.lineWidth = 1 * this.dpr;
         const c = this._getThemeColors();
-        const fontSize = scaledFontSize(width, height, this.dpr);
+        const fontSize = Math.max(width / 64, 12 * this.dpr) 
         const unit = fontSize / 11;
 
         // Start from the bar containing the top edge of the visible window and
@@ -899,7 +891,7 @@ export class MidiFall {
         const visibleStartTick = Math.max(0, timeToTick(playTime, tempoTrack, resolution));
         const visibleEndTick = timeToTick(playTime + span, tempoTrack, resolution);
         const c = this._getThemeColors();
-        const fontSize = scaledFontSize(width, height, this.dpr);
+        const fontSize = Math.max(width / 64, 12 * this.dpr);
         const unit = fontSize / 11;
 
         ctx.save();
@@ -949,7 +941,7 @@ export class MidiFall {
         const span = this.settings.spanDuration;
         const y0 = height - this.keyboardHeight;
         const c = this._getThemeColors();
-        const fontSize = scaledFontSize(width, height, this.dpr);
+        const fontSize = Math.max(width / 64, 12 * this.dpr);
         const unit = fontSize / 12;
 
         ctx.save();
