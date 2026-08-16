@@ -595,6 +595,8 @@ export class MidiFall {
                         const noteStartY = height - startY - this.keyboardHeight;
                         const noteEndY = height - endY - this.keyboardHeight;
 
+                        x = this.canvas.width / 128 * note.pitch;
+
                         // Draw sustain pedal line
                         if (note.holdBeforeStop && note.holdBeforeStop.length > 0) {
                             const endY2 = height - getY(note.stopTime, playTime, scaling) - this.keyboardHeight;
