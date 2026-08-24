@@ -22,6 +22,7 @@ const LOOKAHEAD_MARGIN = 0.06;  // 延迟补偿模式下预排窗口的额外余
 const MAX_JUMP_SECONDS = 2;     // 单次进度前进超过该值视为跳转（seek/节流恢复），不补拍
 const MAX_CLICKS_PER_UPDATE = 32; // 单次更新补击的拍数硬上限（防御）
 const BACKWARD_EPSILON = 0.02;   // 允许的轻微回退（时钟抖动），超过视为 seek/循环
+const PAUSE_DETECT_MS = 150;     // 进度持续多久未前进才视为暂停（避免双采样源重复上报误判）
 
 // ---------------------------------------------------------------------------
 // 以下 tick/秒 与 小节 解析逻辑与 src/main/ui/waterfall.js 保持一致
@@ -205,11 +206,11 @@ export class Metronome {
         this.volume = options.volume ?? 1;
         this.maxJumpSeconds = options.maxJumpSeconds ?? MAX_JUMP_SECONDS;
         this.maxClicksPerUpdate = options.maxClicksPerUpdate ?? MAX_CLICKS_PER_UPDATE;
-        // 播放进度采样器：() => 当前播放位置（秒）。传入后节拍器会在每一帧
-        // （requestAnimationFrame）读取播放进度来触发，不依赖播放器的 timeupdate 频率。
+        // 播放进度采样器：() => 当前播放位置（秒）。传入后节拍器会定时
+        // （setInterval）读取播放进度来触发，不依赖播放器的 timeupdate 频率；
+        // 用 setInterval 而非 rAF，保证切到后台标签页时仍能采样（rAF 在后台会停）。
         this.timeSource = options.timeSource || null;
-        this.pollInterval = options.pollInterval ?? 16; // 仅无 rAF 环境（测试）的退化定时器间隔
-        this._useRaf = typeof requestAnimationFrame === 'function';
+        this.pollInterval = options.pollInterval ?? 16;
         // 延迟补偿（秒）：>0 时把点击提前调度，让嗒声与“听到的音乐”对齐；
         // 只在音频走媒体元素（AudioPlayer）时需要，PicoAudio 与节拍器同走 AudioContext 无需补偿。
         this.latencyCompensation = options.latencyCompensation ?? 0;
@@ -217,7 +218,8 @@ export class Metronome {
         this._beats = [];
         this._enabled = false;
         this._lastPosition = null;
-        this._frameId = null;
+        this._timerId = null;
+        this._staticSince = null;
         this._nextScheduledIndex = 0;
         this._pendingClicks = [];
         this._noiseBuffer = null;
@@ -284,26 +286,14 @@ export class Metronome {
     }
 
     _startPolling() {
-        if (!this.timeSource || this._frameId != null) return;
-        if (this._useRaf) {
-            const loop = () => {
-                this._poll();
-                this._frameId = requestAnimationFrame(loop);
-            };
-            this._frameId = requestAnimationFrame(loop);
-        } else {
-            this._frameId = setInterval(() => this._poll(), this.pollInterval);
-        }
+        if (!this.timeSource || this._timerId != null) return;
+        this._timerId = setInterval(() => this._poll(), this.pollInterval);
     }
 
     _stopPolling() {
-        if (this._frameId == null) return;
-        if (this._useRaf) {
-            cancelAnimationFrame(this._frameId);
-        } else {
-            clearInterval(this._frameId);
-        }
-        this._frameId = null;
+        if (this._timerId == null) return;
+        clearInterval(this._timerId);
+        this._timerId = null;
     }
 
     _poll() {
@@ -334,11 +324,17 @@ export class Metronome {
             return;
         }
         if (position <= prev + 1e-4) {
-            // 进度停滞（暂停）：取消尚未播放的预排点击，避免自己响
-            this._cancelPendingClicks();
-            this._resetScheduling(position);
+            // 进度未前进：可能是两个采样源（定时器 + timeupdate）重复上报同一位置，
+            // 也可能是真的暂停。只有持续 PAUSE_DETECT_MS 未前进才取消预排。
+            const nowMs = typeof performance !== 'undefined' ? performance.now() : Date.now();
+            if (this._staticSince == null) this._staticSince = nowMs;
+            if (nowMs - this._staticSince >= PAUSE_DETECT_MS) {
+                this._cancelPendingClicks();
+                this._resetScheduling(position);
+            }
             return;
         }
+        this._staticSince = null;
         if (position - prev > this.maxJumpSeconds) {
             this._lastPosition = position;
             this._resetScheduling(position);
