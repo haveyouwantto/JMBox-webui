@@ -26,6 +26,7 @@ const volumeControlInner = $("#volume-inner");
 const playModeAltButton = $("#playModeAlt");
 const altIcon = playModeAltButton.querySelector('icon');
 const altText = playModeAltButton.querySelector('locale');
+const metronomeAltButton = $("#metronomeAlt");
 
 const bottomMenuBtn = $("#bottomMenuBtn");
 const bottomMenu = $("#bottomMenu");
@@ -191,6 +192,7 @@ metronomeButton.addEventListener('click', () => {
 
 export function setMetronomeActive(active) {
     metronomeButton.classList.toggle('active', active);
+    metronomeAltButton.classList.toggle('active', active);
     metronomeButton.title = getLocale(active ? 'menu.metronome.stop' : 'menu.metronome');
 }
 

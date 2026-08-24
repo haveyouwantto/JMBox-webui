@@ -293,6 +293,13 @@ export class JMBoxApp {
         this.metronome.setLatencyCompensation(latency);
     }
 
+    toggleMetronome() {
+        this.updateMetronomeLatencyCompensation(true);
+        const position = this.player ? this.player.currentTime : 0;
+        this.metronome.toggle(position);
+        playerBar.setMetronomeActive(this.metronome.running);
+    }
+
     loadLocalFile(file) {
         if (this.player instanceof PicoAudioPlayer) {
             const fr = new FileReader()
@@ -521,6 +528,9 @@ export class JMBoxApp {
                 case 'play mode':
                     playModeSelectionDialog().then(mode => editSetting('playMode', mode));
                     break;
+                case 'metronome':
+                    this.toggleMetronome();
+                    break;
                 case 'replay':
                     this.player.replay();
                     break;
@@ -559,10 +569,7 @@ export class JMBoxApp {
         playerBar.setEventListener('playmodechange', mode => editSetting('playMode', mode))
 
         playerBar.setEventListener('metronome', () => {
-            this.updateMetronomeLatencyCompensation(true);
-            const position = this.player ? this.player.currentTime : 0;
-            this.metronome.toggle(position);
-            playerBar.setMetronomeActive(this.metronome.running);
+            this.toggleMetronome();
         });
 
 
