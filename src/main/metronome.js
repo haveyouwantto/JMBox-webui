@@ -18,6 +18,7 @@ const BEAT_TONE_DURATION = 0.055; // 普通拍“嗒”音色的时长
 const ACCENT_DURATION = 0.45;   // 强拍“叮”声的衰减时长
 const NOISE_DURATION = 0.03;    // 每个节拍叠加的白色噪声长度（非常短）
 const NOISE_GAIN = 0.3;         // 白色噪声音量
+const LOOKAHEAD_MARGIN = 0.06;  // 延迟补偿模式下预排窗口的额外余量（覆盖帧间隔）
 const MAX_JUMP_SECONDS = 2;     // 单次进度前进超过该值视为跳转（seek/节流恢复），不补拍
 const MAX_CLICKS_PER_UPDATE = 32; // 单次更新补击的拍数硬上限（防御）
 const BACKWARD_EPSILON = 0.02;   // 允许的轻微回退（时钟抖动），超过视为 seek/循环
@@ -209,11 +210,16 @@ export class Metronome {
         this.timeSource = options.timeSource || null;
         this.pollInterval = options.pollInterval ?? 16; // 仅无 rAF 环境（测试）的退化定时器间隔
         this._useRaf = typeof requestAnimationFrame === 'function';
+        // 延迟补偿（秒）：>0 时把点击提前调度，让嗒声与“听到的音乐”对齐；
+        // 只在音频走媒体元素（AudioPlayer）时需要，PicoAudio 与节拍器同走 AudioContext 无需补偿。
+        this.latencyCompensation = options.latencyCompensation ?? 0;
 
         this._beats = [];
         this._enabled = false;
         this._lastPosition = null;
         this._frameId = null;
+        this._nextScheduledIndex = 0;
+        this._pendingClicks = [];
         this._noiseBuffer = null;
         this._periodicWave = null;
     }
@@ -233,7 +239,10 @@ export class Metronome {
      */
     setMidiData(midiData, position) {
         this._beats = buildBeatSchedule(midiData);
-        if (position != null) this._lastPosition = Math.max(0, position || 0);
+        if (position != null) {
+            this._lastPosition = Math.max(0, position || 0);
+            this._resetScheduling(this._lastPosition);
+        }
     }
 
     /**
@@ -259,6 +268,7 @@ export class Metronome {
             this._audioContext.resume();
         }
         this._lastPosition = Math.max(0, position || 0);
+        this._resetScheduling(this._lastPosition);
         this._enabled = true;
         this._startPolling();
         return true;
@@ -270,6 +280,7 @@ export class Metronome {
     stop() {
         this._enabled = false;
         this._stopPolling();
+        this._cancelPendingClicks();
     }
 
     _startPolling() {
@@ -319,20 +330,95 @@ export class Metronome {
         }
         if (position < prev - BACKWARD_EPSILON) {
             this._lastPosition = position;
+            this._resetScheduling(position);
+            return;
+        }
+        if (position <= prev + 1e-4) {
+            // 进度停滞（暂停）：取消尚未播放的预排点击，避免自己响
+            this._cancelPendingClicks();
+            this._resetScheduling(position);
+            return;
+        }
+        if (position - prev > this.maxJumpSeconds) {
+            this._lastPosition = position;
+            this._resetScheduling(position);
             return;
         }
 
-        // 严格窗口 (prev, position]：重复上报同一位置不会重复触发同一拍
-        const from = upperBound(this._beats, prev);
-        const to = upperBound(this._beats, position);
-        if (position - prev > this.maxJumpSeconds || to - from > this.maxClicksPerUpdate) {
+        const beats = this._beats;
+        if (this.latencyCompensation > 0 && this._audioContext) {
+            this._updateCompensated(position);
+        } else {
+            // 严格窗口 (prev, position]：重复上报同一位置不会重复触发同一拍
+            const from = upperBound(beats, prev);
+            const to = upperBound(beats, position);
+            if (to - from > this.maxClicksPerUpdate) {
+                this._lastPosition = position;
+                this._resetScheduling(position);
+                return;
+            }
+            const now = this._audioContext ? this._audioContext.currentTime + 0.002 : 0;
+            for (let i = from; i < to; i++) {
+                this._playClick(now, beats[i].accent);
+            }
             this._lastPosition = position;
-            return;
         }
-        for (let i = from; i < to; i++) {
-            this._playClick(this._beats[i].accent);
+    }
+
+    // 延迟补偿模式：把即将到达的拍提前调度，让嗒声与“听到的音乐”对齐
+    _updateCompensated(position) {
+        const beats = this._beats;
+        const ctx = this._audioContext;
+        const comp = this.latencyCompensation;
+        const now = ctx.currentTime;
+
+        // 1) 兜底：已越过但未预排的拍立即补响（帧间隔抖动/主线程卡顿时）
+        const crossed = upperBound(beats, position);
+        if (crossed - this._nextScheduledIndex > this.maxClicksPerUpdate) {
+            // 大量未预排的拍（异常跳转）：不补爆音
+            this._nextScheduledIndex = crossed;
+        } else {
+            for (let i = this._nextScheduledIndex; i < crossed; i++) {
+                this._playClick(now + 0.002, beats[i].accent);
+            }
         }
+
+        // 2) 预排：lookahead 内尚未预排的拍，提前 comp 秒调度
+        const horizon = position + comp + LOOKAHEAD_MARGIN;
+        let i = Math.max(this._nextScheduledIndex, crossed);
+        let count = 0;
+        for (; i < beats.length && beats[i].time <= horizon; i++) {
+            if (++count > this.maxClicksPerUpdate) break;
+            const delay = beats[i].time - position;
+            const audioTime = now + Math.max(0.002, delay - comp);
+            const handle = this._playClick(audioTime, beats[i].accent);
+            if (handle) this._pendingClicks.push({ handle, audioTime });
+        }
+        this._nextScheduledIndex = Math.max(this._nextScheduledIndex, i);
+        this._prunePending(now);
         this._lastPosition = position;
+    }
+
+    // 重建调度指针（seek/回退/暂停/补偿量变化时），并取消未播放的预排点击
+    _resetScheduling(position) {
+        this._cancelPendingClicks();
+        this._nextScheduledIndex = upperBound(this._beats, position);
+    }
+
+    _cancelPendingClicks() {
+        for (const pending of this._pendingClicks) {
+            try {
+                pending.handle.cancel();
+            } catch (e) {
+                // 已播放完则忽略
+            }
+        }
+        this._pendingClicks = [];
+    }
+
+    _prunePending(now) {
+        if (this._pendingClicks.length === 0) return;
+        this._pendingClicks = this._pendingClicks.filter(p => p.audioTime > now + 0.01);
     }
 
     /**
@@ -340,6 +426,34 @@ export class Metronome {
      */
     sync(position) {
         this._lastPosition = Math.max(0, position || 0);
+        this._resetScheduling(this._lastPosition);
+    }
+
+    /**
+     * 设置延迟补偿（秒）。>0 时点击会提前调度（AudioPlayer 用）；PicoAudio 传 0。
+     */
+    setLatencyCompensation(seconds) {
+        const value = Math.max(0, seconds || 0);
+        if (value !== this.latencyCompensation) {
+            this.latencyCompensation = value;
+            // 补偿量变化时取消未播放的预排点击并重建调度指针
+            this._resetScheduling(this._lastPosition != null ? this._lastPosition : 0);
+        }
+    }
+
+    /**
+     * 确保 AudioContext 已创建（供外部读取输出延迟等）。
+     */
+    ensureAudioContext() {
+        this._ensureAudioContext();
+    }
+
+    /**
+     * Web Audio 输出延迟估算（秒），无则返回 0。
+     */
+    audioLatency() {
+        const ctx = this._audioContext;
+        return ctx && typeof ctx.outputLatency === 'number' && ctx.outputLatency > 0 ? ctx.outputLatency : 0;
     }
 
     setVolume(volume) {
@@ -385,16 +499,29 @@ export class Metronome {
     }
 
     // 每个节拍：极短的白色噪声（保证在音乐中清晰可闻） + 单个振荡器音色
-    _playClick(accent) {
+    _playClick(audioTime, accent) {
         const ctx = this._audioContext;
-        if (!ctx) return;
-        const t = ctx.currentTime + 0.002;
-        this._playNoise(t);
-        this._playTone(t, accent);
+        if (!ctx) return null;
+        const t = Math.max(audioTime, ctx.currentTime + 0.002);
+        const gains = [];
+        this._playNoise(t, gains);
+        this._playTone(t, accent, gains);
+        // 返回取消句柄：在播放前断开增益节点即可静音
+        return {
+            cancel: () => {
+                for (const gain of gains) {
+                    try {
+                        gain.disconnect();
+                    } catch (e) {
+                        // 已断开则忽略
+                    }
+                }
+            }
+        };
     }
 
     // 白色噪声瞬态（非常短）
-    _playNoise(t) {
+    _playNoise(t, gains) {
         const ctx = this._audioContext;
         if (!this._noiseBuffer) return;
         const src = ctx.createBufferSource();
@@ -410,6 +537,7 @@ export class Metronome {
 
         src.connect(gain);
         gain.connect(ctx.destination);
+        gains.push(gain);
         src.start(t);
         src.stop(t + NOISE_DURATION + 0.005);
         src.onended = () => {
@@ -423,7 +551,7 @@ export class Metronome {
     }
 
     // 音色部分：单个振荡器 + PeriodicWave；强拍更响更长（“叮”），普通拍短促
-    _playTone(t, accent) {
+    _playTone(t, accent, gains) {
         const ctx = this._audioContext;
         if (!this._periodicWave) return;
         const osc = ctx.createOscillator();
@@ -440,6 +568,7 @@ export class Metronome {
 
         osc.connect(gain);
         gain.connect(ctx.destination);
+        gains.push(gain);
         osc.start(t);
         osc.stop(t + duration + 0.02);
         osc.onended = () => {

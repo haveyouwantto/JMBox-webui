@@ -20,6 +20,9 @@ import players from "./player/player-registry";
 import PicoAudioPlayer from "./player/picoaudio-player";
 import renderAndDownload from "./wav-render";
 
+// AudioPlayer（媒体元素）场景下，Web Audio 输出延迟估算不可用时的默认补偿量（秒）
+const AUDIO_LATENCY_FALLBACK = 0.04;
+
 export class JMBoxApp {
     constructor(baseUrl = '') {
         this.serverName = "JMBox";
@@ -190,6 +193,7 @@ export class JMBoxApp {
         this.player = new players[name];
         this.setPlayMode(settings.playMode);
         this.player.volume = settings.volume;
+        this.updateMetronomeLatencyCompensation();
 
 
         this.player.setEventListener('loaded', url => {
@@ -272,6 +276,21 @@ export class JMBoxApp {
             });
         }
 
+    }
+
+    /**
+     * 按当前播放器类型设置节拍器延迟补偿：
+     * PicoAudio 与节拍器同走 AudioContext，天然对齐，无需补偿；
+     * AudioPlayer 的音频走媒体元素管线，输出延迟与 Web Audio 不同，需要提前调度。
+     */
+    updateMetronomeLatencyCompensation(ensureContext = false) {
+        if (this.player instanceof PicoAudioPlayer) {
+            this.metronome.setLatencyCompensation(0);
+            return;
+        }
+        if (ensureContext) this.metronome.ensureAudioContext();
+        const latency = this.metronome.audioLatency() || AUDIO_LATENCY_FALLBACK;
+        this.metronome.setLatencyCompensation(latency);
     }
 
     loadLocalFile(file) {
@@ -540,6 +559,7 @@ export class JMBoxApp {
         playerBar.setEventListener('playmodechange', mode => editSetting('playMode', mode))
 
         playerBar.setEventListener('metronome', () => {
+            this.updateMetronomeLatencyCompensation(true);
             const position = this.player ? this.player.currentTime : 0;
             this.metronome.toggle(position);
             playerBar.setMetronomeActive(this.metronome.running);
