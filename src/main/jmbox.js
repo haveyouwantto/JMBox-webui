@@ -33,7 +33,10 @@ export class JMBoxApp {
         const canvas = waterfallElement.querySelector('canvas');
         this.midiFall = this._createRenderer(canvas);
         this.waterfall = new MidiFallController(waterfallElement, this.midiFall, null);
-        this.metronome = new Metronome();
+        this.metronome = new Metronome({
+            // 以高频采样播放进度触发，避免依赖播放器 timeupdate 的频率
+            timeSource: () => (this.player ? this.player.currentTime : 0)
+        });
 
         this.player = this.createPlayer(settings.player);
         this.cwd = null;
@@ -194,12 +197,12 @@ export class JMBoxApp {
             if (!(this.player instanceof PicoAudioPlayer)) {
                 loadMIDIUrl(url.replace("/play/", "/midi/")).then(smfData => {
                     this.waterfall.setMidiData(smfData);
-                    this.metronome.setMidiData(smfData, 0);
+                    this.metronome.setMidiData(smfData);
                     renderDialog.setAvailable(true);
                 });
             } else {
                 this.waterfall.setMidiData(picoAudio.playData);
-                this.metronome.setMidiData(picoAudio.playData, 0);
+                this.metronome.setMidiData(picoAudio.playData);
                 renderDialog.setAvailable(true);
             }
         });
@@ -263,6 +266,8 @@ export class JMBoxApp {
         if (this.playlist) {
             this.load(this.playlist.current().name).then(() => {
                 this.player.seek(playTime);
+                // 切换播放器后让节拍器锚定到恢复播放的位置
+                this.metronome.sync(playTime);
                 if (!paused) this.player.play();
             });
         }

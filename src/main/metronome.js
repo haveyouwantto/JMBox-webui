@@ -4,7 +4,7 @@
  * 与渲染器（waterfall）和播放器（player / picoaudio）完全解耦：
  * - 只依赖 MIDI 解析结果（tempoTrack / beatTrack / header.resolution /
  *   lastEventTime），节拍与强弱拍的解析逻辑与 waterfall 一致；
- * - 不自带时钟：由外部按播放进度调用 update(position) 触发，节拍声只在
+ * - 不自带节拍时钟：以高频采样播放进度（timeSource）触发，节拍声只在
  *   播放时间真正跨过某一拍时响起；暂停、seek、循环回绕时安静处理；
  * - 使用 Web Audio API 发声，不经过任何播放器。
  */
@@ -168,20 +168,6 @@ export function buildBeatSchedule(midiData) {
     return beats;
 }
 
-// 找到第一个 time >= position 的拍（二分查找）
-function lowerBound(beats, position) {
-    let lo = 0, hi = beats.length - 1, ans = beats.length;
-    while (lo <= hi) {
-        const mid = (lo + hi) >> 1;
-        if (beats[mid].time < position) lo = mid + 1;
-        else {
-            ans = mid;
-            hi = mid - 1;
-        }
-    }
-    return ans;
-}
-
 // 找到第一个 time > position 的拍（二分查找）
 function upperBound(beats, position) {
     let lo = 0, hi = beats.length - 1, ans = beats.length;
@@ -218,10 +204,15 @@ export class Metronome {
         this.volume = options.volume ?? 1;
         this.maxJumpSeconds = options.maxJumpSeconds ?? MAX_JUMP_SECONDS;
         this.maxClicksPerUpdate = options.maxClicksPerUpdate ?? MAX_CLICKS_PER_UPDATE;
+        // 播放进度采样器：() => 当前播放位置（秒）。传入后节拍器会以
+        // pollInterval 的间隔读取播放进度来触发，不依赖播放器的 timeupdate 频率。
+        this.timeSource = options.timeSource || null;
+        this.pollInterval = options.pollInterval ?? 20;
 
         this._beats = [];
         this._enabled = false;
         this._lastPosition = null;
+        this._pollTimer = null;
         this._noiseBuffer = null;
         this._periodicWave = null;
     }
@@ -236,11 +227,12 @@ export class Metronome {
 
     /**
      * 设置 MIDI 数据（tempoTrack / beatTrack / header.resolution）。
-     * 同时把跟踪位置重置到 position（新歌从 0 开始）。
+     * 可传入 position 指定新的跟踪锚点；不传则保留当前锚点
+     * （例如切换播放器后由 seek 同步位置决定）。
      */
-    setMidiData(midiData, position = 0) {
+    setMidiData(midiData, position) {
         this._beats = buildBeatSchedule(midiData);
-        this._lastPosition = Math.max(0, position || 0);
+        if (position != null) this._lastPosition = Math.max(0, position || 0);
     }
 
     /**
@@ -267,6 +259,7 @@ export class Metronome {
         }
         this._lastPosition = Math.max(0, position || 0);
         this._enabled = true;
+        this._startPolling();
         return true;
     }
 
@@ -275,6 +268,27 @@ export class Metronome {
      */
     stop() {
         this._enabled = false;
+        this._stopPolling();
+    }
+
+    _startPolling() {
+        if (!this.timeSource || this._pollTimer != null) return;
+        this._pollTimer = setInterval(() => this._poll(), this.pollInterval);
+    }
+
+    _stopPolling() {
+        if (this._pollTimer != null) {
+            clearInterval(this._pollTimer);
+            this._pollTimer = null;
+        }
+    }
+
+    _poll() {
+        if (!this._enabled || !this.timeSource) return;
+        const position = this.timeSource();
+        if (typeof position === 'number' && isFinite(position)) {
+            this.update(position);
+        }
     }
 
     /**
@@ -296,8 +310,9 @@ export class Metronome {
             return;
         }
 
+        // 严格窗口 (prev, position]：重复上报同一位置不会重复触发同一拍
         const from = upperBound(this._beats, prev);
-        const to = lowerBound(this._beats, position + 0.001);
+        const to = upperBound(this._beats, position);
         if (position - prev > this.maxJumpSeconds || to - from > this.maxClicksPerUpdate) {
             this._lastPosition = position;
             return;
