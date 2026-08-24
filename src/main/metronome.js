@@ -204,15 +204,16 @@ export class Metronome {
         this.volume = options.volume ?? 1;
         this.maxJumpSeconds = options.maxJumpSeconds ?? MAX_JUMP_SECONDS;
         this.maxClicksPerUpdate = options.maxClicksPerUpdate ?? MAX_CLICKS_PER_UPDATE;
-        // 播放进度采样器：() => 当前播放位置（秒）。传入后节拍器会以
-        // pollInterval 的间隔读取播放进度来触发，不依赖播放器的 timeupdate 频率。
+        // 播放进度采样器：() => 当前播放位置（秒）。传入后节拍器会在每一帧
+        // （requestAnimationFrame）读取播放进度来触发，不依赖播放器的 timeupdate 频率。
         this.timeSource = options.timeSource || null;
-        this.pollInterval = options.pollInterval ?? 20;
+        this.pollInterval = options.pollInterval ?? 16; // 仅无 rAF 环境（测试）的退化定时器间隔
+        this._useRaf = typeof requestAnimationFrame === 'function';
 
         this._beats = [];
         this._enabled = false;
         this._lastPosition = null;
-        this._pollTimer = null;
+        this._frameId = null;
         this._noiseBuffer = null;
         this._periodicWave = null;
     }
@@ -272,15 +273,26 @@ export class Metronome {
     }
 
     _startPolling() {
-        if (!this.timeSource || this._pollTimer != null) return;
-        this._pollTimer = setInterval(() => this._poll(), this.pollInterval);
+        if (!this.timeSource || this._frameId != null) return;
+        if (this._useRaf) {
+            const loop = () => {
+                this._poll();
+                this._frameId = requestAnimationFrame(loop);
+            };
+            this._frameId = requestAnimationFrame(loop);
+        } else {
+            this._frameId = setInterval(() => this._poll(), this.pollInterval);
+        }
     }
 
     _stopPolling() {
-        if (this._pollTimer != null) {
-            clearInterval(this._pollTimer);
-            this._pollTimer = null;
+        if (this._frameId == null) return;
+        if (this._useRaf) {
+            cancelAnimationFrame(this._frameId);
+        } else {
+            clearInterval(this._frameId);
         }
+        this._frameId = null;
     }
 
     _poll() {
