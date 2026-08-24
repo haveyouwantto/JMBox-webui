@@ -140,5 +140,7 @@
     "sf2.uploaded": "تم رفع SF2 وتحميله",
     "sf2.loadFailed": "فشل تحميل ملف SF2.",
     "sf2.restored": "تم استعادة SF2 الافتراضي",
-    "sf2.restoreFailed": "فشل استعادة SF2 الافتراضي"
+    "sf2.restoreFailed": "فشل استعادة SF2 الافتراضي",
+    "menu.metronome": "بندول الإيقاع",
+    "menu.metronome.stop": "إيقاف بندول الإيقاع"
 }

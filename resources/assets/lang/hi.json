@@ -140,5 +140,7 @@
     "sf2.uploaded": "SF2 अपलोड और लोड किया गया",
     "sf2.loadFailed": "SF2 फ़ाइल लोड करने में विफल।",
     "sf2.restored": "डिफ़ॉल्ट SF2 पुनर्स्थापित किया गया",
-    "sf2.restoreFailed": "डिफ़ॉल्ट SF2 पुनर्स्थापित करने में विफल"
+    "sf2.restoreFailed": "डिफ़ॉल्ट SF2 पुनर्स्थापित करने में विफल",
+    "menu.metronome": "मेट्रोनोम",
+    "menu.metronome.stop": "मेट्रोनोम बंद करें"
 }

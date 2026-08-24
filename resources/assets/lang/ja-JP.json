@@ -139,5 +139,7 @@
   "sf2.uploaded": "SF2 がアップロードされ、読み込まれました",
   "sf2.loadFailed": "SF2 ファイルの読み込みに失敗しました。",
   "sf2.restored": "デフォルトの SF2 を復元しました",
-  "sf2.restoreFailed": "デフォルトの SF2 の復元に失敗しました"
+  "sf2.restoreFailed": "デフォルトの SF2 の復元に失敗しました",
+    "menu.metronome": "メトロノーム",
+    "menu.metronome.stop": "メトロノームを停止"
 }

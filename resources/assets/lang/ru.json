@@ -140,5 +140,7 @@
     "sf2.uploaded": "SF2 загружен и установлен",
     "sf2.loadFailed": "Не удалось загрузить файл SF2.",
     "sf2.restored": "Восстановлен SF2 по умолчанию",
-    "sf2.restoreFailed": "Не удалось восстановить SF2 по умолчанию"
+    "sf2.restoreFailed": "Не удалось восстановить SF2 по умолчанию",
+    "menu.metronome": "Метроном",
+    "menu.metronome.stop": "Остановить метроном"
 }

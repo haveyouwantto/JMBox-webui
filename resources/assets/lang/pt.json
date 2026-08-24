@@ -140,5 +140,7 @@
     "sf2.uploaded": "SF2 carregado e aplicado",
     "sf2.loadFailed": "Falha ao carregar arquivo SF2.",
     "sf2.restored": "SF2 padrão restaurado",
-    "sf2.restoreFailed": "Falha ao restaurar SF2 padrão"
+    "sf2.restoreFailed": "Falha ao restaurar SF2 padrão",
+    "menu.metronome": "Metrônomo",
+    "menu.metronome.stop": "Parar metrônomo"
 }

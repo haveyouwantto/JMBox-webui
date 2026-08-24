@@ -140,5 +140,7 @@
     "sf2.uploaded": "SF2 আপলোড করা হয়েছে এবং লোড করা হয়েছে",
     "sf2.loadFailed": "SF2 ফাইল লোডে ব্যর্থ হয়েছে।",
     "sf2.restored": "ডিফল্ট SF2 পুনরুদ্ধার করা হয়েছে",
-    "sf2.restoreFailed": "ডিফল্ট SF2 পুনরুদ্ধার ব্যর্থ"
+    "sf2.restoreFailed": "ডিফল্ট SF2 পুনরুদ্ধার ব্যর্থ",
+    "menu.metronome": "মেট্রোনোম",
+    "menu.metronome.stop": "মেট্রোনোম বন্ধ করুন"
 }

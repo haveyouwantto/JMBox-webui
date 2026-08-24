@@ -14,6 +14,7 @@ import { createLocaleItem, localeInit, setLocale, getLocale } from "./locale";
 import { aboutDialog, languageDialog, midiInfoDialog, playModeSelectionDialog } from "./ui/quick-dialog";
 import { setDarkMode } from "./ui/ui-etc";
 import picoAudio, { loadMIDI, loadMIDIUrl, loadSoundfont, loadSoundFontSF2, loadStoredSF2IfAny } from "./picoaudio";
+import { Metronome } from "./metronome";
 import { setDropDownItems, setSettingItemEnabled, setSettingsDialogVisible, updateSettingsItem } from "./ui/settings-dialog";
 import players from "./player/player-registry";
 import PicoAudioPlayer from "./player/picoaudio-player";
@@ -32,6 +33,7 @@ export class JMBoxApp {
         const canvas = waterfallElement.querySelector('canvas');
         this.midiFall = this._createRenderer(canvas);
         this.waterfall = new MidiFallController(waterfallElement, this.midiFall, null);
+        this.metronome = new Metronome();
 
         this.player = this.createPlayer(settings.player);
         this.cwd = null;
@@ -192,10 +194,12 @@ export class JMBoxApp {
             if (!(this.player instanceof PicoAudioPlayer)) {
                 loadMIDIUrl(url.replace("/play/", "/midi/")).then(smfData => {
                     this.waterfall.setMidiData(smfData);
+                    this.metronome.setMidiData(smfData, 0);
                     renderDialog.setAvailable(true);
                 });
             } else {
                 this.waterfall.setMidiData(picoAudio.playData);
+                this.metronome.setMidiData(picoAudio.playData, 0);
                 renderDialog.setAvailable(true);
             }
         });
@@ -218,6 +222,8 @@ export class JMBoxApp {
             playerBar.setDuration(this.player.duration);
             playerBar.setProgress(time);
             playerBar.setBufferLength(this.player.bufferLength);
+            // 节拍器按播放进度触发：只有播放时间跨过某一拍时才响
+            this.metronome.update(time);
             // Seek changes fire 'timeupdate'; re-sync lyrics so they can move
             // backwards as well as forwards.
             if (this.waterfall && this.waterfall.lrc) {
@@ -283,6 +289,7 @@ export class JMBoxApp {
 
                     loadMIDI(buffer);
                     this.waterfall.setMidiData(picoAudio.playData);
+                    this.metronome.setMidiData(picoAudio.playData, 0);
                     this.player.play();
                     renderDialog.setAvailable(true);
                 } catch (error) {
@@ -349,6 +356,7 @@ export class JMBoxApp {
             if (this.player instanceof PicoAudioPlayer) {
                 loadMIDI(record.data);
                 this.waterfall.setMidiData(picoAudio.playData);
+                this.metronome.setMidiData(picoAudio.playData, 0);
                 renderDialog.setAvailable(true);
                 this.player.play();
                 playerBar.setSongName(name);
@@ -421,6 +429,7 @@ export class JMBoxApp {
                         this.player.play();
                         // Re-set data ensuring lyrics/notes are ready
                         this.waterfall.setMidiData(picoAudio.playData);
+                        this.metronome.setMidiData(picoAudio.playData, pos);
                     })
                 }
             });
@@ -459,6 +468,7 @@ export class JMBoxApp {
         playerBar.setEventListener('seek', percentage => {
             this.player.seekPercentage(percentage);
             if (this.waterfall.isVisible()) this.waterfall.start();
+            this.metronome.sync(this.player.duration * percentage);
         });
 
         playerBar.setEventListener('menuitem', func => {
@@ -523,6 +533,12 @@ export class JMBoxApp {
         })
 
         playerBar.setEventListener('playmodechange', mode => editSetting('playMode', mode))
+
+        playerBar.setEventListener('metronome', () => {
+            const position = this.player ? this.player.currentTime : 0;
+            this.metronome.toggle(position);
+            playerBar.setMetronomeActive(this.metronome.running);
+        });
 
 
         filelist.setEventListener('list', name => {
@@ -789,9 +805,20 @@ export class JMBoxApp {
                 this.player.pause();
             });
             navigator.mediaSession.setActionHandler('stop', () => this.player.stop());
-            navigator.mediaSession.setActionHandler('seekbackward', () => { this.player.seek(this.player.currentTime - 5) });
-            navigator.mediaSession.setActionHandler('seekforward', () => { this.player.seek(this.player.currentTime + 5) });
-            navigator.mediaSession.setActionHandler('seekto', action => { this.player.seek(action.seekTime) });
+            navigator.mediaSession.setActionHandler('seekbackward', () => {
+                const target = this.player.currentTime - 5;
+                this.player.seek(target);
+                this.metronome.sync(target);
+            });
+            navigator.mediaSession.setActionHandler('seekforward', () => {
+                const target = this.player.currentTime + 5;
+                this.player.seek(target);
+                this.metronome.sync(target);
+            });
+            navigator.mediaSession.setActionHandler('seekto', action => {
+                this.player.seek(action.seekTime);
+                this.metronome.sync(action.seekTime);
+            });
             navigator.mediaSession.setActionHandler('nexttrack', () => this.play(this.playlist.next().name));
             navigator.mediaSession.setActionHandler('previoustrack', () => this.play(this.playlist.prev().name));
         }

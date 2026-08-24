@@ -163,5 +163,7 @@
     "sf2.uploaded": "SF2 uploaded and loaded",
     "sf2.loadFailed": "Failed to load SF2 file.",
     "sf2.restored": "Restored default SF2",
-    "sf2.restoreFailed": "Failed to restore default SF2"
+    "sf2.restoreFailed": "Failed to restore default SF2",
+    "menu.metronome": "Metronome",
+    "menu.metronome.stop": "Stop metronome"
 }

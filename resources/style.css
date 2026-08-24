@@ -559,6 +559,11 @@ input[type="number"]:focus,
     color: var(--theme-color);
 }
 
+#metronome.active {
+    color: var(--theme-color);
+    background-color: var(--theme-color-20);
+}
+
 .time {
     display: flex;
     font-size: 16px;

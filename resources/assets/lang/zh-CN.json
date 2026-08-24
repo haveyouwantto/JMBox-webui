@@ -161,5 +161,7 @@
     "sf2.uploaded": "SF2 上传并已加载",
     "sf2.loadFailed": "加载 SF2 文件失败。",
     "sf2.restored": "已恢复默认 SF2",
-    "sf2.restoreFailed": "恢复默认 SF2 失败"
+    "sf2.restoreFailed": "恢复默认 SF2 失败",
+    "menu.metronome": "节拍器",
+    "menu.metronome.stop": "停止节拍器"
 }

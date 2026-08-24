@@ -1,6 +1,7 @@
 import EventListener from "../event-listener";
 import { $, formatTime } from "../utils";
 import { settings, editSetting } from "../settings";
+import { getLocale } from "../locale";
 
 const progressBar = $("#progress");
 const progressBarSlider = $("#progress-slider");
@@ -17,6 +18,7 @@ const nextButton = $("#next");
 const prevButton = $("#prev");
 const replayButton = $("#replay");
 const playModeButton = $("#playMode");
+const metronomeButton = $("#metronome");
 const volumeControl = $("#volume");
 const volumeControlSlider = $("#volume-slider");
 const volumeControlInner = $("#volume-inner");
@@ -180,6 +182,17 @@ playModeButton.addEventListener('click', e => {
     if (playMode == 4) playMode = 0;
     playerAdapter.on('playmodechange', playMode);
 });
+
+metronomeButton.title = getLocale('menu.metronome');
+
+metronomeButton.addEventListener('click', () => {
+    playerAdapter.on('metronome');
+});
+
+export function setMetronomeActive(active) {
+    metronomeButton.classList.toggle('active', active);
+    metronomeButton.title = getLocale(active ? 'menu.metronome.stop' : 'menu.metronome');
+}
 
 
 const wav = $("#wav");

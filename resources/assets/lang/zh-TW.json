@@ -140,5 +140,7 @@
     "player.failed.description": "播放這個檔案時發生錯誤。",
     "general.error": "錯誤",
     "browser.not-found": "資料夾未找到。",
-    "browser.empty": "空"
+    "browser.empty": "空",
+    "menu.metronome": "節拍器",
+    "menu.metronome.stop": "停止節拍器"
 }

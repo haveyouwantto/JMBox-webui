@@ -140,5 +140,7 @@
     "sf2.uploaded": "SF2 اپ لوڈ اور لوڈ ہو گیا ہے",
     "sf2.loadFailed": "SF2 فائل لوڈ کرنے میں ناکام۔",
     "sf2.restored": "ڈیفالٹ SF2 بحال ہو گیا ہے",
-    "sf2.restoreFailed": "ڈیفالٹ SF2 بحال کرنے میں ناکام"
+    "sf2.restoreFailed": "ڈیفالٹ SF2 بحال کرنے میں ناکام",
+    "menu.metronome": "میٹرونوم",
+    "menu.metronome.stop": "میٹرونوم روکیں"
 }

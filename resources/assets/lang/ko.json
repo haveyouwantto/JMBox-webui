@@ -140,5 +140,7 @@
     "sf2.uploaded": "SF2 업로드 및 로드됨",
     "sf2.loadFailed": "SF2 파일을 불러오는데 실패했습니다.",
     "sf2.restored": "기본 SF2가 복원되었습니다",
-    "sf2.restoreFailed": "기본 SF2 복원 실패"
+    "sf2.restoreFailed": "기본 SF2 복원 실패",
+    "menu.metronome": "메트로놈",
+    "menu.metronome.stop": "메트로놈 정지"
 }
