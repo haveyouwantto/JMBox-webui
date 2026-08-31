@@ -49,7 +49,15 @@ class FileList {
         this.clear();
 
         this.#filelist.sort(this.sortFunc);
+
         if (this.reversed) this.#filelist.reverse();
+
+        // Make folder always appear first
+        this.#filelist.sort((a, b) => {
+            if (a.isDir && !b.isDir) return -1;
+            if (!a.isDir && b.isDir) return 1;
+            return 0;
+        });
 
         if (this.#filelist.length == 0) {
             this.#empty.classList.remove('hidden')
