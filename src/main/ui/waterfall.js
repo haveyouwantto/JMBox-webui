@@ -2298,6 +2298,7 @@ export class MidiFallController {
         }
         this.lastLyricsTime = null;
         this.setupLyrics();
+        this._applyLyricsVisibility();
 
         // Bind resize
         this._observeResize();
@@ -2329,7 +2330,8 @@ export class MidiFallController {
                     this.lrcDiv.appendChild(segment);
                 }
             }
-            if (this.lyricsToggle) this.lyricsToggle.classList.toggle('hidden', lyricsList.length === 0);
+            // 换曲重建歌词行后按当前设置再决定一次显隐（否则关掉设置后又会冒出来）
+            this._applyLyricsVisibility();
         }
 
         this.lrc.onlyrics = (lyrics) => {
@@ -2426,6 +2428,7 @@ export class MidiFallController {
         } else {
             this.lrc.clear();
             this.lrcDiv.innerText = '';
+            this._applyLyricsVisibility();
         }
     }
 
@@ -2511,18 +2514,34 @@ export class MidiFallController {
     }
 
     setLyricsVisible(visible) {
-        if (visible) {
-            // Reload lyrics if data exists (handled in setMidiData or check existing)
-            // For now assume lrc object manages its state, we just ensure it updates
-            if (this.lyricsToggle) {
-                this.lyricsToggle.classList.toggle('hidden', this.lrcDiv.querySelectorAll('.lyrics-line').length === 0);
-            }
-        } else {
-            this.lrc.clear(); // Or just hide? logic was clear() before
-            this.lrcDiv.querySelectorAll('.lyrics-line').forEach(e => e.remove());
-            if (this.lyricsToggle) this.lyricsToggle.classList.add('hidden');
-            // we really should reload if enabled again, 
-            // but the original logic relied on loading from picoAudio.playData
+        // 只切显隐：歌词数据留着，重新打开设置时不用等下一首歌才恢复
+        this.midiFall.updateSettings({ showLyrics: visible });
+        this._applyLyricsVisibility();
+    }
+
+    /**
+     * 按当前设置（settings.showLyrics）显示/隐藏歌词。
+     * 换曲会重建歌词 DOM，所以 setLyricsVisible 和 lrc.onload 里都要调用它。
+     */
+    _applyLyricsVisibility() {
+        const visible = this.midiFall.settings.showLyrics !== false;
+        if (this.lyricsWrap) this.lyricsWrap.classList.toggle('hidden', !visible);
+
+        const hasLyrics = this.lrcDiv.querySelectorAll('.lyrics-line').length > 0;
+        if (this.lyricsToggle) {
+            this.lyricsToggle.classList.toggle('hidden', !visible || !hasLyrics);
+        }
+
+        if (!visible) {
+            this.lastLyricsTime = null;
+            return;
+        }
+
+        // 重新显示或刚换曲时对齐一次：seek 会先清掉旧高亮，只留当前这一句
+        if (hasLyrics && this.player) {
+            const time = this.player.currentTime;
+            this.lrc.seek(time);
+            this.lastLyricsTime = time;
         }
     }
 
