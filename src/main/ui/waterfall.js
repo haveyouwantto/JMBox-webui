@@ -9,6 +9,7 @@ import * as THREE from 'three';
 import { EffectComposer } from 'three/examples/jsm/postprocessing/EffectComposer.js';
 import { RenderPass } from 'three/examples/jsm/postprocessing/RenderPass.js';
 import { UnrealBloomPass } from 'three/examples/jsm/postprocessing/UnrealBloomPass.js';
+import { SMAAPass } from 'three/examples/jsm/postprocessing/SMAAPass.js';
 
 let fillColor = 'white';
 
@@ -1217,7 +1218,7 @@ export class WebGLRenderer {
             antialias: true,
             alpha: false
         });
-        this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+        this.renderer.setPixelRatio(window.devicePixelRatio || 1);
         this.renderer.shadowMap.enabled = false;
         this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
         this.renderer.toneMappingExposure = 1.35;
@@ -1231,10 +1232,20 @@ export class WebGLRenderer {
             this.bloomPass = new UnrealBloomPass(new THREE.Vector2(1, 1), this.settings.bloomStrength, this.settings.bloomRadius, this.settings.bloomThreshold);
             this.composer = new EffectComposer(this.renderer);
             this.composer.addPass(this.renderPass);
+            // 抗锯齿：后处理渲染到自己的 target，会绕过画布的 MSAA（antialias）。
+            // 这里不用 MSAA（帧缓冲要乘采样数，高分屏上有上百 MB），
+            // 改用 SMAA：两张全屏 target + 3 个全屏 pass，开销小得多
+            this.smaaPass = new SMAAPass(
+                Math.max(1, this.canvas.width),
+                Math.max(1, this.canvas.height)
+            );
+            this.composer.addPass(this.smaaPass);
             this.composer.addPass(this.bloomPass);
+            this._composerPixelRatio = this.renderer.getPixelRatio();
         } else {
             this.renderPass = null;
             this.bloomPass = null;
+            this.smaaPass = null;
             this.composer = null;
             console.warn('当前 GPU 不支持 float 渲染目标，已关闭 3D 后处理（bloom）');
         }
@@ -1403,7 +1414,9 @@ export class WebGLRenderer {
         //（EffectComposer 内部也会再乘 renderer.getPixelRatio() 去建 render target）。
         // 之前这里把 dpr 乘进尺寸又设了 pixelRatio，等于乘两次：手机上 dpr 3 + pixelRatio 2
         // 时绘制缓冲会到 6 倍，显存不够的 GPU 上帧缓冲分配失败就是整屏黑。
-        const pixelRatio = Math.min(window.devicePixelRatio || 1, 2);
+        // 按设备像素渲染：缓冲 = CSS 尺寸 × dpr，正好等于屏幕物理像素，
+        // 缩放/取 min(dpr,2) 都会让高分屏出现明显的像素感
+        const pixelRatio = window.devicePixelRatio || 1;
         this.dpr = pixelRatio;
 
         let { w, h } = this.detectSize();
@@ -1427,7 +1440,15 @@ export class WebGLRenderer {
         // 注意：不修改 canvas.width / canvas.height，只配置渲染器
         this.renderer.setPixelRatio(pixelRatio);
         this.renderer.setSize(w, h, false);
-        if (this.composer) this.composer.setSize(w, h);
+        if (this.composer) {
+            // EffectComposer 构造时记下了 pixelRatio，跨屏（dpr 变化）时要同步，
+            // 否则它的 render target 尺寸会跟画布对不上
+            if (this._composerPixelRatio !== pixelRatio) {
+                this._composerPixelRatio = pixelRatio;
+                this.composer.setPixelRatio(pixelRatio);
+            }
+            this.composer.setSize(w, h);
+        }
         this.camera.aspect = w / h;
 
         // 根据纵横比插值摄像机参数
