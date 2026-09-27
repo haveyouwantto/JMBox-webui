@@ -8,7 +8,7 @@ import { navbar } from "./ui/navbar";
 import * as playerBar from "./ui/player-bar";
 import { MidiFall, MidiFallController, WebGLRenderer } from './ui/waterfall'
 import Playlist from "./player/playlist";
-import { $, dbToGain, generatePlaylist, resetMIDI } from "./utils";
+import { $, dbToGain, generatePlaylist, resetMIDI, supportsWebGL2 } from "./utils";
 import { editSetting, loadSettings, settingChangeListener, settings } from "./settings";
 import { createLocaleItem, localeInit, setLocale, getLocale } from "./locale";
 import { aboutDialog, languageDialog, midiInfoDialog, playModeSelectionDialog } from "./ui/quick-dialog";
@@ -36,6 +36,12 @@ export class JMBoxApp {
         const canvas = waterfallElement.querySelector('canvas');
         this.midiFall = this._createRenderer(canvas);
         this.waterfall = new MidiFallController(waterfallElement, this.midiFall, null);
+        // 3D 渲染器彻底画不出来时（着色器/驱动问题）自动回退到 Canvas 2D，不然会一直黑屏
+        this.waterfall.onRendererError = () => {
+            console.warn('3D 渲染不可用，回退到 Canvas 2D 渲染器');
+            this.applyRendererMode('canvas2d');
+            editSetting('rendererMode', 'canvas2d');
+        };
         this.metronome = new Metronome({
             // 以高频采样播放进度触发，避免依赖播放器 timeupdate 的频率
             timeSource: () => (this.player ? this.player.currentTime : 0)
@@ -49,6 +55,11 @@ export class JMBoxApp {
 
         this.initializeListeners();
         loadSettings();
+        // 读到的渲染器设置如果在这台浏览器上跑不起来（没有 WebGL2），改回 2D，
+        // 免得设置界面显示 3D 而实际用的是 2D
+        if ((settings.rendererMode || 'webgl') !== 'canvas2d' && !supportsWebGL2()) {
+            editSetting('rendererMode', 'canvas2d');
+        }
         this.initialized = true;
     }
 
@@ -404,10 +415,35 @@ export class JMBoxApp {
 
     _createRenderer(canvas) {
         const mode = settings.rendererMode || 'webgl';
-        if (mode === 'canvas2d') {
-            return new MidiFall(canvas, settings);
+        if (mode !== 'canvas2d') {
+            if (!supportsWebGL2()) {
+                // 没有 WebGL2（老浏览器 / 关掉硬件加速）时不能建 3D 渲染器，
+                // 直接回退到 2D，否则 three.js 会抛异常把整个 app 卡住
+                console.warn('WebGL2 不可用，改用 Canvas 2D 渲染器');
+            } else {
+                try {
+                    return new WebGLRenderer(canvas, settings);
+                } catch (e) {
+                    console.warn('创建 WebGL 渲染器失败，改用 Canvas 2D 渲染器：', e);
+                }
+            }
         }
-        return new WebGLRenderer(canvas, settings);
+        return new MidiFall(canvas, settings);
+    }
+
+    // 按模式换渲染器（设置里切换、以及 3D 渲染失败回退时都用它）
+    applyRendererMode(mode) {
+        const midiFall = this.waterfall.midiFall;
+        const currentIsWebGL = midiFall instanceof WebGLRenderer;
+        const targetIsWebGL = mode !== 'canvas2d';
+        if (currentIsWebGL === targetIsWebGL) return;
+
+        const oldCanvas = midiFall.canvas;
+        const newCanvas = document.createElement('canvas');
+        newCanvas.id = oldCanvas.id;
+        newCanvas.style.cssText = oldCanvas.style.cssText;
+        oldCanvas.parentNode.replaceChild(newCanvas, oldCanvas);
+        this.waterfall.setRenderer(this._createRenderer(newCanvas));
     }
 
     setPlayMode(mode) {
@@ -729,20 +765,9 @@ export class JMBoxApp {
                 case "showLyrics":
                     this.waterfall.setLyricsVisible(e.value);
                     break;
-                case "rendererMode": {
-                    const midiFall = this.waterfall.midiFall;
-                    const currentIsWebGL = midiFall instanceof WebGLRenderer;
-                    const targetIsWebGL = e.value !== 'canvas2d';
-                    if (currentIsWebGL !== targetIsWebGL) {
-                        const oldCanvas = midiFall.canvas;
-                        const newCanvas = document.createElement('canvas');
-                        newCanvas.id = oldCanvas.id;
-                        newCanvas.style.cssText = oldCanvas.style.cssText;
-                        oldCanvas.parentNode.replaceChild(newCanvas, oldCanvas);
-                        this.waterfall.setRenderer(this._createRenderer(newCanvas));
-                    }
+                case "rendererMode":
+                    this.applyRendererMode(e.value);
                     break;
-                }
             }
             if (this.waterfall) this.waterfall.updateSettings(settings); // Propagate settings to MidiFall
             updateSettingsItem(e.key, e.value);

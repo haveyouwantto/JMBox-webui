@@ -434,6 +434,161 @@ function getKeySignatureAtPlayTime(playTime, tempoTrack, resolution, midiData) {
     return keySigName(s.sf, s.mi);
 }
 
+// ═══════════════════════════════════════════════════════════════════════════
+// 2D / 3D 共用的叠加层数据：小节线、拍线、变更分隔线、文本/歌词/标记事件。
+// 只有这一份获取逻辑，两个渲染器各自决定怎么画。
+// ═══════════════════════════════════════════════════════════════════════════
+
+// 叠加层配色（light = true 为浅色主题）
+export function getOverlayThemeColors(light) {
+    return light ? {
+        barLine: 'rgba(0,0,0,0.32)',
+        beatLine: 'rgba(0,0,0,0.13)',
+        barNumber: 'rgba(0,0,0,0.65)',
+        tempo: '#9a6700',
+        sig: '#0066aa',
+        key: '#6a3fd1',
+        divider: '#d84315',
+        dividerText: '#8d3f00',
+        textShadow: 'rgba(255,255,255,0.9)',
+        markerText: '#007c91',       // 0x01 Text
+        markerTextDot: '#006064',
+        markerLyrics: '#b23cb2',     // 0x05 Lyrics
+        markerLyricsDot: '#a026a0',
+        markerMarker: '#2e7d32',     // 0x06 Marker
+        markerMarkerDot: '#1b5e20'
+    } : {
+        barLine: '#ffffff40',
+        beatLine: '#ffffff15',
+        barNumber: '#ffffff80',
+        tempo: '#ffcc66',
+        sig: '#66ccff',
+        key: '#aa88ff',
+        divider: '#ffa726',
+        dividerText: '#ffcc80',
+        textShadow: 'rgba(0,0,0,0.8)',
+        markerText: '#4dd0e1',       // 0x01 Text
+        markerTextDot: '#26c6da',
+        markerLyrics: '#ff88ff',     // 0x05 Lyrics
+        markerLyricsDot: '#ff66ff',
+        markerMarker: '#81c784',     // 0x06 Marker
+        markerMarkerDot: '#66bb6a'
+    };
+}
+
+// 小节分段 / 变更事件：按 midiData 缓存（和 extractChordMarkers 的 _chordCache 同样做法）
+function getBarSegments(midiData) {
+    if (!midiData) return [];
+    if (!midiData._barSegmentsCache) {
+        const resolution = midiData.header ? midiData.header.resolution : 480;
+        midiData._barSegmentsCache = buildBarSegments(midiData.beatTrack, resolution);
+    }
+    return midiData._barSegmentsCache;
+}
+
+function getChangeEvents(midiData) {
+    if (!midiData) return [];
+    if (!midiData._changeEventsCache) midiData._changeEventsCache = buildChangeEvents(midiData);
+    return midiData._changeEventsCache;
+}
+
+/**
+ * 可见时间窗内的小节线与拍线，按时间先后返回（同一小节内先小节线、再它的拍线）。
+ * @param {number} pastDuration 窗口还要往前延伸多少秒（3D 想看到刚过去的线时用）
+ * @returns {Array<{time: number, kind: 'bar'|'beat', number?: number}>}
+ */
+export function collectBarLines(midiData, playTime, spanDuration, pastDuration = 0) {
+    const lines = [];
+    if (!midiData) return lines;
+
+    const tempoTrack = midiData.tempoTrack;
+    const resolution = midiData.header ? midiData.header.resolution : 480;
+    const segments = getBarSegments(midiData);
+    const visibleStartTick = Math.max(0, timeToTick(playTime - pastDuration, tempoTrack, resolution));
+    const visibleEndTick = timeToTick(playTime + spanDuration, tempoTrack, resolution);
+
+    // 从可见窗口起点所在的小节开始向后走；变拍号会让小节提前结束
+    let info = getBarInfoAtTick(visibleStartTick, segments, resolution);
+    let barTick = info.barStart;
+    let barNum = info.bar;
+
+    while (barTick <= visibleEndTick) {
+        const seg = info.seg;
+        const barEnd = Math.min(barTick + seg.ticksPerBar, seg.endTick);
+        lines.push({ time: tickToTime(barTick, tempoTrack, resolution), kind: 'bar', number: barNum });
+
+        if (seg.sigNum > 1) {
+            for (let beat = 1; beat < seg.sigNum; beat++) {
+                const beatTick = barTick + beat * seg.ticksPerBeat;
+                if (beatTick >= barEnd) break;
+                if (beatTick < visibleStartTick - 100 || beatTick > visibleEndTick + 100) continue;
+                lines.push({ time: tickToTime(beatTick, tempoTrack, resolution), kind: 'beat' });
+            }
+        }
+
+        barTick = barEnd;
+        barNum++;
+        if (barTick <= visibleEndTick) info = getBarInfoAtTick(barTick, segments, resolution);
+    }
+    return lines;
+}
+
+/**
+ * 可见时间窗内的拍号/调号变更分隔线。
+ * @param {number} pastDuration 窗口还要往前延伸多少秒
+ * @returns {Array<{time: number, text: string}>}
+ */
+export function collectChangeMarkers(midiData, playTime, spanDuration, pastDuration = 0) {
+    const result = [];
+    const events = getChangeEvents(midiData);
+    if (!events || events.length === 0) return result;
+
+    const tempoTrack = midiData.tempoTrack;
+    const resolution = midiData.header ? midiData.header.resolution : 480;
+    const visibleStartTick = Math.max(0, timeToTick(playTime - pastDuration, tempoTrack, resolution));
+    const visibleEndTick = timeToTick(playTime + spanDuration, tempoTrack, resolution);
+
+    for (const ev of events) {
+        if (ev.tick <= 0 || ev.tick < visibleStartTick || ev.tick > visibleEndTick) continue;
+        result.push({
+            time: tickToTime(ev.tick, tempoTrack, resolution),
+            text: ev.parts.map(p => p.label).join('  ')
+        });
+    }
+    return result;
+}
+
+/**
+ * 可见时间窗内的 0x01 Text / 0x05 Lyrics / 0x06 Marker 事件。
+ * @param {number} pastDuration 窗口还要往前延伸多少秒（3D 想看到刚过去的标记时用）
+ * @returns {Array<{time: number, text: string, type: number}>}
+ */
+export function collectMarkers(midiData, playTime, spanDuration, pastDuration = 0) {
+    const result = [];
+    const markers = extractChordMarkers(midiData);
+    if (!markers || markers.length === 0) return result;
+
+    const maxChars = 24;
+    const start = playTime - pastDuration;
+    const end = playTime + spanDuration + 1;
+    for (const m of markers) {
+        if (m.time <= start || m.time > end) continue;
+        let text = m.text;
+        if (text.length > maxChars) text = text.substring(0, maxChars - 1) + '…';
+        result.push({ time: m.time, text, type: m.type });
+    }
+    return result;
+}
+
+/** 标记类型对应的颜色（0x01 Text / 0x05 Lyrics / 0x06 Marker，其它按歌词处理） */
+export function getMarkerColors(type, colors) {
+    switch (type) {
+        case 0x01: return { dot: colors.markerTextDot, text: colors.markerText };
+        case 0x06: return { dot: colors.markerMarkerDot, text: colors.markerMarker };
+        default: return { dot: colors.markerLyricsDot, text: colors.markerLyrics };
+    }
+}
+
 export class MidiFall {
     constructor(canvas, settings = {}) {
         this.canvas = canvas;
@@ -469,10 +624,6 @@ export class MidiFall {
 
     setMidiData(midiData) {
         this.midiData = midiData;
-        this._barSegments = midiData
-            ? buildBarSegments(midiData.beatTrack, midiData.header ? midiData.header.resolution : 480)
-            : null;
-        this._changeEvents = midiData ? buildChangeEvents(midiData) : null;
     }
 
     detectSize() {
@@ -715,40 +866,7 @@ export class MidiFall {
 
     // ── Colors for the current theme (dark/light) ──
     _getThemeColors() {
-        const light = this._light === undefined ? isLightMode() : this._light;
-        return light ? {
-            barLine: 'rgba(0,0,0,0.32)',
-            beatLine: 'rgba(0,0,0,0.13)',
-            barNumber: 'rgba(0,0,0,0.65)',
-            tempo: '#9a6700',
-            sig: '#0066aa',
-            key: '#6a3fd1',
-            divider: '#d84315',
-            dividerText: '#8d3f00',
-            textShadow: 'rgba(255,255,255,0.9)',
-            markerText: '#007c91',       // 0x01 Text
-            markerTextDot: '#006064',
-            markerLyrics: '#b23cb2',     // 0x05 Lyrics
-            markerLyricsDot: '#a026a0',
-            markerMarker: '#2e7d32',     // 0x06 Marker
-            markerMarkerDot: '#1b5e20'
-        } : {
-            barLine: '#ffffff40',
-            beatLine: '#ffffff15',
-            barNumber: '#ffffff80',
-            tempo: '#ffcc66',
-            sig: '#66ccff',
-            key: '#aa88ff',
-            divider: '#ffa726',
-            dividerText: '#ffcc80',
-            textShadow: 'rgba(0,0,0,0.8)',
-            markerText: '#4dd0e1',       // 0x01 Text
-            markerTextDot: '#26c6da',
-            markerLyrics: '#ff88ff',     // 0x05 Lyrics
-            markerLyricsDot: '#ff66ff',
-            markerMarker: '#81c784',     // 0x06 Marker
-            markerMarkerDot: '#66bb6a'
-        };
+        return getOverlayThemeColors(this._light === undefined ? isLightMode() : this._light);
     }
 
     // ── Draw tempo, time signature, key signature in bottom-left (above keyboard) ──
@@ -809,71 +927,45 @@ export class MidiFall {
         const md = this.midiData;
         if (!md) return;
 
-        const tempoTrack = md.tempoTrack;
-        const resolution = md.header ? md.header.resolution : 480;
-        const segments = this._barSegments || buildBarSegments(md.beatTrack, resolution);
         const span = this.settings.spanDuration;
         const y0 = height - this.keyboardHeight;
-
-        // Compute visible tick range
-        const visibleStartTick = Math.max(0, timeToTick(playTime, tempoTrack, resolution));
-        const visibleEndTick = timeToTick(playTime + span, tempoTrack, resolution);
-
-        // Draw bar and beat lines within visible range
-        ctx.save();
-        ctx.lineWidth = 1 * this.dpr;
         const c = this._getThemeColors();
         const fontSize = Math.max(width / 64, 12 * this.dpr) 
         const unit = fontSize / 11;
 
-        // Start from the bar containing the top edge of the visible window and
-        // walk forward bar by bar; a time signature change closes a bar early.
-        let info = getBarInfoAtTick(visibleStartTick, segments, resolution);
-        let barTick = info.barStart;
-        let barNum = info.bar;
+        // 小节线/拍线来自与 3D 共用的 collectBarLines
+        ctx.save();
+        ctx.lineWidth = 1 * this.dpr;
 
-        while (barTick <= visibleEndTick) {
-            const seg = info.seg;
-            const barEnd = Math.min(barTick + seg.ticksPerBar, seg.endTick);
-            const barTime = tickToTime(barTick, tempoTrack, resolution);
-            const y = y0 - (barTime - playTime) * scaling;
-            if (y >= -10 && y <= y0 + 10) {
-                // Bar line: bright, thick
-                ctx.strokeStyle = c.barLine;
-                ctx.lineWidth = 2 * this.dpr;
+        for (const line of collectBarLines(md, playTime, span)) {
+            const y = y0 - (line.time - playTime) * scaling;
+
+            if (line.kind === 'beat') {
+                ctx.strokeStyle = c.beatLine;
+                ctx.lineWidth = 1 * this.dpr;
                 ctx.beginPath();
                 ctx.moveTo(0, y);
                 ctx.lineTo(width, y);
                 ctx.stroke();
-
-                // Bar number label on the right edge
-                ctx.fillStyle = c.barNumber;
-                ctx.font = `${fontSize}px sans-serif`;
-                ctx.textAlign = 'right';
-                ctx.textBaseline = 'bottom';
-                ctx.fillText(barNum, width - Math.round(unit * 6), y - Math.round(unit * 2));
+                continue;
             }
 
-            // Beat lines within this bar
-            if (seg.sigNum > 1) {
-                for (let beat = 1; beat < seg.sigNum; beat++) {
-                    const beatTick = barTick + beat * seg.ticksPerBeat;
-                    if (beatTick >= barEnd) break;
-                    if (beatTick < visibleStartTick - 100 || beatTick > visibleEndTick + 100) continue;
-                    const beatTime = tickToTime(beatTick, tempoTrack, resolution);
-                    const by = y0 - (beatTime - playTime) * scaling;
-                    ctx.strokeStyle = c.beatLine;
-                    ctx.lineWidth = 1 * this.dpr;
-                    ctx.beginPath();
-                    ctx.moveTo(0, by);
-                    ctx.lineTo(width, by);
-                    ctx.stroke();
-                }
-            }
+            if (y < -10 || y > y0 + 10) continue;
 
-            barTick = barEnd;
-            barNum++;
-            if (barTick <= visibleEndTick) info = getBarInfoAtTick(barTick, segments, resolution);
+            // Bar line: bright, thick
+            ctx.strokeStyle = c.barLine;
+            ctx.lineWidth = 2 * this.dpr;
+            ctx.beginPath();
+            ctx.moveTo(0, y);
+            ctx.lineTo(width, y);
+            ctx.stroke();
+
+            // Bar number label on the right edge
+            ctx.fillStyle = c.barNumber;
+            ctx.font = `${fontSize}px sans-serif`;
+            ctx.textAlign = 'right';
+            ctx.textBaseline = 'bottom';
+            ctx.fillText(line.number, width - Math.round(unit * 6), y - Math.round(unit * 2));
         }
 
         ctx.restore();
@@ -884,17 +976,17 @@ export class MidiFall {
         const ctx = this.ctx;
         const { width, height } = this.canvas;
         const md = this.midiData;
-        if (!md || !this._changeEvents || this._changeEvents.length === 0) return;
+        if (!md) return;
 
-        const tempoTrack = md.tempoTrack;
-        const resolution = md.header ? md.header.resolution : 480;
         const y0 = height - this.keyboardHeight;
         const span = this.settings.spanDuration;
-        const visibleStartTick = Math.max(0, timeToTick(playTime, tempoTrack, resolution));
-        const visibleEndTick = timeToTick(playTime + span, tempoTrack, resolution);
         const c = this._getThemeColors();
         const fontSize = Math.max(width / 64, 12 * this.dpr);
         const unit = fontSize / 11;
+
+        // 变更分隔线来自与 3D 共用的 collectChangeMarkers
+        const changes = collectChangeMarkers(md, playTime, span);
+        if (changes.length === 0) return;
 
         ctx.save();
         ctx.textBaseline = 'middle';
@@ -903,10 +995,8 @@ export class MidiFall {
         ctx.shadowBlur = Math.max(2, Math.round(unit * 4));
         ctx.shadowColor = c.textShadow;
 
-        for (const ev of this._changeEvents) {
-            if (ev.tick <= 0 || ev.tick < visibleStartTick || ev.tick > visibleEndTick) continue;
-            const t = tickToTime(ev.tick, tempoTrack, resolution);
-            const y = y0 - (t - playTime) * scaling;
+        for (const ev of changes) {
+            const y = y0 - (ev.time - playTime) * scaling;
             if (y < -30 || y > y0 + 30) continue;
 
             // Prominent divider line
@@ -920,11 +1010,10 @@ export class MidiFall {
             ctx.setLineDash([]);
 
             // Change info label
-            const text = ev.parts.map(p => p.label).join('  ');
             ctx.fillStyle = c.dividerText;
             ctx.font = `${fontSize}px sans-serif`;
             ctx.textAlign = 'left';
-            ctx.fillText(text, Math.round(unit * 8), y - Math.round(unit * 10));
+            ctx.fillText(ev.text, Math.round(unit * 8), y - Math.round(unit * 10));
         }
 
         ctx.restore();
@@ -937,10 +1026,11 @@ export class MidiFall {
         const md = this.midiData;
         if (!md) return;
 
-        const markers = extractChordMarkers(md);
+        const span = this.settings.spanDuration;
+        // 文本/歌词/标记事件来自与 3D 共用的 collectMarkers
+        const markers = collectMarkers(md, playTime, span);
         if (markers.length === 0) return;
 
-        const span = this.settings.spanDuration;
         const y0 = height - this.keyboardHeight;
         const c = this._getThemeColors();
         const fontSize = Math.max(width / 64, 12 * this.dpr);
@@ -955,26 +1045,9 @@ export class MidiFall {
         ctx.shadowColor = c.textShadow;
         ctx.textAlign = 'left';
 
-        // Color per marker type: 0x01 Text, 0x05 Lyrics, 0x06 Marker
-        const markerStyle = {
-            0x01: { dot: c.markerTextDot, text: c.markerText },
-            0x05: { dot: c.markerLyricsDot, text: c.markerLyrics },
-            0x06: { dot: c.markerMarkerDot, text: c.markerMarker }
-        };
-
-        for (let i = 0; i < markers.length; i++) {
-            const m = markers[i];
-            const markerTime = m.time;
-            // Only show markers in the future, within the visible window
-            if (markerTime <= playTime || markerTime > playTime + span + 1) continue;
-
-            const y = y0 - (markerTime - playTime) * scaling;
-            const st = markerStyle[m.type] || markerStyle[0x05];
-
-            // Short text
-            const maxChars = 24;
-            let text = m.text;
-            if (text.length > maxChars) text = text.substring(0, maxChars - 1) + '…';
+        for (const m of markers) {
+            const y = y0 - (m.time - playTime) * scaling;
+            const st = getMarkerColors(m.type, c);
 
             // Draw a small decorative dot at the time position
             ctx.fillStyle = st.dot;
@@ -984,7 +1057,7 @@ export class MidiFall {
 
             // Draw marker text
             ctx.fillStyle = st.text;
-            ctx.fillText(text, Math.round(unit * 18), y);
+            ctx.fillText(m.text, Math.round(unit * 18), y);
         }
 
         ctx.restore();
@@ -1049,6 +1122,40 @@ export class MidiFall {
     }
 }
 
+// ── 3D 叠加层排版（世界坐标；轨道宽 136，音符在 y ≈ 0.05 ~ 2.9）──
+const OVERLAY_PAST_SECONDS = 1;             // 播放线后方也画这么多秒（刚过去的线/标记不立刻消失）
+const OVERLAY_LINE_Y = -0.42;               // 贴在网格上方、所有音符之下
+const OVERLAY_LINE_DEPTH = 0.06;
+const OVERLAY_BAR_THICKNESS = 0.1;
+const OVERLAY_BEAT_THICKNESS = 0.045;
+const OVERLAY_DIVIDER_THICKNESS = 0.2;
+const OVERLAY_LINE_CAPACITY = 512;
+const OVERLAY_DIVIDER_CAPACITY = 64;
+const OVERLAY_LABEL_HEIGHT = 2;             // 文本精灵高度
+const OVERLAY_LABEL_Y = 3.9;                // 音符通道上方
+// 相机朝 +z 看，屏幕右 = 世界 -x（和 2D 的 x 方向相反）。
+// 下面这些 X 一律按「屏幕方位」写（正 = 右、负 = 左），摆到世界里时统一取负。
+const OVERLAY_LABEL_EDGE_X = 62;            // 屏幕左右边缘：小节号（右）/ 变更说明（左）
+const OVERLAY_MARKER_DOT_X = -60;           // 屏幕左侧：标记圆点
+const OVERLAY_MARKER_TEXT_X = -57;          // 屏幕左侧：标记文字起点
+const OVERLAY_DOT_SIZE = 0.7;
+const OVERLAY_TEXT_CACHE_LIMIT = 256;
+
+/** '#rrggbbaa' / 'rgba(r,g,b,a)' / '#rrggbb' → { color: THREE.Color, opacity } */
+function cssColorToThreeAlpha(css) {
+    const text = String(css).trim();
+    const rgba = /^rgba?\(([^)]+)\)$/i.exec(text);
+    if (rgba) {
+        const parts = rgba[1].split(',').map(v => parseFloat(v));
+        const opacity = parts.length > 3 ? Math.min(1, Math.max(0, parts[3])) : 1;
+        return { color: new THREE.Color().setStyle(`rgb(${parts[0]},${parts[1]},${parts[2]})`), opacity };
+    }
+    if (/^#[0-9a-f]{8}$/i.test(text)) {
+        return { color: new THREE.Color().setStyle(text.slice(0, 7)), opacity: parseInt(text.slice(7), 16) / 255 };
+    }
+    return { color: new THREE.Color().setStyle(text), opacity: 1 };
+}
+
 
 export class WebGLRenderer {
     constructor(canvas, settings = {}) {
@@ -1061,6 +1168,7 @@ export class WebGLRenderer {
             detailedNotes: false,
             prefmon: false,
             showLyrics: true,
+            showBarLines: true,
             fixedDeltaTime: undefined,
 
             // ── 摄像机 ──
@@ -1114,11 +1222,22 @@ export class WebGLRenderer {
         this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
         this.renderer.toneMappingExposure = 1.35;
 
-        this.renderPass = new RenderPass(this.scene, this.camera);
-        this.bloomPass = new UnrealBloomPass(new THREE.Vector2(1, 1), this.settings.bloomStrength, this.settings.bloomRadius, this.settings.bloomThreshold);
-        this.composer = new EffectComposer(this.renderer);
-        this.composer.addPass(this.renderPass);
-        this.composer.addPass(this.bloomPass);
+        // 后处理（bloom）要渲染到 half-float 的 render target；拿不到 float color buffer
+        // 扩展的 GPU 上帧缓冲不完整，画面会整屏全黑。检测不到就直接直出渲染，不做后处理。
+        const gl = this.renderer.getContext();
+        const canRenderToFloat = !!(gl && (gl.getExtension('EXT_color_buffer_float') || gl.getExtension('EXT_color_buffer_half_float')));
+        if (canRenderToFloat) {
+            this.renderPass = new RenderPass(this.scene, this.camera);
+            this.bloomPass = new UnrealBloomPass(new THREE.Vector2(1, 1), this.settings.bloomStrength, this.settings.bloomRadius, this.settings.bloomThreshold);
+            this.composer = new EffectComposer(this.renderer);
+            this.composer.addPass(this.renderPass);
+            this.composer.addPass(this.bloomPass);
+        } else {
+            this.renderPass = null;
+            this.bloomPass = null;
+            this.composer = null;
+            console.warn('当前 GPU 不支持 float 渲染目标，已关闭 3D 后处理（bloom）');
+        }
 
         this.trackWidth = 136;
         this.channelLaneStep = 0.18;
@@ -1187,6 +1306,22 @@ export class WebGLRenderer {
         this.rightRail = new THREE.Mesh(railGeo, this.railMaterial);
         this.rightRail.position.set(65, 0, 0);
         this.scene.add(this.rightRail);
+
+        // ── 叠加层：小节线/拍线/变更分隔线（InstancedMesh）+ 文本标记（Sprite）──
+        // 数据与 2D 共用 collectBarLines / collectChangeMarkers / collectMarkers
+        this._overlayColors = getOverlayThemeColors(false);   // 3D 场景恒为暗色
+        this._overlayDummy = new THREE.Object3D();
+        this._overlayLines = {
+            bar: this._createOverlayLineMesh(this._overlayColors.barLine, OVERLAY_LINE_CAPACITY),
+            beat: this._createOverlayLineMesh(this._overlayColors.beatLine, OVERLAY_LINE_CAPACITY),
+            divider: this._createOverlayLineMesh(this._overlayColors.divider, OVERLAY_DIVIDER_CAPACITY, true)
+        };
+        this._overlayLabelPool = [];
+        this._overlayLabelIndex = 0;
+        this._overlayDotPool = [];
+        this._overlayDotIndex = 0;
+        this._textTextureCache = new Map();
+        this._overlayFrame = 0;
 
         // ── Particle effects ──
         this.popDotTexture = this._createPopTexture('dot');
@@ -1257,24 +1392,25 @@ export class WebGLRenderer {
     setMidiData(midiData) { this.midiData = midiData; }
 
     detectSize() {
-        let {
-            width: w,
-            height: h
-        } = this.canvas.getBoundingClientRect();
-
-        this.dpr = window.devicePixelRatio || 1;
-        w = this.dpr * w;
-        h = this.dpr * h;
-
+        // 逻辑像素（CSS 尺寸）：设备像素由 resize() 里的 pixelRatio 负责，
+        // 不要在这里乘 dpr，否则 setSize 里会再乘一次
+        const { width: w, height: h } = this.canvas.getBoundingClientRect();
         return { w, h };
     }
 
     resize() {
-        // 读取 canvas 当前尺寸（外部应已设置好）
+        // setSize / composer.setSize 都吃逻辑像素，设备像素由 renderer 的 pixelRatio 乘
+        //（EffectComposer 内部也会再乘 renderer.getPixelRatio() 去建 render target）。
+        // 之前这里把 dpr 乘进尺寸又设了 pixelRatio，等于乘两次：手机上 dpr 3 + pixelRatio 2
+        // 时绘制缓冲会到 6 倍，显存不够的 GPU 上帧缓冲分配失败就是整屏黑。
+        const pixelRatio = Math.min(window.devicePixelRatio || 1, 2);
+        this.dpr = pixelRatio;
+
         let { w, h } = this.detectSize();
 
-        w = Math.min(w, 7680);
-        h = Math.min(h, 4320);
+        // 上限按绘制缓冲算（7680x4320），换算回逻辑像素
+        w = Math.min(w, 7680 / pixelRatio);
+        h = Math.min(h, 4320 / pixelRatio);
 
         w = Math.max(1, w);
         h = Math.max(1, h);
@@ -1287,10 +1423,11 @@ export class WebGLRenderer {
             return;
         }
 
-        console.log(`Resizing canvas to ${w}x${h} (DPR: ${this.dpr})`);
+        console.log(`Resizing canvas to ${w}x${h} (pixelRatio: ${pixelRatio})`);
         // 注意：不修改 canvas.width / canvas.height，只配置渲染器
+        this.renderer.setPixelRatio(pixelRatio);
         this.renderer.setSize(w, h, false);
-        this.composer.setSize(w, h);
+        if (this.composer) this.composer.setSize(w, h);
         this.camera.aspect = w / h;
 
         // 根据纵横比插值摄像机参数
@@ -1324,6 +1461,36 @@ export class WebGLRenderer {
     }
 
     renderFrame(playTime) {
+        try {
+            this._renderFrame(playTime);
+        } catch (e) {
+            this._handleRenderError(e);
+        }
+    }
+
+    // 渲染抛异常时不要让画面停在黑屏：
+    // 先关掉后处理（bloom/render target 是最常见的黑屏来源）再直出渲染，
+    // 还是不行就交给控制器回退到 Canvas 2D
+    _handleRenderError(e) {
+        if (!this._renderErrorLogged) {
+            this._renderErrorLogged = true;
+            console.error('3D 渲染出错：', e);
+        }
+        if (this.composer) {
+            this.composer = null;
+            this.bloomPass = null;
+            this.renderPass = null;
+            console.warn('已关闭 3D 后处理继续渲染');
+            return;
+        }
+        if (this.onFatalError) {
+            const callback = this.onFatalError;
+            this.onFatalError = null;
+            callback(e);
+        }
+    }
+
+    _renderFrame(playTime) {
         this.lastTime = playTime;
         const s = this.settings;
         const now = performance.now();
@@ -1510,6 +1677,9 @@ export class WebGLRenderer {
         }
 
         // 摄像机
+        // 叠加层：小节线/拍线/变更分隔线/标记（数据与 2D 共用）
+        this._drawOverlay(playTime, s.showBarLines !== false);
+
         const camTargetX = 0;
         const camTargetY = this.cameraYOffset;
         const camTargetZ = playZ - this.cameraZOffset;
@@ -1518,7 +1688,8 @@ export class WebGLRenderer {
         );
         this.camera.lookAt(0, 1.2, playZ + this.cameraLookAhead);
 
-        this.composer.render();
+        if (this.composer) this.composer.render();
+        else this.renderer.render(this.scene, this.camera);
 
         if (s.prefmon) this._drawPerfMon();
     }
@@ -1726,6 +1897,213 @@ export class WebGLRenderer {
         }
     }
 
+    // ══ 叠加层：小节线 / 拍线 / 变更分隔线 / 文本标记 ══
+    // 数据全部来自 2D / 3D 共用的 collect* 函数，这里只负责摆到 3D 场景里
+
+    _createOverlayLineMesh(cssColor, capacity, dashed = false) {
+        const { color, opacity } = cssColorToThreeAlpha(cssColor);
+        const material = new THREE.MeshBasicMaterial({
+            color,
+            transparent: true,
+            opacity,
+            depthWrite: false,
+            toneMapped: false
+        });
+        if (dashed) material.map = this._createDashTexture();
+
+        const mesh = new THREE.InstancedMesh(this.noteGeometry, material, capacity);
+        mesh.count = 0;
+        mesh.frustumCulled = false;
+        mesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+        this.scene.add(mesh);
+        return { mesh, capacity, used: 0 };
+    }
+
+    // 变更分隔线用的虚线贴图：一段实、一段空，横向重复
+    _createDashTexture() {
+        const canvas = document.createElement('canvas');
+        canvas.width = 32;
+        canvas.height = 4;
+        const ctx = canvas.getContext('2d');
+        ctx.fillStyle = '#ffffff';
+        ctx.fillRect(0, 0, 18, 4);
+        const texture = new THREE.CanvasTexture(canvas);
+        texture.wrapS = THREE.RepeatWrapping;
+        texture.repeat.set(64, 1);
+        return texture;
+    }
+
+    _drawOverlay(playTime, enabled) {
+        const md = this.midiData;
+        this._overlayFrame++;
+
+        for (const key in this._overlayLines) this._overlayLines[key].used = 0;
+        this._overlayLabelIndex = 0;
+        this._overlayDotIndex = 0;
+
+        if (enabled && md) {
+            const span = this.webglSpanDuration;   // 3D 自己的可视范围
+            const past = OVERLAY_PAST_SECONDS;     // 播放线后方也画一段
+            const zScale = this.settings.zScale;
+            const colors = this._overlayColors;
+
+            for (const line of collectBarLines(md, playTime, span, past)) {
+                const isBar = line.kind === 'bar';
+                this._addOverlayLine(isBar ? 'bar' : 'beat', line.time * zScale,
+                    isBar ? OVERLAY_BAR_THICKNESS : OVERLAY_BEAT_THICKNESS);
+                if (isBar && line.number != null) {
+                    this._addOverlayLabel(String(line.number), colors.barNumber, {
+                        x: OVERLAY_LABEL_EDGE_X, align: 'right', y: OVERLAY_LABEL_Y, z: line.time * zScale
+                    });
+                }
+            }
+
+            for (const ev of collectChangeMarkers(md, playTime, span, past)) {
+                const z = ev.time * zScale;
+                this._addOverlayLine('divider', z, OVERLAY_DIVIDER_THICKNESS);
+                this._addOverlayLabel(ev.text, colors.dividerText, {
+                    x: -OVERLAY_LABEL_EDGE_X, align: 'left', y: OVERLAY_LABEL_Y + 1.2, z
+                });
+            }
+
+            for (const m of collectMarkers(md, playTime, span, past)) {
+                const z = m.time * zScale;
+                const style = getMarkerColors(m.type, colors);
+                this._addOverlayDot(style.dot, OVERLAY_MARKER_DOT_X, OVERLAY_LABEL_Y, z);
+                this._addOverlayLabel(m.text, style.text, {
+                    x: OVERLAY_MARKER_TEXT_X, align: 'left', y: OVERLAY_LABEL_Y, z
+                });
+            }
+        }
+
+        // 收起没用到的实例 / 精灵
+        for (const key in this._overlayLines) {
+            const group = this._overlayLines[key];
+            group.mesh.count = group.used;
+            group.mesh.instanceMatrix.needsUpdate = true;
+        }
+        for (let i = this._overlayLabelIndex; i < this._overlayLabelPool.length; i++) {
+            this._overlayLabelPool[i].visible = false;
+        }
+        for (let i = this._overlayDotIndex; i < this._overlayDotPool.length; i++) {
+            this._overlayDotPool[i].visible = false;
+        }
+
+        this._pruneTextTextures();
+    }
+
+    _addOverlayLine(key, z, thickness) {
+        const group = this._overlayLines[key];
+        if (group.used >= group.capacity) return;
+        this._overlayDummy.position.set(0, OVERLAY_LINE_Y, z);
+        this._overlayDummy.scale.set(this.trackWidth, thickness, OVERLAY_LINE_DEPTH);
+        this._overlayDummy.updateMatrix();
+        group.mesh.setMatrixAt(group.used++, this._overlayDummy.matrix);
+    }
+
+    _addOverlayLabel(text, colorCss, { x, align, y, z }) {
+        const texture = this._getTextTexture(text, colorCss);
+        if (!texture) return;
+
+        let sprite = this._overlayLabelPool[this._overlayLabelIndex];
+        if (!sprite) sprite = this._createOverlayLabelSprite(texture);
+        this._overlayLabelIndex++;
+
+        sprite.material.map = texture;
+        const aspect = texture.image.width / texture.image.height;
+        const width = OVERLAY_LABEL_HEIGHT * aspect;
+        sprite.scale.set(width, OVERLAY_LABEL_HEIGHT, 1);
+        // x 是屏幕方位，换算到世界坐标要取负；对齐方向也跟着反过来
+        const worldX = -x;
+        sprite.position.set(align === 'right' ? worldX + width / 2 : worldX - width / 2, y, z);
+        sprite.visible = true;
+    }
+
+    _addOverlayDot(colorCss, x, y, z) {
+        let sprite = this._overlayDotPool[this._overlayDotIndex];
+        if (!sprite) sprite = this._createOverlayDotSprite();
+        this._overlayDotIndex++;
+
+        const { color, opacity } = cssColorToThreeAlpha(colorCss);
+        sprite.material.color.copy(color);
+        sprite.material.opacity = opacity;
+        sprite.scale.setScalar(OVERLAY_DOT_SIZE);
+        sprite.position.set(-x, y, z);
+        sprite.visible = true;
+    }
+
+    // 贴图在创建材质时就传入：three.js 只在 material.version 变化时重新编译程序，
+    // 先建好带 map 的材质，之后换文本纹理才能生效
+    _createOverlayLabelSprite(map) {
+        const material = new THREE.SpriteMaterial({
+            map,
+            transparent: true,
+            depthWrite: false,
+            toneMapped: false
+        });
+        const sprite = new THREE.Sprite(material);
+        sprite.visible = false;
+        this.scene.add(sprite);
+        this._overlayLabelPool.push(sprite);
+        return sprite;
+    }
+
+    _createOverlayDotSprite() {
+        const material = new THREE.SpriteMaterial({
+            map: this.popDotTexture,
+            transparent: true,
+            depthWrite: false,
+            blending: THREE.AdditiveBlending,
+            toneMapped: false
+        });
+        const sprite = new THREE.Sprite(material);
+        sprite.visible = false;
+        this.scene.add(sprite);
+        this._overlayDotPool.push(sprite);
+        return sprite;
+    }
+
+    // 文本纹理按 (颜色, 文本) 缓存：字体先画在 canvas 上再传给 GPU
+    _getTextTexture(text, colorCss) {
+        const key = colorCss + '\u0000' + text;
+        const cached = this._textTextureCache.get(key);
+        if (cached) {
+            cached.lastUsed = this._overlayFrame;
+            return cached.texture;
+        }
+
+        const canvas = document.createElement('canvas');
+        const ctx = canvas.getContext('2d');
+        const fontSize = 64;
+        const pad = 8;
+        const font = `${fontSize}px sans-serif`;
+        ctx.font = font;
+        canvas.width = Math.ceil(ctx.measureText(text).width) + pad * 2;
+        canvas.height = fontSize + pad * 2;
+
+        // 设置 canvas 尺寸会重置 2D 状态，重新设置一次
+        ctx.font = font;
+        ctx.textBaseline = 'middle';
+        ctx.textAlign = 'left';
+        ctx.fillStyle = colorCss;
+        ctx.fillText(text, pad, canvas.height / 2);
+
+        const texture = new THREE.CanvasTexture(canvas);
+        texture.colorSpace = THREE.SRGBColorSpace;
+        this._textTextureCache.set(key, { texture, lastUsed: this._overlayFrame });
+        return texture;
+    }
+
+    _pruneTextTextures() {
+        if (this._textTextureCache.size <= OVERLAY_TEXT_CACHE_LIMIT) return;
+        for (const [key, entry] of this._textTextureCache) {
+            if (entry.lastUsed < this._overlayFrame - 120) {
+                entry.texture.dispose();
+                this._textTextureCache.delete(key);
+            }
+        }
+    }
+
     _drawPerfMon() {
         const now = performance.now();
         const frameTime = now - this.lastDrawTime;
@@ -1904,6 +2282,8 @@ export class MidiFallController {
         this.waterfallElement = waterfallElement;
         this.midiFall = midiFall;
         this.player = player;
+        this.onRendererError = null;
+        this._bindRendererError(this.midiFall);
         this.animationId = null;
         this.wakeLock = null;
         this.wakeLockSupported = 'wakeLock' in navigator;
@@ -1920,10 +2300,7 @@ export class MidiFallController {
         this.setupLyrics();
 
         // Bind resize
-        this.resizeObserver = new ResizeObserver(entries => {
-            this.midiFall.resize();
-        });
-        this.resizeObserver.observe(this.midiFall.canvas);
+        this._observeResize();
         window.addEventListener('resize', () => {
             this.midiFall.resize();
         });
@@ -1988,6 +2365,34 @@ export class MidiFallController {
         this.player = player;
     }
 
+    /**
+     * 监听画布尺寸变化。老浏览器没有 ResizeObserver，这种情况下退回
+     * window resize 事件 + setVisible/setRenderer 里的显式 resize()。
+     */
+    _observeResize() {
+        if (this.resizeObserver) {
+            this.resizeObserver.disconnect();
+            this.resizeObserver = null;
+        }
+        if (typeof ResizeObserver === 'undefined') return;
+        this.resizeObserver = new ResizeObserver(() => {
+            this.midiFall.resize();
+        });
+        this.resizeObserver.observe(this.midiFall.canvas);
+    }
+
+    /**
+     * 3D 渲染器彻底画不出来时（着色器/驱动问题）由它通知上层回退到 2D，
+     * 避免一直停在黑屏。
+     */
+    _bindRendererError(renderer) {
+        if (!(renderer instanceof WebGLRenderer)) return;
+        renderer.onFatalError = e => {
+            console.error('3D 渲染器不可用，准备回退到 Canvas 2D：', e);
+            if (this.onRendererError) this.onRendererError(e);
+        };
+    }
+
     setRenderer(newRenderer) {
         // 停止当前动画循环
         const wasRunning = this.animationId != null;
@@ -1999,11 +2404,9 @@ export class MidiFallController {
         // 替换渲染器
         const oldMidiData = this.midiFall.midiData;
         this.midiFall = newRenderer;
+        this._bindRendererError(this.midiFall);
         // 重新绑定 resize
-        this.resizeObserver = new ResizeObserver(entries => {
-            this.midiFall.resize();
-        });
-        this.resizeObserver.observe(this.midiFall.canvas);
+        this._observeResize();
         // 恢复数据
         if (oldMidiData) {
             this.midiFall.setMidiData(oldMidiData);

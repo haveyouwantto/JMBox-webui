@@ -6,6 +6,22 @@ export function $(e, parent = document) {
     else return l;
 }
 
+/**
+ * 3D（three.js）渲染器需要 WebGL2；老浏览器 / 关掉硬件加速时会拿不到上下文。
+ * 结果缓存，避免每次都建 canvas。
+ */
+let webgl2Supported = null;
+export function supportsWebGL2() {
+    if (webgl2Supported === null) {
+        try {
+            webgl2Supported = !!document.createElement('canvas').getContext('webgl2');
+        } catch (e) {
+            webgl2Supported = false;
+        }
+    }
+    return webgl2Supported;
+}
+
 
 export function padding(num) {
     if (isNaN(num) || !isFinite(num)) {

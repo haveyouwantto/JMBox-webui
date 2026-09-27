@@ -125,6 +125,7 @@
     "settings.tab.3d": "3D",
     "settings.render.mode": "渲染模式",
     "settings.render.webgl": "WebGL 3D",
+    "settings.render.webgl-unsupported": "当前浏览器不可用（需要 WebGL2）",
     "settings.render.canvas2d": "Canvas 2D",
     "settings.render.bloom": "辉光",
     "settings.render.bloom-strength": "辉光强度",

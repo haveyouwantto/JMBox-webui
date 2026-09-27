@@ -1,5 +1,5 @@
 import { editSetting, settings } from "../settings";
-import { $, updateChecker } from "../utils";
+import { $, updateChecker, supportsWebGL2 } from "../utils";
 import { saveSF2File, loadStoredSF2IfAny, restoreDefaultSF2, getCurrentSF2Name } from "../picoaudio";
 import * as dialog from './dialog';
 import { getLocale } from '../locale';
@@ -34,6 +34,13 @@ $("*[setting]").forEach(element => {
 
     if (element.getAttribute('requireSecure') && !window.isSecureContext) {
         element.style.display = 'none';
+    }
+
+    // 3D 渲染器依赖 WebGL2：不支持就禁用这一项，别让用户选了却加载不出来
+    if (key === 'rendererMode' && element.getAttribute('value') === 'webgl' && !supportsWebGL2()) {
+        element.disabled = true;
+        element.title = getLocale('settings.render.webgl-unsupported');
+        console.warn('WebGL2 不可用，已禁用 WebGL 3D 渲染器选项');
     }
 
     switch (type) {

@@ -126,6 +126,7 @@
     "settings.tab.3d": "3D",
     "settings.render.mode": "Rendering Mode",
     "settings.render.webgl": "WebGL 3D",
+    "settings.render.webgl-unsupported": "Unavailable in this browser (needs WebGL2)",
     "settings.render.canvas2d": "Canvas 2D",
     "settings.render.bloom": "Bloom",
     "settings.render.bloom-strength": "Bloom Strength",
