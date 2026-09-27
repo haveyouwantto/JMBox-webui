@@ -75,7 +75,43 @@ function togglePause() {
 
 playButton.addEventListener('click', togglePause);
 
-progressBarSlider.addEventListener('input', e => {
+// 手机上滚动文件列表时，手指容易落到进度条上：这里区分竖向滑动（滚动列表，
+// 不跳进度）和横向拖动/轻点（跳进度）。用捕获阶段记录起点，因为原生滑杆
+// 在 pointerdown 时就会改值并派发 input。
+const AXIS_DEAD_ZONE = 8;   // px：判定方向前的抖动容差
+let progressGesture = null; // {pointerId, x, y, axis: null | 'x' | 'y'}
+
+progressBar.addEventListener('pointerdown', e => {
+    if (e.button !== 0) return;
+    progressGesture = { pointerId: e.pointerId, x: e.clientX, y: e.clientY, axis: null };
+}, true);
+
+window.addEventListener('pointermove', e => {
+    if (!progressGesture || e.pointerId !== progressGesture.pointerId) return;
+    if (progressGesture.axis != null) return;
+    const dx = Math.abs(e.clientX - progressGesture.x);
+    const dy = Math.abs(e.clientY - progressGesture.y);
+    if (dx < AXIS_DEAD_ZONE && dy < AXIS_DEAD_ZONE) return;
+    progressGesture.axis = dx > dy ? 'x' : 'y';
+});
+
+window.addEventListener('pointerup', e => {
+    if (!progressGesture || e.pointerId !== progressGesture.pointerId) return;
+    const gesture = progressGesture;
+    progressGesture = null;
+    if (gesture.axis === 'y') return;   // 竖向滑动：滚列表，不跳进度
+    // 轻点（没有明显滑动）：按点到的位置跳转
+    if (gesture.axis == null) playerAdapter.on('seek', progressBarSlider.value);
+});
+
+window.addEventListener('pointercancel', e => {
+    // 浏览器把手势接管走了（滚动/缩放）：不要跳进度
+    if (progressGesture && e.pointerId === progressGesture.pointerId) progressGesture = null;
+});
+
+progressBarSlider.addEventListener('input', () => {
+    // 方向未定（刚按下）或已判定为竖向滑动时不 seek
+    if (progressGesture && progressGesture.axis !== 'x') return;
     playerAdapter.on('seek', progressBarSlider.value);
 });
 

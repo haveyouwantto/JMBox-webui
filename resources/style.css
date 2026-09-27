@@ -459,6 +459,14 @@ input[type="number"]:focus,
     cursor: pointer;
 }
 
+/* 进度滑杆的命中区域：不要向上溢出到文件列表（手机上滚动列表时手指会误触），
+   同时声明只接管横向手势，竖向滑动仍然用来滚动列表 */
+#progress .slider-slider {
+    align-self: flex-start;
+    height: 16px;
+    touch-action: pan-y;
+}
+
 .slider-inner {
     width: 0;
     background-color: var(--theme-color);
