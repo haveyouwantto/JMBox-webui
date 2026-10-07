@@ -7,6 +7,15 @@ const MiniCssExtractPlugin = require('mini-css-extract-plugin');
 const JsonMinimizerPlugin = require("json-minimizer-webpack-plugin");
 const HTMLInlineCSSWebpackPlugin = require("html-inline-css-webpack-plugin").default;
 
+// Which PicoAudio build to bundle. Defaults to the full source build (every
+// engine, features.js all true); set PICO_VARIANT=basic|wave|wave-nodefault|
+// full to bundle one of the prebuilt variants from lib/PicoAudio/dist instead.
+//   PowerShell: $env:PICO_VARIANT='wave'; npm run build
+const picoVariant = process.env.PICO_VARIANT;
+const picoAudioEntry = picoVariant && picoVariant !== 'full'
+  ? path.resolve(__dirname, `lib/PicoAudio/dist/nodejs/picoaudio.${picoVariant}.mjs`)
+  : path.resolve(__dirname, 'lib/PicoAudio/src/main.js');
+
 module.exports = {
   entry: "./src/index.js",
   output: {
@@ -16,7 +25,7 @@ module.exports = {
   },
   resolve: {
     alias: {
-      'picoaudio': path.resolve(__dirname, 'lib/PicoAudio/src/main.js'),
+      'picoaudio': picoAudioEntry,
     },
   },
   plugins: [

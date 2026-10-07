@@ -13,7 +13,7 @@ import { editSetting, loadSettings, settingChangeListener, settings } from "./se
 import { createLocaleItem, localeInit, setLocale, getLocale } from "./locale";
 import { aboutDialog, languageDialog, midiInfoDialog, playModeSelectionDialog } from "./ui/quick-dialog";
 import { setDarkMode } from "./ui/ui-etc";
-import picoAudio, { loadMIDI, loadMIDIUrl, loadSoundfont, loadSoundFontSF2, loadStoredSF2IfAny } from "./picoaudio";
+import picoAudio, { loadMIDI, loadMIDIUrl, loadSoundFontSF2, loadStoredSF2IfAny } from "./picoaudio";
 import { Metronome } from "./metronome";
 import { setDropDownItems, setSettingItemEnabled, setSettingsDialogVisible, updateSettingsItem } from "./ui/settings-dialog";
 import players from "./player/player-registry";
@@ -713,8 +713,9 @@ export class JMBoxApp {
                     playerBar.setVolume(Math.sqrt(e.value));
                     break;
                 case "soundQuality":
-                    if (parseInt(e.value) == 3) loadSoundfont();
-                    if (parseInt(e.value) == 4) {
+                    // 3 was the sample bank; the engine is gone and the
+                    // setting now plays SF2, so both load the soundfont.
+                    if (parseInt(e.value) == 4 || parseInt(e.value) == 3) {
                         // Try loading a user-stored SF2 first; fall back to the default if none.
                         loadStoredSF2IfAny().then(ok => {
                             if (!ok) {

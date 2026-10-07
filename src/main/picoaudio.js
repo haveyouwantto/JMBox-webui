@@ -4,18 +4,6 @@ const picoAudio = new PicoAudio();
 picoAudio.init();
 picoAudio.settings.preserveSmfData = true
 
-let soundfontLoaded = false;
-export function loadSoundfont() {
-    if (!soundfontLoaded) {
-        fetch('soundfont.bin').then(r => {
-            if (r.ok) return r.arrayBuffer()
-        }).then(b => {
-            picoAudio.loadSamples(b)
-            soundfontLoaded = true;
-        })
-    }
-}
-
 let sf2Loaded = false;
 let currentSF2Path = null;
 export function loadSoundFontSF2(path, force = false) {
