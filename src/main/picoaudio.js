@@ -4,15 +4,6 @@ const picoAudio = new PicoAudio();
 picoAudio.init();
 picoAudio.settings.preserveSmfData = true
 
-// SF2 long notes are synthesized in chunks while they play, which relies on
-// timers. Background tabs throttle timers (down to once a second or worse), so
-// there we render notes up front instead - the hitch is invisible there.
-function updateSF2Streaming() {
-    picoAudio.settings.sf2Streaming = document.visibilityState !== 'hidden';
-}
-updateSF2Streaming();
-document.addEventListener('visibilitychange', updateSF2Streaming);
-
 let soundfontLoaded = false;
 export function loadSoundfont() {
     if (!soundfontLoaded) {
