@@ -1,91 +1,64 @@
+/**
+ * SF2 smoke test.
+ *
+ * Parses a SoundFont, loads it into the TinySoundFont based engine, dumps the
+ * regions a few notes resolve to, and renders one note to check the DSP path.
+ *
+ * Usage: node scripts/test-sf2.mjs [font.sf2]
+ */
 import fs from 'fs';
-import { parseRIFF } from '../lib/PicoAudio/src/player/sf2/riff.js';
-import { parseSF2 } from '../lib/PicoAudio/src/player/sf2/parser.js';
-import { buildPresetZones } from '../lib/PicoAudio/src/player/sf2/builder.js';
-import { decodeSF2Sample } from '../lib/PicoAudio/src/player/sf2/decoder.js';
-import { loadSF2, getSF2Layers, isSF2Loaded } from '../lib/PicoAudio/src/player/sound-source/sf2-provider.js';
+import { readHydra } from '../lib/PicoAudio/src/player/sf2/tsf.js';
+import { tsfCents2Hertz } from '../lib/PicoAudio/src/player/sf2/tsf-font.js';
+import {
+    loadSF2, isSF2Loaded, getSF2Font, getSF2PresetIndex, getSF2Regions,
+} from '../lib/PicoAudio/src/player/sound-source/sf2-provider.js';
 
-const buf = fs.readFileSync('resources/assets/Neo1MGM.sf2');
+const file = process.argv[2] || 'resources/assets/Neo1MGM.sf2';
+const buf = fs.readFileSync(file);
 const ab = buf.buffer.slice(buf.byteOffset, buf.byteOffset + buf.byteLength);
+console.log(`font: ${file} (${(buf.length / 1024 / 1024).toFixed(1)} MB)\n`);
 
-// --- 1. Raw RIFF parsing ---------------------------------------------
-const root = parseRIFF(ab);
-console.log('RIFF type:', root.type, '| top chunks:', root.chunks.map(c => c.id).join(','));
+// --- 1. Raw chunk/hydra extraction ------------------------------------
+const { hydra, samples } = readHydra(ab);
+console.log('hydra:', [
+    `shdr ${hydra.shdrs.length}`, `inst ${hydra.insts.length}`, `ibag ${hydra.ibags.length}`, `igen ${hydra.igens.length}`,
+    `phdr ${hydra.phdrs.length - 1}`, `pbag ${hydra.pbags.length}`, `pgen ${hydra.pgens.length}`,
+    `smpl ${samples.length} frames`,
+].join(' | '));
 
-// --- 2. SF2 parse ----------------------------------------------------
-const parsed = parseSF2(ab);
-console.log('samples:', parsed.samples.length, '| instruments:', parsed.instruments.length, '| presets:', parsed.presets.length);
+// --- 2. Load through the engine ---------------------------------------
+console.log('\nloadSF2:', loadSF2({ sampleRate: 44100 }, ab), '| isSF2Loaded:', isSF2Loaded());
+const font = getSF2Font();
+console.log('presets:', font.presets.length, '| regions:', font.regionCount,
+    '| sample frames:', font.samples.length);
 
-// --- 3. Build merged preset zones ------------------------------------
-const presetZones = buildPresetZones(parsed.presets, parsed.presetBags, parsed.presetGens, parsed.instruments, parsed.samples);
-const zoneCount = presetZones.reduce((n, p) => n + p.zones.length, 0);
-console.log('preset zones (merged):', zoneCount);
-
-const piano = presetZones.find(p => p.program === 0 && !p.isDrum);
-if (piano) {
-    console.log('Preset 0 (piano):', piano.name, '| zones:', piano.zones.length);
-    const z = piano.zones[0];
-    console.log('  first zone sampleId:', z.sampleId, '| keyRange:', z.keyRange, '| velRange:', z.velRange);
+// --- 3. Region resolution ---------------------------------------------
+function showRegions(label, program, pitch, velocity, isDrum = false) {
+    const presetIndex = getSF2PresetIndex(program, isDrum, isDrum ? 128 : 0, pitch, velocity);
+    const regions = getSF2Regions(program, pitch, velocity, isDrum, presetIndex >= 0);
+    console.log(`\n${label} (program ${program}${isDrum ? ', drums' : ''} @ pitch ${pitch} vel ${velocity}): `
+        + `preset ${presetIndex} "${font.getPresetName(presetIndex)}", ${regions.length} region(s)`);
+    for (const r of regions.slice(0, 4)) {
+        console.log(`  - ${r.sampleName} | root ${r.pitchKeycenter} | sampleRate ${r.sampleRate}`
+            + ` | loop ${r.loopMode ? `[${r.loopStart},${r.loopEnd}]` : 'off'}`
+            + ` | filter ${Math.round(tsfCents2Hertz(r.initialFilterFc))} Hz`
+            + ` | pan ${(r.pan * 1000).toFixed(0)}`
+            + ` | atten ${r.attenuation.toFixed(2)}`
+            + ` | env a/d/r ${r.resolvedAmpEnv.attack.toFixed(3)}/${r.resolvedAmpEnv.decay.toFixed(3)}/${r.resolvedAmpEnv.release.toFixed(3)}`
+            + ` | keyRange ${r.lokey}-${r.hikey} velRange ${r.lovel}-${r.hivel}`);
+    }
 }
+showRegions('Piano', 0, 69, 100);
+showRegions('Piano (soft)', 0, 69, 20);
+showRegions('Piano (loud)', 0, 69, 127);
+showRegions('Percussion', 0, 36, 100, true);
 
-// --- 4. Full loadSF2 + getSF2Layers via mock AudioContext -------------
-function makeMockContext() {
-    const mockAudioParam = () => ({
-        value: 0,
-        setValueAtTime() {}, setTargetAtTime() {}, cancelScheduledValues() {},
-        linearRampToValueAtTime() {}, setValueCurveAtTime() {},
-    });
-    const mockNode = () => ({
-        connect() {}, disconnect() {}, start() {}, stop() {},
-        gain: mockAudioParam(), pan: mockAudioParam(),
-        frequency: mockAudioParam(), detune: mockAudioParam(),
-        playbackRate: mockAudioParam(),
-        positionX: mockAudioParam(), positionY: mockAudioParam(), positionZ: mockAudioParam(),
-    });
-    return {
-        sampleRate: 44100,
-        currentTime: 0,
-        destination: mockNode(),
-        createBuffer(channels, length, sampleRate) {
-            const data = [];
-            for (let c = 0; c < channels; c++) data.push(new Float32Array(length));
-            return { numberOfChannels: channels, length, sampleRate, duration: length / sampleRate, getChannelData: (i) => data[i] };
-        },
-        createBufferSource: mockNode,
-        createGain: mockNode,
-        createStereoPanner: mockNode,
-        createPanner: mockNode,
-        createBiquadFilter: mockNode,
-        createOscillator: mockNode,
-    };
-}
-
-const loaded = loadSF2(makeMockContext(), ab);
-console.log('\nloadSF2:', loaded, '| isSF2Loaded:', isSF2Loaded());
-
-// Melodic: piano @ A4, medium velocity
-const pianoLayers = getSF2Layers(0, 69, 100, false, 0);
-console.log('\nPiano layers @ A4 vel=100:', pianoLayers.length);
-pianoLayers.forEach(l => {
-    console.log('  -', l.sampleName, '| sampleId:', l.sampleId, '| rootKey:', l.rootKey, '| rate:', l.originalSampleRate,
-        '| loop:', l.loopMode ? `[${l.startLoop},${l.endLoop}]` : 'off',
-        '| filterFc:', Math.round(l.filterFc), '| pan:', l.pan,
-        '| envelope atk/dec/rel:', l.envelope.attack.toFixed(3), '/', l.envelope.decay.toFixed(3), '/', l.envelope.release.toFixed(3));
-});
-
-// Velocity layer switch: loud vs soft
-const pianoSoft = getSF2Layers(0, 69, 20, false, 0);
-const pianoLoud = getSF2Layers(0, 69, 127, false, 0);
-console.log('\nPiano soft vel=20 layers:', pianoSoft.length, '| loud vel=127 layers:', pianoLoud.length);
-if (pianoSoft.length && pianoLoud.length) {
-    console.log('  soft sampleIds:', pianoSoft.map(l => l.sampleId).join(','), '| loud sampleIds:', pianoLoud.map(l => l.sampleId).join(','));
-}
-
-// Drum: channel 9 bass drum
-const drumLayers = getSF2Layers(0, 36, 100, true, 128);
-console.log('\nDrum @ BD1 pitch=36 layers:', drumLayers.length);
-drumLayers.slice(0, 3).forEach(l => {
-    console.log('  -', l.sampleName, '| sampleId:', l.sampleId, '| loop:', l.loopMode ? 'on' : 'off', '| velRange:', l.velRange.join('-'));
-});
+// --- 4. DSP smoke: render a note and check it is not silent -----------
+const presetIndex = getSF2PresetIndex(0, false, 0, 69, 100);
+const rendered = font.renderNote(presetIndex, 69, 100 / 127, 44100, 88200);
+let peak = 0;
+for (const v of rendered.data) peak = Math.max(peak, Math.abs(v));
+console.log(`\nrendered piano A4: ${rendered.frames} frames (${(rendered.frames / 44100).toFixed(2)}s), peak ${peak.toFixed(4)}`);
+if (!(rendered.frames > 0 && peak > 0.001)) throw new Error('rendered note is silent');
 
 console.log('\nAll checks passed.');
