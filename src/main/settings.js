@@ -13,6 +13,7 @@ const defaultValue = {
     shuffle: false,
 
     soundQuality: '1',
+    sf2Interpolation: "linear",   // SF2 sample interpolation: linear (TSF reference) | nearest | cubic
     basePitch: 440,
     maxPolyphony: -1,
     skipBeginning: false,

@@ -18,6 +18,7 @@ export function aboutDialog() {
     section.innerText = getLocale("about.libraries");
     dialog.addElement(section);
     dialog.addText('<a href="https://github.com/cagpie/PicoAudio.js" class="link">PicoAudio</a> \u00a9 cagpie (MIT License)');
+    dialog.addText('<a href="https://github.com/schellingb/TinySoundFont" class="link">TinySoundFont</a> \u00a9 Bernhard Schelling (MIT License)');
     dialog.setVisible(true);
 }
 

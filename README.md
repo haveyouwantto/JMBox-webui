@@ -6,6 +6,7 @@ A browser-based MIDI player with real-time waterfall visualization (inspired by 
 
 -   **MIDI Playback** — play MIDI files from a [JMBox-Server](https://github.com/haveyouwantto/JMBox) backend, with playlist shuffle, repeat, and track navigation.
 -   **Dual Players** — switch between **Server-side Render** (fast, light) and **PicoAudio Synthesizer** (high-quality Web Audio synthesis with configurable sound fonts).
+-   **SoundFont (SF2) Playback** — the SF2 mode runs a JavaScript port of [TinySoundFont](https://github.com/schellingb/TinySoundFont), so envelopes, filters, LFOs, loops, drum kits and gain follow the reference implementation sample for sample. Any GM/GS SoundFont can be uploaded, and the sample interpolation is selectable (Linear / Nearest / Cubic).
 -   **Waterfall / Piano Roll** — real-time 2D (Canvas2D) or 3D (WebGL/Three.js) note visualization with bloom effects, nebula, and camera controls.
 -   **3D Renderer** — WebGL render mode with Three.js: per-note glow, playline effects, star particles and nebula background.
 -   **Video Export** — render MIDI playback to WebM video with audio, configurable resolution and frame rate.
@@ -91,6 +92,7 @@ JMBox-webui/
 -   **[webm-muxer](https://github.com/Vanilagy/webm-muxer)** — WebM video multiplexing
 -   **[PicoAudio.js](https://github.com/haveyouwantto/PicoAudio.js)** — Web Audio MIDI synthesizer (submodule)
 -   **[chardet](https://github.com/runk/node-chardet)** — character encoding detection
+-   **[TinySoundFont](https://github.com/schellingb/TinySoundFont)** — SoundFont2 synthesizer, ported to JavaScript inside PicoAudio (SF2 mode)
 
 ### Dev / Build
 
@@ -106,3 +108,7 @@ This frontend is designed to work with [JMBox-Server](https://github.com/haveyou
 ## License
 
 MIT © [haveyouwantto](https://github.com/haveyouwantto)
+
+The SF2 engine is a JavaScript port of [TinySoundFont](https://github.com/schellingb/TinySoundFont)
+by Bernhard Schelling (MIT License, based on SFZero by Steve Folta). The port lives in
+`lib/PicoAudio/src/player/sf2/tsf*.js` and keeps the upstream copyright notice.
