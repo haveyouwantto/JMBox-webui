@@ -728,6 +728,9 @@ export class JMBoxApp {
                 case "sf2Interpolation":
                     picoAudio.settings.sf2Interpolation = e.value;
                     break;
+                case "sf2Engine":
+                    picoAudio.settings.sf2Engine = e.value;
+                    break;
                 case "basePitch":
                     picoAudio.settings.basePitch = e.value;
                     break;
