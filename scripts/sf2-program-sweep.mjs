@@ -19,6 +19,12 @@
  * Requires node-web-audio-api (OfflineAudioContext in Node):
  *   npm i node-web-audio-api        # or point WA_MODULE at its index.mjs
  *
+ * Caveat: node-web-audio-api panics ("index out of bounds ... Removing node
+ * from graph", on stderr) for some fonts whose loops end at the last sample of
+ * the sample data - Chaos_V20.sf2 for example. The cases it hits are reported
+ * as SUSPECT here; Chrome renders them correctly, so confirm anything that
+ * looks like a dropout with scripts/browser-bench.mjs before chasing it.
+ *
  * Usage: node scripts/sf2-program-sweep.mjs <font.sf2> [--drums] [--all-kits]
  */
 import fs from 'fs';
@@ -195,6 +201,12 @@ for (const c of cases) {
     const graphInter = new Float32Array(frames * 2);
     for (let i = 0; i < frames; i++) { graphInter[i * 2] = gl[i]; graphInter[i * 2 + 1] = gr[i]; }
     const wf = (silent(rmsDsp) && silent(rmsGraph)) ? 1 : waveMatch(dspInter, graphInter, frames);
+    // A graph that goes to digital silence somewhere the DSP is playing is
+    // almost always the node-web-audio-api looper giving up ("Removing node
+    // from graph") rather than a real difference - see the header caveat.
+    const graphMin = Math.min(...envGraph), dspMin = Math.min(...envDsp);
+    const suspect = silent(rmsGraph) ? !silent(rmsDsp)
+        : (graphMin < -120 && dspMin - graphMin > 40);
     if (process.env.SWEEP_DEBUG) {
         let peakDsp = 0, peakGraph = 0;
         for (let i = 0; i < frames; i++) {
@@ -207,7 +219,7 @@ for (const c of cases) {
 
     results.push({
         label, program: c.program, key: c.key, drum: isDrum,
-        levelDiff: levelGraph - levelDsp, med, p90, corr, wf, noStop: !stopFn,
+        levelDiff: levelGraph - levelDsp, med, p90, corr, wf, noStop: !stopFn, suspect,
         preset: font.presets[presetIndex] ? font.presets[presetIndex].name : '?',
     });
 }
@@ -225,7 +237,8 @@ if (bad.length) {
     for (const r of bad) {
         console.log(`${r.label.padEnd(31)} | ${String(r.preset).slice(0, 28).padEnd(28)} | `
             + `${r.levelDiff.toFixed(2).padStart(8)} | ${r.med.toFixed(2).padStart(5)}/${r.p90.toFixed(2).padStart(6)} | `
-            + `${r.corr.toFixed(3).padStart(6)} | ${r.wf.toFixed(3).padStart(5)}${r.noStop ? ' NO-STOP' : ''}`);
+            + `${r.corr.toFixed(3).padStart(6)} | ${r.wf.toFixed(3).padStart(5)}`
+            + `${r.noStop ? ' NO-STOP' : ''}${r.suspect ? ' SUSPECT' : ''}`);
     }
 }
 

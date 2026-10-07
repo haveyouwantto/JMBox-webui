@@ -17,6 +17,7 @@ const { loadSF2, getSF2Font, getSF2PresetIndex } = await import(player + 'sound-
 const { renderSF2NoteWebAudio } = await import(player + 'sound-source/sf2-webaudio-renderer.js');
 
 const fontAb = await (await fetch('/__font.sf2')).arrayBuffer();
+const font2Ab = await fetch('/__font2.sf2').then((r) => (r.ok ? r.arrayBuffer() : null)).catch(() => null);
 const audioCtor = window.webkitAudioContext || window.AudioContext;
 
 /** Minimal PicoAudio-alike host for the renderer. */
@@ -66,7 +67,14 @@ function centroid(l, r) {
     return den > 0 ? num / den : 0;
 }
 
-const CASES = [
+const caseParam = params.get('cases');
+const CASES = caseParam ? caseParam.split(',').map((spec) => {
+    const [program, key, vel, drum] = spec.split(':');
+    return {
+        label: `prog ${program} key ${key}`, program: Number(program), key: Number(key),
+        vel: Number(vel || 100), drum: drum === 'drum',
+    };
+}) : [
     { label: 'piano C4', program: 0, key: 60, vel: 100 },
     { label: 'piano C4 short', program: 0, key: 60, vel: 100, noteOff: 0.25 },
     { label: 'piano C2', program: 0, key: 36, vel: 80 },
@@ -142,6 +150,53 @@ results.perf.scheduleGraphMs = schedGraph;
 results.perf.renderGraphMs = renderGraph;
 
 /* ------------------------------------------- realtime automation probe - */
+
+/**
+ * Loading a second SoundFont into the *same* AudioContext must not keep
+ * handing out the first font's decoded samples. Renders a note after a font
+ * switch and compares it with a context that only ever saw the second font.
+ */
+async function fontSwapCheck() {
+    if (!font2Ab) return;
+    const WIN = Math.round(1.5 * RATE);
+    const TOTAL = Math.round(4 * RATE);
+    const PROGRAMS = [[0, 60], [39, 72], [48, 60], [56, 60], [32, 45]];
+    const schedule = (ctx, program, key, startTime) => {
+        renderSF2NoteWebAudio.call(makeHost(ctx), {
+            startTime, stopTime: startTime + 1.5, instrument: program, pitch: key,
+            velocity: 100 / 127, channel: 0, isDrum: false,
+            midiVelocity: 100, midiVolume: 127, midiExpression: 127,
+        });
+    };
+    const rmsWin = ([l, r]) => {
+        let s = 0;
+        for (let i = 0; i < WIN; i++) { const m = (l[i] + r[i]) * 0.5; s += m * m; }
+        return Math.sqrt(s / WIN);
+    };
+
+    // reference: a context that only ever saw the second font
+    const fresh = new OfflineAudioContext(2, WIN, RATE);
+    loadSF2(fresh, font2Ab);
+    for (const [p, k] of PROGRAMS) schedule(fresh, p, k, 0);
+    const fr = await fresh.startRendering();
+    const ref = [fr.getChannelData(0), fr.getChannelData(1)];
+
+    // same context, but the first font rendered into it first (fills the cache)
+    const reused = new OfflineAudioContext(2, TOTAL, RATE);
+    loadSF2(reused, fontAb);
+    for (const [p, k] of PROGRAMS) schedule(reused, p, k, 2.4);   // outside the window
+    loadSF2(reused, font2Ab);
+    for (const [p, k] of PROGRAMS) schedule(reused, p, k, 0);
+    const rr = await reused.startRendering();
+    const swapped = [rr.getChannelData(0).subarray(0, WIN), rr.getChannelData(1).subarray(0, WIN)];
+
+    results.fontSwap = {
+        levelDiff: 20 * Math.log10(Math.max(rmsWin(swapped), 1e-12) / Math.max(rmsWin(ref), 1e-12)),
+    };
+    say(`font swap: after switching fonts the notes are `
+        + `${results.fontSwap.levelDiff.toFixed(2)} dB vs a fresh context`);
+}
+await fontSwapCheck();
 
 async function probeRealtime() {
     const ctx = new audioCtor({ sampleRate: RATE });

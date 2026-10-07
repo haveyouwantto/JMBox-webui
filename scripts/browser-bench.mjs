@@ -19,8 +19,12 @@ const args = process.argv.slice(2);
 const positional = args.filter((a) => !a.startsWith('--'));
 const fontPath = path.resolve(positional[0] || 'resources/assets/Neo1MGM.sf2');
 const songPath = positional[1] ? path.resolve(positional[1]) : null;
+const font2Arg = args.find((a) => a.startsWith('--font2='));
+const font2Path = font2Arg ? path.resolve(font2Arg.split('=')[1]) : null;
 const keep = args.includes('--keep');
 const page = (args.find((a) => a.startsWith('--page=')) || '--page=bench').split('=')[1];
+const caseArg = args.find((a) => a.startsWith('--cases='));
+const pageQuery = caseArg ? `?cases=${encodeURIComponent(caseArg.split('=')[1])}` : '';
 const ROOT = path.resolve('.');
 
 const CHROME = [
@@ -47,6 +51,12 @@ const server = http.createServer((req, res) => {
     if (url.pathname === '/__song.mid' && songPath) {
         const buf = fs.readFileSync(songPath);
         res.writeHead(200, { 'content-type': 'audio/midi', 'content-length': buf.length });
+        res.end(buf);
+        return;
+    }
+    if (url.pathname === '/__font2.sf2' && font2Path) {
+        const buf = fs.readFileSync(font2Path);
+        res.writeHead(200, { 'content-type': 'application/octet-stream', 'content-length': buf.length });
         res.end(buf);
         return;
     }
@@ -98,7 +108,7 @@ const cleanup = () => {
 try {
     await waitForJson(`http://127.0.0.1:${debugPort}/json/version`);
     const target = await waitForJson(`http://127.0.0.1:${debugPort}/json/new?`
-        + encodeURIComponent(`http://127.0.0.1:${port}/test_samples/browser/${page}.html`), 5)
+        + encodeURIComponent(`http://127.0.0.1:${port}/test_samples/browser/${page}.html${pageQuery}`), 5)
         .catch(async () => {
             const res = await fetch(`http://127.0.0.1:${debugPort}/json/new?about:blank`, { method: 'PUT' });
             return res.json();
@@ -146,7 +156,7 @@ try {
     await send('Runtime.enable');
     await send('Log.enable');
     await send('Page.enable');
-    await send('Page.navigate', { url: `http://127.0.0.1:${port}/test_samples/browser/${page}.html` });
+    await send('Page.navigate', { url: `http://127.0.0.1:${port}/test_samples/browser/${page}.html${pageQuery}` });
 
     let result;
     for (let i = 0; i < 120; i++) {
@@ -164,6 +174,8 @@ try {
     console.log(`\nfont: ${fontPath}${songPath ? `\nsong: ${songPath}` : ''}`);
     console.log(`ua: ${result.ua}`);
     if (result.info) console.log(`info: ${JSON.stringify(result.info)}`);
+    if (result.fontSwap) console.log(`font swap: ${result.fontSwap.levelDiff.toFixed(2)} dB `
+        + `(a note rendered after loading a second font into the same context, vs a fresh context)`);
     if (result.info) {
         for (const w of result.windows || []) {
             console.log(`${w.t.toFixed(1).padStart(6)}s | ${(20 * Math.log10(w.rd)).toFixed(1).padStart(6)} / `
