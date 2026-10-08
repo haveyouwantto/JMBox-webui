@@ -137,6 +137,14 @@
   "settings.picoaudio.sf2.restore": "デフォルトに戻す",
     "settings.picoaudio.sf2.current": "現在の SF2",
     "settings.picoaudio.sf2.interpolation": "補間アルゴリズム",
+
+    "settings.picoaudio.sf2.quality": "音質",
+
+    "settings.picoaudio.sf2.quality.high": "高（リファレンス）",
+
+    "settings.picoaudio.sf2.quality.medium": "中（モジュレーションなし）",
+
+    "settings.picoaudio.sf2.quality.low": "低（最速）",
     "settings.picoaudio.sf2.interpolation.linear": "線形（リファレンス）",
     "settings.picoaudio.sf2.interpolation.nearest": "最近傍（最速）",
     "settings.picoaudio.sf2.interpolation.cubic": "三次補間（最も滑らか）",

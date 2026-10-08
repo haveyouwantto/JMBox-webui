@@ -160,6 +160,14 @@
     "settings.picoaudio.sf2.restore": "恢复默认",
     "settings.picoaudio.sf2.current": "当前 SF2",
     "settings.picoaudio.sf2.interpolation": "插值算法",
+
+    "settings.picoaudio.sf2.quality": "音质",
+
+    "settings.picoaudio.sf2.quality.high": "高（参考实现）",
+
+    "settings.picoaudio.sf2.quality.medium": "中（关闭调制）",
+
+    "settings.picoaudio.sf2.quality.low": "低（最快）",
     "settings.picoaudio.sf2.interpolation.linear": "线性（参考实现）",
     "settings.picoaudio.sf2.interpolation.nearest": "最近邻（最快）",
     "settings.picoaudio.sf2.interpolation.cubic": "三次插值（最平滑）",

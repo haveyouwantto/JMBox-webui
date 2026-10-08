@@ -256,6 +256,8 @@ async function runRealtime(engine, seconds) {
     const app = new PicoAudio({ sf2Engine: engine, soundQuality: 4, isSkipBeginning: false });
     if (ABLATE) app.settings.sf2Ablate = ABLATE;
     if (params.get('nobake') === '1') app.settings.sf2Bake = false;
+    if (params.get('quality')) app.settings.sf2Quality = params.get('quality');
+    if (params.get('interp')) app.settings.sf2Interpolation = params.get('interp');
     if (params.get('nodspchain') === '1') {
         app.settings.isReverb = false;
         app.settings.isChorus = false;

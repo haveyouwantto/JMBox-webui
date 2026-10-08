@@ -12,6 +12,7 @@
 import fs from 'fs';
 import { sf2WorkletSource } from '../lib/PicoAudio/src/player/sound-source/sf2-worklet-renderer.js';
 import { renderNote } from '../lib/PicoAudio/src/player/sf2/tsf-synth.js';
+import { tsfQuality } from '../lib/PicoAudio/src/player/sf2/tsf-synth.js';
 import { loadSF2, getSF2Font, getSF2PresetIndex } from '../lib/PicoAudio/src/player/sound-source/sf2-provider.js';
 
 const RATE = 44100;
@@ -54,6 +55,14 @@ const CASES = [
     // envelope block grid must not move with the slice boundaries
     { label: 'piano C4, start +37 frames', instrument: 0, pitch: 60, vel: 100, seconds: 2, render: 4, startFrame: 37 },
     { label: 'strings C4, start +100 frames', instrument: 48, pitch: 55, vel: 90, seconds: 3, render: 5, startFrame: 100 },
+    // sound quality: the worklet must render exactly what the DSP engine does
+    // with the same preset (low = no filter, no LFOs, no modulation envelope)
+    { label: 'piano C4 @ quality low', instrument: 0, pitch: 60, vel: 100, seconds: 2, render: 4,
+        quality: { filter: false, lfo: false, modEnv: false } },
+    { label: 'strings C4 @ quality medium', instrument: 48, pitch: 60, vel: 90, seconds: 3, render: 5,
+        quality: { filter: true, lfo: false, modEnv: false } },
+    { label: 'strings C4 @ nearest interp', instrument: 48, pitch: 60, vel: 90, seconds: 3, render: 5,
+        interp: 'nearest' },
 ];
 
 let worst = 0;
@@ -69,10 +78,11 @@ for (const c of CASES) {
     // --- through the worklet processor, 128 frames at a time ---
     const processor = new ProcessorClass();
     processor.handleMessage({ type: 'font', font: fontPayload });
+    if (c.quality) processor.handleMessage({ type: 'quality', quality: c.quality });
     processor.handleMessage({
         type: 'note', id: 1, presetIndex, key: c.pitch, velocity: c.vel / 127,
         noteFrames, maxFrames, startFrame: c.startFrame || 0, pitchBends: null, panChanges: null,
-        gains: [{ frame: 0, gain: 1 }], interpolation: 'linear',
+        gains: [{ frame: 0, gain: 1 }], interpolation: c.interp || 'linear',
     });
     const total = Math.round(c.render * RATE);
     const left = new Float32Array(total);
@@ -88,7 +98,8 @@ for (const c of CASES) {
     }
 
     // --- the DSP engine's own renderer, no gain, same window ---
-    const dsp = renderNote(font, presetIndex, c.pitch, c.vel / 127, noteFrames, maxFrames, null, null, 'linear');
+    Object.assign(tsfQuality, c.quality || { filter: true, lfo: true, modEnv: true });
+    const dsp = renderNote(font, presetIndex, c.pitch, c.vel / 127, noteFrames, maxFrames, null, null, c.interp || 'linear');
 
     const at = c.startFrame || 0;
     let maxDiff = 0;

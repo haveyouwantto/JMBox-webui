@@ -138,6 +138,14 @@
     "settings.picoaudio.sf2.restore": "기본값 복원",
     "settings.picoaudio.sf2.current": "현재 SF2",
     "settings.picoaudio.sf2.interpolation": "보간 알고리즘",
+
+    "settings.picoaudio.sf2.quality": "음질",
+
+    "settings.picoaudio.sf2.quality.high": "높음(기준)",
+
+    "settings.picoaudio.sf2.quality.medium": "중간(모듈레이션 없음)",
+
+    "settings.picoaudio.sf2.quality.low": "낮음(가장 빠름)",
     "settings.picoaudio.sf2.interpolation.linear": "선형(기준)",
     "settings.picoaudio.sf2.interpolation.nearest": "최근접(가장 빠름)",
     "settings.picoaudio.sf2.interpolation.cubic": "3차 보간(가장 부드러움)",

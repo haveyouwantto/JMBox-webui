@@ -729,6 +729,10 @@ export class JMBoxApp {
                 case "sf2Interpolation":
                     picoAudio.settings.sf2Interpolation = e.value;
                     break;
+                case "sf2Quality":
+                    // sound quality preset: which optional DSP stages run
+                    picoAudio.settings.sf2Quality = e.value;
+                    break;
                 case "sf2Engine":
                     picoAudio.settings.sf2Engine = e.value;
                     // 'worklet' loads its module asynchronously; start now so the

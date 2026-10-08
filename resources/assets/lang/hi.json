@@ -138,6 +138,14 @@
     "settings.picoaudio.sf2.restore": "डिफ़ॉल्ट पुनर्स्थापित करें",
     "settings.picoaudio.sf2.current": "वर्तमान SF2",
     "settings.picoaudio.sf2.interpolation": "इंटरपोलेशन",
+
+    "settings.picoaudio.sf2.quality": "साउंड क्वालिटी",
+
+    "settings.picoaudio.sf2.quality.high": "उच्च (संदर्भ)",
+
+    "settings.picoaudio.sf2.quality.medium": "मध्यम (मॉड्यूलेशन बिना)",
+
+    "settings.picoaudio.sf2.quality.low": "निम्न (सबसे तेज़)",
     "settings.picoaudio.sf2.interpolation.linear": "रैखिक (संदर्भ)",
     "settings.picoaudio.sf2.interpolation.nearest": "निकटतम (सबसे तेज़)",
     "settings.picoaudio.sf2.interpolation.cubic": "क्यूबिक (सबसे स्मूद)",

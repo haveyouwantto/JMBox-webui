@@ -138,6 +138,14 @@
     "settings.picoaudio.sf2.restore": "ডিফল্ট পুনরুদ্ধার",
     "settings.picoaudio.sf2.current": "বর্তমান SF2",
     "settings.picoaudio.sf2.interpolation": "ইন্টারপোলেশন",
+
+    "settings.picoaudio.sf2.quality": "সাউন্ড কোয়ালিটি",
+
+    "settings.picoaudio.sf2.quality.high": "উচ্চ (রেফারেন্স)",
+
+    "settings.picoaudio.sf2.quality.medium": "মধ্যম (মডুলেশন ছাড়া)",
+
+    "settings.picoaudio.sf2.quality.low": "নিম্ন (দ্রুততম)",
     "settings.picoaudio.sf2.interpolation.linear": "লিনিয়ার (রেফারেন্স)",
     "settings.picoaudio.sf2.interpolation.nearest": "নিকটতম (দ্রুততম)",
     "settings.picoaudio.sf2.interpolation.cubic": "কিউবিক (সবচেয়ে মসৃণ)",

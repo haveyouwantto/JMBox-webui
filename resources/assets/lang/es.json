@@ -138,6 +138,14 @@
     "settings.picoaudio.sf2.restore": "Restaurar por defecto",
     "settings.picoaudio.sf2.current": "SF2 actual",
     "settings.picoaudio.sf2.interpolation": "Interpolación",
+
+    "settings.picoaudio.sf2.quality": "Calidad de sonido",
+
+    "settings.picoaudio.sf2.quality.high": "Alta (referencia)",
+
+    "settings.picoaudio.sf2.quality.medium": "Media (sin modulación)",
+
+    "settings.picoaudio.sf2.quality.low": "Baja (más rápida)",
     "settings.picoaudio.sf2.interpolation.linear": "Lineal (referencia)",
     "settings.picoaudio.sf2.interpolation.nearest": "Vecino más cercano (más rápido)",
     "settings.picoaudio.sf2.interpolation.cubic": "Cúbica (más suave)",

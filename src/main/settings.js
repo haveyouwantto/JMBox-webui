@@ -14,6 +14,7 @@ const defaultValue = {
 
     soundQuality: '1',
     sf2Interpolation: "linear",   // SF2 sample interpolation: linear (TSF reference) | nearest | cubic
+    sf2Quality: "high",           // SF2 sound quality preset: high (reference) | medium (no modulation) | low (no filter, nearest)
     sf2Engine: "webaudio",        // SF2 synthesis: webaudio (native nodes) | worklet (single AudioWorklet node) | dsp (TinySoundFont port, exact, main thread)
     basePitch: 440,
     maxPolyphony: -1,

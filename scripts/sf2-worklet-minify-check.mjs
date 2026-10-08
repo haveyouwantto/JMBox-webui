@@ -31,8 +31,16 @@ if (minified.error) throw minified.error;
 // The worklet embeds the factory's own source; do the same with the minified
 // module - that is exactly what the worklet source builder does at runtime.
 const tmp = path.join(os.tmpdir(), `tsf-synth-min-${process.pid}.mjs`);
-const fontUrl = pathToFileURL(path.resolve('lib/PicoAudio/src/player/sf2/tsf-font.js')).href;
-fs.writeFileSync(tmp, minified.code.replace(/from\s*['"]\.\/tsf-font\.js['"]/, `from '${fontUrl}'`));
+// resolve the module's own relative imports against the real files
+const rewrites = {
+    './tsf-font.js': pathToFileURL(path.resolve('lib/PicoAudio/src/player/sf2/tsf-font.js')).href,
+    './sf2-quality.js': pathToFileURL(path.resolve('lib/PicoAudio/src/player/sf2/sf2-quality.js')).href,
+};
+let code = minified.code;
+for (const [from, to] of Object.entries(rewrites)) {
+    code = code.replace(new RegExp(`from\\s*['"]${from.replace('.', '\\.')}['"]`, 'g'), `from '${to}'`);
+}
+fs.writeFileSync(tmp, code);
 const minifiedModule = await import(pathToFileURL(tmp).href);
 fs.rmSync(tmp, { force: true });
 const minFactory = minifiedModule.createTsfSynth;

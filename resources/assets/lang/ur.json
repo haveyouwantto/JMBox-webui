@@ -138,6 +138,14 @@
     "settings.picoaudio.sf2.restore": "ڈیفالٹ بحال کریں",
     "settings.picoaudio.sf2.current": "موجودہ SF2",
     "settings.picoaudio.sf2.interpolation": "انٹرپولیشن",
+
+    "settings.picoaudio.sf2.quality": "ساؤنڈ کوالٹی",
+
+    "settings.picoaudio.sf2.quality.high": "اعلی (حوالہ)",
+
+    "settings.picoaudio.sf2.quality.medium": "درمیانہ (ماڈیولیشن کے بغیر)",
+
+    "settings.picoaudio.sf2.quality.low": "کم (تیز ترین)",
     "settings.picoaudio.sf2.interpolation.linear": "لکیری (حوالہ)",
     "settings.picoaudio.sf2.interpolation.nearest": "قریب ترین (تیز ترین)",
     "settings.picoaudio.sf2.interpolation.cubic": "کیوبک (سب سے ہموار)",

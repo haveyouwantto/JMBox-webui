@@ -138,6 +138,14 @@
     "settings.picoaudio.sf2.restore": "استعادة الافتراضي",
     "settings.picoaudio.sf2.current": "SF2 الحالي",
     "settings.picoaudio.sf2.interpolation": "الاستيفاء",
+
+    "settings.picoaudio.sf2.quality": "جودة الصوت",
+
+    "settings.picoaudio.sf2.quality.high": "عالية (مرجعية)",
+
+    "settings.picoaudio.sf2.quality.medium": "متوسطة (بدون تعديل)",
+
+    "settings.picoaudio.sf2.quality.low": "منخفضة (أسرع)",
     "settings.picoaudio.sf2.interpolation.linear": "خطي (المرجع)",
     "settings.picoaudio.sf2.interpolation.nearest": "أقرب جار (الأسرع)",
     "settings.picoaudio.sf2.interpolation.cubic": "تكعيبي (الأكثر نعومة)",
