@@ -264,6 +264,7 @@ async function runRealtime(engine, seconds) {
     if (params.get('nobake') === '1') app.settings.sf2Bake = false;
     if (params.get('quality')) app.settings.sf2Quality = params.get('quality');
     if (params.get('interp')) app.settings.sf2Interpolation = params.get('interp');
+    if (params.get('maxpoly')) app.settings.maxPoly = Number(params.get('maxpoly'));
     if (params.get('nodspchain') === '1') {
         app.settings.isReverb = false;
         app.settings.isChorus = false;
