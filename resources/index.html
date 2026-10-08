@@ -338,54 +338,33 @@
                         <locale key="settings.picoaudio.sf2.current">Current SF2</locale>
                         <span class="right" id="current-sf2-name">Default</span>
                     </a>
-                    <locale class="dialog-subtitle" key="settings.picoaudio.sf2.quality">Sound quality</locale>
-                    <button class="dialog-item button-flash" setting="radio" key="sf2Quality" value="high">
-                        <icon>&#57345;</icon>
-                        <locale key="settings.picoaudio.sf2.quality.high"></locale>
-                        <icon class="right radio" checker>&#57371;</icon>
-                    </button>
-                    <button class="dialog-item button-flash" setting="radio" key="sf2Quality" value="medium">
-                        <icon>&#57345;</icon>
-                        <locale key="settings.picoaudio.sf2.quality.medium"></locale>
-                        <icon class="right radio" checker>&#57371;</icon>
-                    </button>
-                    <button class="dialog-item button-flash" setting="radio" key="sf2Quality" value="low">
-                        <icon>&#57345;</icon>
-                        <locale key="settings.picoaudio.sf2.quality.low"></locale>
-                        <icon class="right radio" checker>&#57371;</icon>
-                    </button>
-                    <locale class="dialog-subtitle" key="settings.picoaudio.sf2.interpolation">Interpolation</locale>
-                    <button class="dialog-item button-flash" setting="radio" key="sf2Interpolation" value="linear">
-                        <icon>&#57345;</icon>
-                        <locale key="settings.picoaudio.sf2.interpolation.linear"></locale>
-                        <icon class="right radio" checker>&#57371;</icon>
-                    </button>
-                    <button class="dialog-item button-flash" setting="radio" key="sf2Interpolation" value="nearest">
-                        <icon>&#57345;</icon>
-                        <locale key="settings.picoaudio.sf2.interpolation.nearest"></locale>
-                        <icon class="right radio" checker>&#57371;</icon>
-                    </button>
-                    <button class="dialog-item button-flash" setting="radio" key="sf2Interpolation" value="cubic">
-                        <icon>&#57345;</icon>
-                        <locale key="settings.picoaudio.sf2.interpolation.cubic"></locale>
-                        <icon class="right radio" checker>&#57371;</icon>
-                    </button>
-                    <locale class="dialog-subtitle" key="settings.picoaudio.sf2.engine">Synthesis engine</locale>
-                    <button class="dialog-item button-flash" setting="radio" key="sf2Engine" value="webaudio">
-                        <icon>&#57345;</icon>
-                        <locale key="settings.picoaudio.sf2.engine.webaudio"></locale>
-                        <icon class="right radio" checker>&#57371;</icon>
-                    </button>
-                    <button class="dialog-item button-flash" setting="radio" key="sf2Engine" value="worklet">
-                        <icon>&#57345;</icon>
-                        <locale key="settings.picoaudio.sf2.engine.worklet"></locale>
-                        <icon class="right radio" checker>&#57371;</icon>
-                    </button>
-                    <button class="dialog-item button-flash" setting="radio" key="sf2Engine" value="dsp">
-                        <icon>&#57345;</icon>
-                        <locale key="settings.picoaudio.sf2.engine.dsp"></locale>
-                        <icon class="right radio" checker>&#57371;</icon>
-                    </button>
+                    <a class="dialog-item" setting="dropDown" key="sf2Quality">
+                        <icon>&#57353;</icon>
+                        <locale key="settings.picoaudio.sf2.quality">Sound quality</locale>
+                        <select class="right">
+                            <option class="locale" value="high" key="settings.picoaudio.sf2.quality.high">High (reference)</option>
+                            <option class="locale" value="medium" key="settings.picoaudio.sf2.quality.medium">Medium (no modulation)</option>
+                            <option class="locale" value="low" key="settings.picoaudio.sf2.quality.low">Low (fastest)</option>
+                        </select>
+                    </a>
+                    <a class="dialog-item" setting="dropDown" key="sf2Interpolation">
+                        <icon>&#57367;</icon>
+                        <locale key="settings.picoaudio.sf2.interpolation">Interpolation</locale>
+                        <select class="right">
+                            <option class="locale" value="linear" key="settings.picoaudio.sf2.interpolation.linear">Linear (TSF reference)</option>
+                            <option class="locale" value="nearest" key="settings.picoaudio.sf2.interpolation.nearest">Nearest (fastest)</option>
+                            <option class="locale" value="cubic" key="settings.picoaudio.sf2.interpolation.cubic">Cubic (smoothest)</option>
+                        </select>
+                    </a>
+                    <a class="dialog-item" setting="dropDown" key="sf2Engine">
+                        <icon>&#57368;</icon>
+                        <locale key="settings.picoaudio.sf2.engine">Synthesis engine</locale>
+                        <select class="right">
+                            <option class="locale" value="webaudio" key="settings.picoaudio.sf2.engine.webaudio">Web Audio (fast)</option>
+                            <option class="locale" value="worklet" key="settings.picoaudio.sf2.engine.worklet">AudioWorklet (fastest)</option>
+                            <option class="locale" value="dsp" key="settings.picoaudio.sf2.engine.dsp">DSP (TinySoundFont)</option>
+                        </select>
+                    </a>
                 </section>
             </div>
 
