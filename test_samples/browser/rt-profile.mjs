@@ -40,6 +40,12 @@ const FORCE_UNIT_RATE = params.get('forceunit') === '1';
 const ABLATE = Number(params.get('ablate') || 0);
 /** Pin the player's note lookahead (ms) instead of letting it adapt. */
 const FORCE_BUF = Number(params.get('buf') || 0);
+/**
+ * Busy-wait this many ms per animation frame, i.e. what the app's piano roll
+ * costs the main thread. Used to see whether a loaded main thread makes the
+ * player miss notes.
+ */
+const JANK_MS = Number(params.get('jank') || 0);
 const results = { ua: navigator.userAgent, info: {}, engines: {} };
 
 /**
@@ -296,6 +302,15 @@ async function runRealtime(engine, seconds) {
     const wall0 = performance.now();
     inst.wall0 = wall0;
     const ctx0 = app.context.currentTime;
+    let rafId = 0;
+    if (JANK_MS) {
+        const burn = () => {
+            const until = performance.now() + JANK_MS;
+            while (performance.now() < until) { /* like drawing a piano roll */ }
+            rafId = requestAnimationFrame(burn);
+        };
+        burn();
+    }
     app.play();
     rtMark('playing', engine, seconds);
     if (FORCE_BUF) {
@@ -398,6 +413,7 @@ async function runRealtime(engine, seconds) {
     const audioMs = (app.context.currentTime - ctx0) * 1000;
     app.stop();
     rtMark('done', engine, seconds);
+    if (rafId) cancelAnimationFrame(rafId);
     clearInterval(sampler);
     clearInterval(janker);
     try { if (capacity.available) app.context.renderCapacity.stop(); } catch (e) { /* noop */ }

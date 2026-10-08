@@ -63,12 +63,118 @@ const CASES = [
         quality: { filter: true, lfo: false, modEnv: false } },
     { label: 'strings C4 @ nearest interp', instrument: 48, pitch: 60, vel: 90, seconds: 3, render: 5,
         interp: 'nearest' },
+    // several notes at once, starting at different frames inside the window -
+    // the worklet has to mix all of them without dropping any
+    { label: 'CHORD piano+strings+drum', chord: [
+        { instrument: 0, pitch: 60, vel: 100, seconds: 2, startFrame: 0 },
+        { instrument: 48, pitch: 55, vel: 90, seconds: 3, startFrame: 37 },
+        { instrument: 0, pitch: 36, vel: 110, seconds: 1, drum: true, startFrame: 100 },
+        { instrument: 0, pitch: 67, vel: 80, seconds: 2, startFrame: 0 },
+    ], render: 5 },
+    { label: 'chord: piano0 + strings37', chord: [
+        { instrument: 0, pitch: 60, vel: 100, seconds: 2, startFrame: 0 },
+        { instrument: 48, pitch: 55, vel: 90, seconds: 3, startFrame: 37 },
+    ], render: 4 },
+    { label: 'chord: piano0 + drum100', chord: [
+        { instrument: 0, pitch: 60, vel: 100, seconds: 2, startFrame: 0 },
+        { instrument: 0, pitch: 36, vel: 110, seconds: 1, drum: true, startFrame: 100 },
+    ], render: 4 },
+    { label: 'chord: two pianos same start', chord: [
+        { instrument: 0, pitch: 60, vel: 100, seconds: 2, startFrame: 0 },
+        { instrument: 0, pitch: 67, vel: 80, seconds: 2, startFrame: 0 },
+    ], render: 4 },
 ];
 
 let worst = 0;
 let failures = 0;
 console.log('');
 for (const c of CASES) {
+    // --- several notes at once: worklet output must equal the summed DSP renders
+    if (c.chord) {
+        const total = Math.round(c.render * RATE);
+        const processor = new ProcessorClass();
+        processor.handleMessage({ type: 'font', font: fontPayload });
+        processor.handleMessage({ type: 'quality', quality: { filter: true, lfo: true, modEnv: true } });
+        const expected = [new Float32Array(total), new Float32Array(total)];
+        c.chord.forEach((entry, index) => {
+            const isDrum = !!entry.drum;
+            const preset = getSF2PresetIndex(entry.instrument, isDrum, isDrum ? 128 : 0, entry.pitch, entry.vel);
+            const noteFrames = Math.round(entry.seconds * RATE);
+            const maxFrames = noteFrames + Math.round(30 * RATE);
+            processor.handleMessage({
+                type: 'note', id: index + 1, presetIndex: preset, key: entry.pitch, velocity: entry.vel / 127,
+                noteFrames, maxFrames, startFrame: entry.startFrame, pitchBends: null, panChanges: null,
+                gains: [{ frame: 0, gain: 1 }], interpolation: 'linear',
+            });
+            Object.assign(tsfQuality, { filter: true, lfo: true, modEnv: true });
+            const dsp = renderNote(font, preset, entry.pitch, entry.vel / 127, noteFrames, maxFrames, null, null, 'linear');
+            for (let i = 0; i < dsp.frames && entry.startFrame + i < total; i++) {
+                expected[0][entry.startFrame + i] += dsp.data[i * 2];
+                expected[1][entry.startFrame + i] += dsp.data[i * 2 + 1];
+            }
+        });
+        const left = new Float32Array(total);
+        const right = new Float32Array(total);
+        for (let at = 0; at < total; at += QUANTUM) {
+            globalThis.currentFrame = at;
+            const block = Math.min(QUANTUM, total - at);
+            const outL = new Float32Array(block);
+            const outR = new Float32Array(block);
+            processor.process([], [[outL, outR]]);
+            left.set(outL, at);
+            right.set(outR, at);
+        }
+        let maxDiff = 0;
+        let maxAt = 0;
+        for (let i = 0; i < total; i++) {
+            const d = Math.max(Math.abs(left[i] - expected[0][i]), Math.abs(right[i] - expected[1][i]));
+            if (d > maxDiff) { maxDiff = d; maxAt = i; }
+        }
+        worst = Math.max(worst, maxDiff);
+        // Diagnostic: does each note render the same on its own as it does in
+        // the mix? (shared state between note renderers would show up here.)
+        const aloneSum = [new Float32Array(total), new Float32Array(total)];
+        c.chord.forEach((entry, index) => {
+            const single = new ProcessorClass();
+            single.handleMessage({ type: 'font', font: fontPayload });
+            const isDrum = !!entry.drum;
+            const preset = getSF2PresetIndex(entry.instrument, isDrum, isDrum ? 128 : 0, entry.pitch, entry.vel);
+            const noteFrames = Math.round(entry.seconds * RATE);
+            single.handleMessage({
+                type: 'note', id: index + 1, presetIndex: preset, key: entry.pitch, velocity: entry.vel / 127,
+                noteFrames, maxFrames: noteFrames + Math.round(30 * RATE), startFrame: entry.startFrame,
+                pitchBends: null, panChanges: null, gains: [{ frame: 0, gain: 1 }], interpolation: 'linear',
+            });
+            for (let at = 0; at < total; at += QUANTUM) {
+                globalThis.currentFrame = at;
+                const block = Math.min(QUANTUM, total - at);
+                const outL = new Float32Array(block);
+                const outR = new Float32Array(block);
+                single.process([], [[outL, outR]]);
+                for (let f = 0; f < block; f++) {
+                    aloneSum[0][at + f] += outL[f];
+                    aloneSum[1][at + f] += outR[f];
+                }
+            }
+        });
+        let aloneDiff = 0;
+        for (let i = 0; i < total; i++) {
+            aloneDiff = Math.max(aloneDiff, Math.abs(left[i] - aloneSum[0][i]), Math.abs(right[i] - aloneSum[1][i]));
+        }
+        const ok = maxDiff <= 2.5e-6;
+        if (!ok) failures++;
+        console.log(`${ok ? 'OK  ' : 'FAIL'} ${c.label.padEnd(32)} ${c.chord.length} notes, `
+            + `max |worklet - sum(dsp)| ${maxDiff.toExponential(2)} at ${maxAt} `
+            + `(worklet ${left[maxAt].toFixed(6)} vs expected ${expected[0][maxAt].toFixed(6)})`);
+        for (const entry of c.chord) {
+            const at = entry.startFrame;
+            console.log(`      note start ${String(at).padStart(4)}: worklet ${left[at].toFixed(6)} expected ${expected[0][at].toFixed(6)}`
+                + ` | +64: ${left[at + 64].toFixed(6)} / ${expected[0][at + 64].toFixed(6)}`
+                + ` | +128: ${left[at + 128].toFixed(6)} / ${expected[0][at + 128].toFixed(6)}`);
+        }
+        console.log(`      mix vs sum of single-note worklet runs: ${aloneDiff.toExponential(2)}`);
+        continue;
+    }
     const isDrum = !!c.drum;
     const presetIndex = getSF2PresetIndex(c.instrument, isDrum, isDrum ? 128 : 0, c.pitch, c.vel);
     if (presetIndex < 0) throw new Error(`${c.label}: no preset`);
@@ -78,7 +184,9 @@ for (const c of CASES) {
     // --- through the worklet processor, 128 frames at a time ---
     const processor = new ProcessorClass();
     processor.handleMessage({ type: 'font', font: fontPayload });
-    if (c.quality) processor.handleMessage({ type: 'quality', quality: c.quality });
+    // always send it: the worklet's quality object lives in the module scope, so
+    // a processor would otherwise inherit whatever a previous case set
+    processor.handleMessage({ type: 'quality', quality: c.quality || { filter: true, lfo: true, modEnv: true } });
     processor.handleMessage({
         type: 'note', id: 1, presetIndex, key: c.pitch, velocity: c.vel / 127,
         noteFrames, maxFrames, startFrame: c.startFrame || 0, pitchBends: null, panChanges: null,
