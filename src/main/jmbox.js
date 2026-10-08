@@ -731,6 +731,12 @@ export class JMBoxApp {
                     break;
                 case "sf2Engine":
                     picoAudio.settings.sf2Engine = e.value;
+                    // 'worklet' loads its module asynchronously; start now so the
+                    // next notes do not have to fall back to the DSP engine
+                    // (the method only exists in builds that ship that engine)
+                    if (e.value === 'worklet' && picoAudio.prepareSF2Worklet) {
+                        picoAudio.prepareSF2Worklet();
+                    }
                     break;
                 case "basePitch":
                     picoAudio.settings.basePitch = e.value;

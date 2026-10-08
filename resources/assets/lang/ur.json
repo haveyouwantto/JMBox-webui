@@ -143,6 +143,7 @@
     "settings.picoaudio.sf2.interpolation.cubic": "کیوبک (سب سے ہموار)",
     "settings.picoaudio.sf2.engine": "سنتھیسس انجن",
     "settings.picoaudio.sf2.engine.webaudio": "Web Audio (تیز)",
+    "settings.picoaudio.sf2.engine.worklet": "AudioWorklet (تیز ترین)",
     "settings.picoaudio.sf2.engine.dsp": "DSP (TinySoundFont)",
     "sf2.uploaded": "SF2 اپ لوڈ اور لوڈ ہو گیا ہے",
     "sf2.loadFailed": "SF2 فائل لوڈ کرنے میں ناکام۔",

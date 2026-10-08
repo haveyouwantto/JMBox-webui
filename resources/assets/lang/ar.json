@@ -143,6 +143,7 @@
     "settings.picoaudio.sf2.interpolation.cubic": "تكعيبي (الأكثر نعومة)",
     "settings.picoaudio.sf2.engine": "محرك التوليد",
     "settings.picoaudio.sf2.engine.webaudio": "Web Audio (أسرع)",
+    "settings.picoaudio.sf2.engine.worklet": "AudioWorklet (الأسرع)",
     "settings.picoaudio.sf2.engine.dsp": "DSP (TinySoundFont)",
     "sf2.uploaded": "تم رفع SF2 وتحميله",
     "sf2.loadFailed": "فشل تحميل ملف SF2.",

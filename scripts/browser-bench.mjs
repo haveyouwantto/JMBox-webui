@@ -24,7 +24,9 @@ const font2Path = font2Arg ? path.resolve(font2Arg.split('=')[1]) : null;
 const keep = args.includes('--keep');
 const page = (args.find((a) => a.startsWith('--page=')) || '--page=bench').split('=')[1];
 const caseArg = args.find((a) => a.startsWith('--cases='));
-const pageQuery = caseArg ? `?cases=${encodeURIComponent(caseArg.split('=')[1])}` : '';
+const queryArg = args.find((a) => a.startsWith('--query='));
+const pageQuery = queryArg ? `?${queryArg.slice('--query='.length)}`
+    : (caseArg ? `?cases=${encodeURIComponent(caseArg.split('=')[1])}` : '');
 const ROOT = path.resolve('.');
 
 const CHROME = [
@@ -78,10 +80,16 @@ const port = await new Promise((r) => server.listen(0, '127.0.0.1', () => r(serv
 
 const debugPort = 9222 + Math.floor(Math.random() * 400);
 const profile = fs.mkdtempSync(path.join(os.tmpdir(), 'sf2-bench-'));
+// BENCH_HEADED runs an off-screen but otherwise normal Chrome: a real audio
+// device has real callback deadlines, which the headless null sink does not.
+const windowArgs = process.env.BENCH_HEADED
+    ? ['--window-position=-2600,-2600', '--window-size=200,200']
+    : ['--headless=new'];
 const chrome = spawn(CHROME, [
-    '--headless=new', `--remote-debugging-port=${debugPort}`, `--user-data-dir=${profile}`,
+    ...windowArgs, `--remote-debugging-port=${debugPort}`, `--user-data-dir=${profile}`,
     '--no-first-run', '--no-default-browser-check', '--disable-extensions',
     '--autoplay-policy=no-user-gesture-required', '--mute-audio', 'about:blank',
+    ...(process.env.CHROME_FLAGS ? process.env.CHROME_FLAGS.split(' ') : []),
 ], { stdio: ['ignore', 'ignore', 'pipe'] });
 let chromeErr = '';
 chrome.stderr.on('data', (d) => { chromeErr += d.toString(); });
@@ -159,8 +167,58 @@ try {
     await send('Page.navigate', { url: `http://127.0.0.1:${port}/test_samples/browser/${page}.html${pageQuery}` });
 
     let result;
-    for (let i = 0; i < 120; i++) {
+    const timeoutMs = Number(process.env.BENCH_TIMEOUT || 120) * 1000;
+    // BENCH_CPU: sample per-process CPU of the whole Chrome tree so the audio
+    // thread's cost is visible (it is not on the page's main thread). Windows
+    // are delimited by window.__RT_STATE__ {engine, phase} from the page.
+    const cpuProbe = !!process.env.BENCH_CPU;
+    const cpuSamples = [];
+    const markers = {};
+    // SystemInfo lives on the browser target, not the page target
+    let cpuSend = null;
+    if (cpuProbe) {
+        try {
+            const version = await (await fetch(`http://127.0.0.1:${debugPort}/json/version`)).json();
+            const browserWs = new WebSocket(version.webSocketDebuggerUrl);
+            await new Promise((res, rej) => { browserWs.onopen = res; browserWs.onerror = rej; });
+            let bid = 0;
+            const bpending = new Map();
+            browserWs.onmessage = (m) => {
+                const msg = JSON.parse(m.data);
+                if (msg.id && bpending.has(msg.id)) {
+                    const { resolve, reject } = bpending.get(msg.id);
+                    bpending.delete(msg.id);
+                    if (msg.error) reject(new Error(JSON.stringify(msg.error)));
+                    else resolve(msg.result);
+                }
+            };
+            cpuSend = (method, params) => new Promise((resolve, reject) => {
+                const msgId = ++bid;
+                bpending.set(msgId, { resolve, reject });
+                browserWs.send(JSON.stringify({ id: msgId, method, params }));
+            });
+        } catch (e) {
+            console.log(`  [cpu] browser target unavailable: ${e.message}`);
+        }
+    }
+    for (let i = 0; i < timeoutMs / 500; i++) {
         await sleep(500);
+        if (cpuSend) {
+            const info = await cpuSend('SystemInfo.getProcessInfo').catch((e) => {
+                if (i === 0) console.log(`  [cpu] ${e.message}`);
+                return null;
+            });
+            if (info) {
+                const byType = {};
+                let total = 0;
+                for (const p of info.processInfo || []) {
+                    const cpu = p.cpuTime || 0;
+                    total += cpu;
+                    byType[p.type] = (byType[p.type] || 0) + cpu;
+                }
+                cpuSamples.push({ t: Date.now(), total, byType });
+            }
+        }
         const r = await send('Runtime.evaluate', { expression: 'window.__BENCH__ || null', returnByValue: true });
         if (r.result && r.result.value) { result = r.result.value; break; }
         const txt = await send('Runtime.evaluate', {
@@ -170,6 +228,57 @@ try {
         if (i % 6 === 5 && txt.result.value) console.log(txt.result.value.trim().split('\n').slice(-3).join('\n'));
     }
     if (!result) throw new Error('bench page never finished');
+
+    if (cpuProbe) {
+        // Page side transition log -> driver clock, then interpolate the CPU
+        // samples between the two timestamps of each playback window.
+        const logRead = await send('Runtime.evaluate', {
+            expression: 'JSON.stringify({ log: window.__RT_LOG__ || [], epoch: window.__RT_EPOCH__ || 0 })',
+            returnByValue: true,
+        }).catch(() => null);
+        const pageLog = logRead && logRead.result && logRead.result.value
+            ? JSON.parse(logRead.result.value) : { log: [], epoch: 0 };
+        const cpuAt = (driverTime) => {
+            if (!cpuSamples.length) return null;
+            let before = cpuSamples[0], after = cpuSamples[cpuSamples.length - 1];
+            for (const s of cpuSamples) {
+                if (s.t <= driverTime) before = s;
+                if (s.t >= driverTime) { after = s; break; }
+            }
+            if (after === before) return before;
+            const k = (driverTime - before.t) / (after.t - before.t);
+            const byType = {};
+            for (const key of new Set([...Object.keys(before.byType), ...Object.keys(after.byType)])) {
+                byType[key] = (before.byType[key] || 0) + ((after.byType[key] || 0) - (before.byType[key] || 0)) * k;
+            }
+            return { t: driverTime, total: before.total + (after.total - before.total) * k, byType };
+        };
+        for (const entry of pageLog.log) {
+            markers[entry.engine] = markers[entry.engine] || {};
+            markers[entry.engine][entry.phase] = { t: pageLog.epoch + entry.wall, cpu: cpuAt(pageLog.epoch + entry.wall) };
+        }
+        const cpuReport = {};
+        for (const [engine, phases] of Object.entries(markers)) {
+            const start = phases.playing, end = phases.done;
+            if (!start || !end || !start.cpu || !end.cpu) continue;
+            const seconds = (end.t - start.t) / 1000;
+            cpuReport[engine] = {
+                windowSeconds: +seconds.toFixed(2),
+                cpuSeconds: +(end.cpu.total - start.cpu.total).toFixed(2),
+                byType: Object.fromEntries(Object.entries(end.cpu.byType)
+                    .map(([k, v]) => [k, +((end.cpu.byType[k] || 0) - (start.cpu.byType[k] || 0)).toFixed(2)])
+                    .filter(([, v]) => v > 0.005)),
+            };
+            cpuReport[engine].coresUsed = +(cpuReport[engine].cpuSeconds / seconds).toFixed(3);
+        }
+        result.cpu = cpuReport;
+        console.log('\nCPU during real playback (whole Chrome process tree, audio thread included):');
+        if (process.env.BENCH_CPU_DEBUG) console.log(`  markers: ${JSON.stringify(markers)}\n  cpu samples: ${cpuSamples.length}`);
+        for (const [engine, r] of Object.entries(cpuReport)) {
+            console.log(`  ${engine.padEnd(10)} ${r.windowSeconds}s window: ${r.cpuSeconds}s CPU = `
+                + `${r.coresUsed} cores  ${JSON.stringify(r.byType)}`);
+        }
+    }
 
     console.log(`\nfont: ${fontPath}${songPath ? `\nsong: ${songPath}` : ''}`);
     console.log(`ua: ${result.ua}`);

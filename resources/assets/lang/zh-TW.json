@@ -125,6 +125,7 @@
     "settings.picoaudio.sf2.interpolation.cubic": "三次插值（最平滑）",
     "settings.picoaudio.sf2.engine": "合成引擎",
     "settings.picoaudio.sf2.engine.webaudio": "Web Audio（較快）",
+    "settings.picoaudio.sf2.engine.worklet": "AudioWorklet（最快）",
     "settings.picoaudio.sf2.engine.dsp": "DSP（TSF 原版）",
     "sf2.uploaded": "SF2 已上傳並載入",
     "sf2.loadFailed": "載入 SF2 檔案失敗。",

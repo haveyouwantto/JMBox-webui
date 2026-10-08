@@ -143,6 +143,7 @@
     "settings.picoaudio.sf2.interpolation.cubic": "কিউবিক (সবচেয়ে মসৃণ)",
     "settings.picoaudio.sf2.engine": "সিন্থেসিস ইঞ্জিন",
     "settings.picoaudio.sf2.engine.webaudio": "Web Audio (দ্রুত)",
+    "settings.picoaudio.sf2.engine.worklet": "AudioWorklet (দ্রুততম)",
     "settings.picoaudio.sf2.engine.dsp": "DSP (TinySoundFont)",
     "sf2.uploaded": "SF2 আপলোড করা হয়েছে এবং লোড করা হয়েছে",
     "sf2.loadFailed": "SF2 ফাইল লোডে ব্যর্থ হয়েছে।",

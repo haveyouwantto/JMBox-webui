@@ -143,6 +143,7 @@
     "settings.picoaudio.sf2.interpolation.cubic": "Cúbica (mais suave)",
     "settings.picoaudio.sf2.engine": "Motor de síntese",
     "settings.picoaudio.sf2.engine.webaudio": "Web Audio (rápido)",
+    "settings.picoaudio.sf2.engine.worklet": "AudioWorklet (o mais rápido)",
     "settings.picoaudio.sf2.engine.dsp": "DSP (TinySoundFont)",
     "sf2.uploaded": "SF2 carregado e aplicado",
     "sf2.loadFailed": "Falha ao carregar arquivo SF2.",

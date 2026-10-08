@@ -143,6 +143,7 @@
     "settings.picoaudio.sf2.interpolation.cubic": "3차 보간(가장 부드러움)",
     "settings.picoaudio.sf2.engine": "합성 엔진",
     "settings.picoaudio.sf2.engine.webaudio": "Web Audio(빠름)",
+    "settings.picoaudio.sf2.engine.worklet": "AudioWorklet(가장 빠름)",
     "settings.picoaudio.sf2.engine.dsp": "DSP(TinySoundFont)",
     "sf2.uploaded": "SF2 업로드 및 로드됨",
     "sf2.loadFailed": "SF2 파일을 불러오는데 실패했습니다.",
