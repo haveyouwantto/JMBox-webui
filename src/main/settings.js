@@ -2,7 +2,20 @@ import EventListener from "./event-listener";
 
 // For S&L configs
 
+/**
+ * Version of the stored configuration, bumped whenever a stored value has to be
+ * reinterpreted (a changed default, a renamed key).
+ *
+ * Stored settings cannot tell "the old default" apart from "the user picked
+ * it", so a default that moves has to be migrated explicitly, once, gated on
+ * the version this build wrote last time.
+ *
+ * 2: sf2Engine's default moved from 'webaudio' to 'worklet'.
+ */
+const CONFIG_VERSION = 2;
+
 const defaultValue = {
+    configVersion: CONFIG_VERSION,
     dark: 'unset',
     showInfo: true,
     webmidi: false,
@@ -15,7 +28,7 @@ const defaultValue = {
     soundQuality: '1',
     sf2Interpolation: "linear",   // SF2 sample interpolation: linear (TSF reference) | nearest | cubic
     sf2Quality: "high",           // SF2 sound quality preset: high (reference) | medium (no modulation) | low (no filter, nearest)
-    sf2Engine: "webaudio",        // SF2 synthesis: webaudio (native nodes) | worklet (single AudioWorklet node) | dsp (TinySoundFont port, exact, main thread)
+    sf2Engine: "worklet",         // SF2 synthesis: worklet (AudioWorklet, cheapest per note) | dsp (TinySoundFont port, exact, main thread) | webaudio (native nodes, kept as the last resort)
     basePitch: 440,
     maxPolyphony: -1,
     skipBeginning: false,
@@ -76,10 +89,30 @@ const settings = {};
 const prefix = 'jmbox';
 
 /**
+ * One time reinterpretation of values written by an older build.
+ *
+ * Runs before the defaults are filled in, so it only sees keys that were
+ * actually stored (a missing key is a fresh install and gets the new default
+ * anyway).
+ */
+function migrateSettings(localStorage) {
+    const stored = parseInt(localStorage.getItem(`${prefix}.configVersion`), 10);
+    if (!(stored >= 2)) {
+        // The synthesis engine default moved from Web Audio to AudioWorklet:
+        // the worklet cost almost nothing of the audio thread, the DSP engine
+        // is the exact reference to fall back to, Web Audio the last resort.
+        if (localStorage.getItem(`${prefix}.sf2Engine`) === 'webaudio') {
+            localStorage.setItem(`${prefix}.sf2Engine`, 'worklet');
+        }
+    }
+}
+
+/**
  * Load configurations from disk
  */
 export function loadSettings() {
     const localStorage = window.localStorage;
+    migrateSettings(localStorage);
     for (const key in defaultValue) {
         if (Object.hasOwnProperty.call(defaultValue, key)) {
             const element = localStorage.getItem(`${prefix}.${key}`);
