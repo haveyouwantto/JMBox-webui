@@ -164,6 +164,23 @@ try {
     await send('Runtime.enable');
     await send('Log.enable');
     await send('Page.enable');
+    // BENCH_CPU_THROTTLE=4 makes the page's main thread 4x slower, which is the
+    // closest thing to a low end device this machine can do (it does not slow
+    // the audio thread, so it models "the box is slow", not "the box is busy").
+    const throttle = Number(process.env.BENCH_CPU_THROTTLE || 0);
+    if (throttle > 0) {
+        await send('Emulation.setCPUThrottlingRate', { rate: throttle });
+        console.log(`\nCPU throttling: ${throttle}x (main thread)`);
+    }
+    // BENCH_PROFILE: sample the page's main thread for the whole run and print
+    // the functions that were on top. The font load is a fixed blob at the
+    // start, so playback dominates the percentages in a long run.
+    const profiling = !!process.env.BENCH_PROFILE;
+    if (profiling) {
+        await send('Profiler.enable');
+        await send('Profiler.setSamplingInterval', { interval: 100 });
+        await send('Profiler.start');
+    }
     await send('Page.navigate', { url: `http://127.0.0.1:${port}/test_samples/browser/${page}.html${pageQuery}` });
 
     let result;
@@ -228,6 +245,28 @@ try {
         if (i % 6 === 5 && txt.result.value) console.log(txt.result.value.trim().split('\n').slice(-3).join('\n'));
     }
     if (!result) throw new Error('bench page never finished');
+
+    if (profiling) {
+        const { profile } = await send('Profiler.stop');
+        const byId = new Map(profile.nodes.map((n) => [n.id, n]));
+        const self = new Map();
+        let total = 0;
+        const deltas = profile.timeDeltas || [];
+        (profile.samples || []).forEach((nodeId, i) => {
+            const dt = deltas[i] || 0;
+            total += dt;
+            const node = byId.get(nodeId);
+            if (!node) return;
+            const cf = node.callFrame || {};
+            const url = (cf.url || '').split('/').pop() || '(native)';
+            const key = `${cf.functionName || '(anonymous)'} @ ${url}:${(cf.lineNumber || 0) + 1}`;
+            self.set(key, (self.get(key) || 0) + dt);
+        });
+        console.log(`\nmain thread profile (${(total / 1000).toFixed(0)} ms sampled):`);
+        for (const [key, us] of [...self.entries()].sort((a, b) => b[1] - a[1]).slice(0, 18)) {
+            console.log(`  ${((us / total) * 100).toFixed(1).padStart(5)}%  ${(us / 1000).toFixed(0).padStart(6)}ms  ${key}`);
+        }
+    }
 
     if (cpuProbe) {
         // Page side transition log -> driver clock, then interpolate the CPU
