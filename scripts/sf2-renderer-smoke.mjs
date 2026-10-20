@@ -174,8 +174,13 @@ const starts = created.sources.slice(sourcesBefore).map((s) => s.startCalls[0][0
 console.log('streaming 20s note :', chunks.length, 'chunks at note-on,',
     chunks.map((b) => b.length).join('+'), 'frames | whole note would be', noteSeconds * 44100);
 console.log('chunk start times  :', starts.map((t) => t.toFixed(3)).join(', '));
-if (chunks.length !== 3) throw new Error(`expected 3 lead chunks, got ${chunks.length}`);
-if (chunks.reduce((n, b) => n + b.length, 0) >= noteSeconds * 44100 / 2) {
+const leadSeconds = chunks.reduce((n, b) => n + b.length, 0) / 44100;
+// The lead has to cover the note's start time but stay small: it is the only
+// part of a long note that blocks the main thread at note-on.
+if (chunks.length < 1 || leadSeconds > 1.5) {
+    throw new Error(`note-on primed ${leadSeconds.toFixed(2)}s in ${chunks.length} chunks, expected <= 1.5s`);
+}
+if (leadSeconds >= noteSeconds / 2) {
     throw new Error('streaming rendered too much of the note up front');
 }
 for (let i = 1; i < starts.length; i++) {
