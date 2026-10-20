@@ -19,6 +19,7 @@ import { setDropDownItems, setSettingItemEnabled, setSettingsDialogVisible, upda
 import players from "./player/player-registry";
 import PicoAudioPlayer from "./player/picoaudio-player";
 import renderAndDownload from "./wav-render";
+import { attachPerfMonitor } from "./ui/perf-monitor";
 
 // AudioPlayer（媒体元素）场景下，Web Audio 输出延迟估算不可用时的默认补偿量（秒）
 const AUDIO_LATENCY_FALLBACK = 0.04;
@@ -48,6 +49,9 @@ export class JMBoxApp {
         });
 
         this.player = this.createPlayer(settings.player);
+        // ?perf=1 turns on the on screen readout (voice count, heap, scene
+        // totals, draw calls) - a phone has no console to look at.
+        this.perfMonitor = attachPerfMonitor(this);
         this.cwd = null;
         this.playlist = null;
         this.midiDevices = null;
