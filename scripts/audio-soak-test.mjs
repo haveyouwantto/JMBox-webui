@@ -183,7 +183,29 @@ for (let ch = 0; ch < 16; ch++) for (const n of song.channels[ch].notes) notes.p
 notes.sort((a, b) => a.startTime - b.startTime);
 
 const songLength = Math.max(song.lastNoteOffTime || 0, song.lastEventTime || 0);
-const until = Math.min(minutes * 60, songLength);
+
+// Replay the song back to back: a leak is per note-on, so what matters is how
+// many notes went through the engine, not how long one song is.
+const PASSES = Math.max(1, Number(process.env.SOAK_PASSES || 1));
+if (PASSES > 1) {
+    const one = notes.slice();
+    for (let pass = 1; pass < PASSES; pass++) {
+        for (const n of one) {
+            notes.push({
+                ...n,
+                startTime: n.startTime + pass * songLength,
+                stopTime: n.stopTime != null ? n.stopTime + pass * songLength : null,
+            });
+        }
+    }
+    notes.sort((a, b) => a.startTime - b.startTime);
+}
+// Yield to the event loop between steps so the engine's streaming pump can run
+// its timers, like it does in a browser. Without it only the note-on chunk is
+// ever rendered and every note that needed a second chunk looks like a leak.
+const STEP_AWAIT = process.env.SOAK_STEP_AWAIT !== '0';
+
+const until = Math.min(minutes * 60, songLength * PASSES);
 const STEP = 0.25;
 let next = 0;
 const live = [];
@@ -191,11 +213,13 @@ let peakHeap = 0;
 const mb = (n) => (n / 1048576).toFixed(1);
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
-console.log(`${songPath.split(/[\\/]/).pop()} | ${notes.length} notes | mode=${MODE}${MODE === 'note' ? ` quality=${QUALITY}` : ''} | ${until.toFixed(0)}s\n`);
+console.log(`${songPath.split(/[\\/]/).pop()} | ${notes.length} notes${PASSES > 1 ? ` (${PASSES} passes)` : ''} | mode=${MODE}${MODE === 'note' ? ` quality=${QUALITY}` : ''} | ${until.toFixed(0)}s\n`);
 console.log('   t  | live notes | live src | live nodes | buf MB | peak buf | heap MB');
 
 for (let t = 0; t < until; t += STEP) {
     advanceTo(ctx, t);
+    // Let the pump timers run before time jumps again (see STEP_AWAIT).
+    if (STEP_AWAIT) await sleep(0);
 
     while (next < notes.length && notes[next].startTime <= t + 0.3) {
         const note = notes[next++];

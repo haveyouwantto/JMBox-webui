@@ -56,7 +56,10 @@ function makeContext() {
             return {
                 ...node(),
                 buffer: null, loop: false, loopStart: 0, loopEnd: 0, onended: null,
-                start() { if (this.buffer) chunks.push(this.buffer); },
+                // the scheduled start time matters now: a chunk buffer is never
+                // shorter than the audio in it (see scheduleChunk), so the tail
+                // of one chunk overlaps the beginning of the next one as silence
+                start(when) { if (this.buffer) chunks.push({ buffer: this.buffer, when: when || 0 }); },
             };
         },
     };
@@ -75,28 +78,50 @@ function renderNote(option, streaming) {
     const stop = renderSF2Note.call(host, option);
     if (!stop) return null;
     if (streaming) flushSF2Streaming();
-    // concatenate the chunks in the order the sources were started
-    const total = context.chunks.reduce((n, b) => n + b.length, 0);
+    // Rebuild the timeline from the scheduled start times instead of gluing the
+    // buffers together: chunks are placed where the graph would play them, so a
+    // padded tail lands after the next chunk has already started (as silence).
+    let total = 0;
+    for (const c of context.chunks) total = Math.max(total, Math.round(c.when * RATE) + c.buffer.length);
     const left = new Float32Array(total), right = new Float32Array(total);
-    let at = 0;
-    for (const buffer of context.chunks) {
-        left.set(buffer.getChannelData(0), at);
-        right.set(buffer.getChannelData(1), at);
-        at += buffer.length;
+    for (const c of context.chunks) {
+        const at = Math.round(c.when * RATE);
+        const l = c.buffer.getChannelData(0);
+        const r = c.buffer.getChannelData(1);
+        for (let i = 0; i < c.buffer.length && at + i < total; i++) {
+            left[at + i] += l[i];
+            right[at + i] += r[i];
+        }
     }
     stop();
     return { left, right, chunks: context.chunks.length, total };
 }
 
+/**
+ * Trailing silent frames are not part of the note.
+ *
+ * A streaming chunk is always a full length buffer so the free list has a
+ * single size class (see scheduleChunk), which means the chunk that ends a note
+ * carries a little silence after its last sample. Only the audio matters, so
+ * both sides are compared up to their last non silent frame.
+ */
+function contentFrames(track) {
+    let end = track.total;
+    while (end > 0 && track.left[end - 1] === 0 && track.right[end - 1] === 0) end--;
+    return end;
+}
+
 function compare(a, b) {
     if (!a || !b) return { error: `missing output (stream ${!!a}, whole ${!!b})` };
-    if (a.total !== b.total) return { error: `length differs: stream ${a.total} vs whole ${b.total}` };
+    const fa = contentFrames(a);
+    const fb = contentFrames(b);
+    if (fa !== fb) return { error: `length differs: stream ${fa} vs whole ${fb} frames` };
     let maxDiff = 0, at = -1;
-    for (let i = 0; i < a.total; i++) {
+    for (let i = 0; i < fa; i++) {
         const d = Math.max(Math.abs(a.left[i] - b.left[i]), Math.abs(a.right[i] - b.right[i]));
         if (d > maxDiff) { maxDiff = d; at = i; }
     }
-    return { maxDiff, at, frames: a.total };
+    return { maxDiff, at, frames: fa, padded: a.total - fa };
 }
 
 const buf = fs.readFileSync(FONT);
