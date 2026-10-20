@@ -257,6 +257,16 @@ async function runRealtime(engine, seconds) {
         return { notes: 0, elapsedMs: seconds * 1000 };
     }
     resetInst();
+    // Where the time before the first note goes. On a stress song the setup
+    // (parse + setData + the engine's own init) can be a bigger single block
+    // than an entire second of playback, so it needs to be attributed.
+    const phases = {};
+    let tPhase = performance.now();
+    const mark = (name) => {
+        const now = performance.now();
+        phases[name] = +(now - tPhase).toFixed(1);
+        tPhase = now;
+    };
     const app = new PicoAudio({ sf2Engine: engine, soundQuality: 4, isSkipBeginning: false });
     if (params.get('quality')) app.settings.sf2Quality = params.get('quality');
     if (params.get('interp')) app.settings.sf2Interpolation = params.get('interp');
@@ -265,13 +275,22 @@ async function runRealtime(engine, seconds) {
         app.settings.isReverb = false;
         app.settings.isChorus = false;
     }
+    // ?norender=1: the engine returns a no-op stop function and synthesizes
+    // nothing, so this profile measures the player's event/scheduling side
+    // alone (used with a stress MIDI, see scripts/make-stress-midi.mjs).
+    if (params.get('norender') === '1') app.settings.sf2NoRender = true;
+    mark('construct');
     app.init();
+    mark('init');
     inst.ctx = app.context;
     inst.app = app;
     await app.context.resume().catch(() => {});
     app.loadSF2(fontAb);
+    mark('loadSF2');
     const parsed = app.parseSMF(midiAb);
+    mark('parseSMF');
     app.setData(parsed);
+    mark('setData');
     // the worklet engine loads its module asynchronously - wait for it so the
     // measurement covers the real engine instead of the DSP fallback
     if (engine === 'worklet') {
@@ -308,6 +327,40 @@ async function runRealtime(engine, seconds) {
         };
         burn();
     }
+
+    // Time every timer / interval callback the player runs (the SF2 streaming
+    // pump and the 1ms note scheduler both live there). Installed before play()
+    // so the scheduler it creates is wrapped too; our own samplers below call
+    // the originals and are not measured.
+    const origSetTimeout = window.setTimeout;
+    window.setTimeout = function (fn, delay, ...rest) {
+        if (typeof fn !== 'function') return origSetTimeout.call(window, fn, delay, ...rest);
+        const wrapped = function (...a) {
+            const t = performance.now();
+            try { return fn.apply(this, a); }
+            finally {
+                const ms = performance.now() - t;
+                inst.timers.push(ms);
+                if (ms > 10) inst.events.push({ t: t - inst.wall0, kind: 'timer', ms });
+            }
+        };
+        return origSetTimeout.call(window, wrapped, delay, ...rest);
+    };
+    const origSetInterval = window.setInterval;
+    window.setInterval = function (fn, delay, ...rest) {
+        if (typeof fn !== 'function') return origSetInterval.call(window, fn, delay, ...rest);
+        const wrapped = function (...a) {
+            const t = performance.now();
+            try { return fn.apply(this, a); }
+            finally {
+                const ms = performance.now() - t;
+                inst.intervals.push(ms);
+                if (ms > 10) inst.events.push({ t: t - inst.wall0, kind: 'interval', ms });
+            }
+        };
+        return origSetInterval.call(window, wrapped, delay, ...rest);
+    };
+
     app.play();
     rtMark('playing', engine, seconds);
     if (FORCE_BUF) {
@@ -319,7 +372,7 @@ async function runRealtime(engine, seconds) {
     // main thread jank: a 20ms heartbeat that has to be serviced on the same
     // event loop the player schedules notes from
     let jankPrev = performance.now() + 20;
-    const janker = setInterval(() => {
+    const janker = origSetInterval.call(window, () => {
         const now = performance.now();
         const drift = now - jankPrev;
         jankPrev = now + 20;
@@ -329,7 +382,7 @@ async function runRealtime(engine, seconds) {
         }
     }, 20);
 
-    const sampler = setInterval(() => {
+    const sampler = origSetInterval.call(window, () => {
         if (FORCE_BUF) {
             app.states.updateBufTime = FORCE_BUF;
             app.states.updateBufMaxTime = FORCE_BUF;
@@ -371,37 +424,6 @@ async function runRealtime(engine, seconds) {
         capacity.error = `${e.name}: ${e.message}`;
     }
 
-    // Time every timer / interval callback the player runs (the SF2 streaming
-    // pump and the 1ms note scheduler both live there). Installed after our own
-    // sampler so it never measures itself.
-    const origSetTimeout = window.setTimeout;
-    window.setTimeout = function (fn, delay, ...rest) {
-        if (typeof fn !== 'function') return origSetTimeout.call(window, fn, delay, ...rest);
-        const wrapped = function (...a) {
-            const t = performance.now();
-            try { return fn.apply(this, a); }
-            finally {
-                const ms = performance.now() - t;
-                inst.timers.push(ms);
-                if (ms > 10) inst.events.push({ t: t - inst.wall0, kind: 'timer', ms });
-            }
-        };
-        return origSetTimeout.call(window, wrapped, delay, ...rest);
-    };
-    const origSetInterval = window.setInterval;
-    window.setInterval = function (fn, delay, ...rest) {
-        if (typeof fn !== 'function') return origSetInterval.call(window, fn, delay, ...rest);
-        const wrapped = function (...a) {
-            const t = performance.now();
-            try { return fn.apply(this, a); }
-            finally {
-                const ms = performance.now() - t;
-                inst.intervals.push(ms);
-                if (ms > 10) inst.events.push({ t: t - inst.wall0, kind: 'interval', ms });
-            }
-        };
-        return origSetInterval.call(window, wrapped, delay, ...rest);
-    };
 
     await new Promise((r) => origSetTimeout.call(window, r, seconds * 1000));
     window.setTimeout = origSetTimeout;
@@ -436,6 +458,7 @@ async function runRealtime(engine, seconds) {
     }
     const rec = {
         wallMs, audioMs,
+        phases,
         notes: inst.noteMs.length,
         noteMs: stat(inst.noteMs),
         scheduleLagMs: lag,
