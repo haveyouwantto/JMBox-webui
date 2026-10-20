@@ -22,7 +22,7 @@ import {
 import { loadSF2, getSF2Font, getSF2PresetIndex } from '/lib/PicoAudio/src/player/sound-source/sf2-provider.js';
 
 const out = document.getElementById('out');
-const say = (s) => { out.textContent += s + '\n'; };
+const say = (s) => { out.textContent += s + '\n'; console.log(`[wk] ${s}`); };
 const results = { ua: navigator.userAgent, info: { engine: 'worklet-load' }, cases: [] };
 
 const QUANTUM = 128;
@@ -97,7 +97,10 @@ class Load extends AudioWorkletProcessor {
                 }
             }
         };
-        for (let i = 0; i < ${WARMUP_PULLS} * Math.max(1, renderers.length); i++) pull();
+        // Enough to get the loop tiered up, but not one batch per voice: at 128
+        // voices that would be a minute of audio before the first measurement.
+        const warm = msg.warmupPulls || Math.min(${WARMUP_PULLS} * renderers.length, 600);
+        for (let i = 0; i < warm; i++) pull();
         // still alive? a dead renderer costs nothing and would flatter the result
         let alive = 0;
         for (const r of renderers) if (!r.isDone()) alive++;
@@ -166,26 +169,41 @@ const noteFor = (program, key, velocity, durSeconds = 60, isDrum = false) => ({
     maxFrames: Math.round((durSeconds + 2) * RATE),
 });
 const repeat = (note, n) => Array.from({ length: n }, () => ({ ...note }));
+// A stack of distinct pitches, the way a real dense arrangement piles up voices.
+const stack = (program, n) => Array.from({ length: n }, (_, i) => noteFor(program, 48 + (i % 24), 100));
 
 const CASES = [
     { label: 'idle (0 voices)', notes: [] },
     { label: 'strings  x1', notes: repeat(noteFor(48, 60, 100), 1) },
     { label: 'strings  x8', notes: repeat(noteFor(48, 60, 100), 8) },
     { label: 'strings x16', notes: repeat(noteFor(48, 60, 100), 16) },
+    { label: 'strings x32', notes: stack(48, 32), pulls: 1200 },
+    { label: 'strings x64', notes: stack(48, 64), pulls: 800 },
+    { label: 'strings x128', notes: stack(48, 128), pulls: 400 },
     // a decaying instrument gets cheaper as it decays, so keep its batch short
     { label: 'piano    x8', notes: [60, 62, 64, 65, 67, 69, 71, 72].map((k) => noteFor(0, k, 100)), pulls: 400 },
     { label: 'strings x8 cubic', notes: repeat({ ...noteFor(48, 60, 100), interp: 'cubic' }, 8) },
+    { label: 'strings x128 cubic', notes: stack(48, 128).map((n) => ({ ...n, interp: 'cubic' })), pulls: 300 },
 ];
 
 say(`quantum ${QUANTUM} frames = ${BUDGET_MS.toFixed(3)} ms at ${RATE} Hz`);
 say('');
 say('case              | mode        |  voices | us per quantum |  share of one quantum | per voice');
-for (const c of CASES) {
+// ?only=x128 runs a single case, for when a long case needs its own run. One
+// case per process is also the only trustworthy way to compare them: rendering
+// eight voices first leaves the loop optimised for an eight element array and a
+// later 128 voice case measures 1.5x slow (2.0 vs 1.3 us per voice per quantum).
+const only = new URLSearchParams(location.search).get('only');
+const cases = only ? CASES.filter((c) => c.label.trim().endsWith(` ${only}`)) : CASES;
+for (const c of cases) {
     for (const mix of [false, true]) {
         const id = nextId++;
         const reply = waitFor(id);
         node.port.postMessage({ type: 'run', id, notes: c.notes, pulls: c.pulls || PULLS, mix });
-        const r = await reply;
+        // A worklet that dies mid batch never answers; without this the whole
+        // page would wait forever and the run would end in a bare timeout.
+        const r = await Promise.race([reply, new Promise((res) => setTimeout(() => res({ timeout: true }), 30000))]);
+        if (r.timeout) { say(`${c.label} (${mix ? 'mix' : 'synth'}): no reply, worklet stopped`); break; }
         if (r.error) { say(`${c.label}: ${r.error}`); continue; }
         const perQuantum = r.ms / r.pulls;
         const share = perQuantum / BUDGET_MS;
