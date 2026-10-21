@@ -20,6 +20,7 @@
  * Usage: node scripts/app-watch.mjs [url] [song.mid] [seconds]
  *   PRESET=sf2|dsp|webaudio   boot with that engine configuration saved
  *   MAXPOLY=n                 cap voices once the song is loaded
+ *   PAUSE_AT=s                call picoAudio.stop() at second s
  *   STALL_AT=s STALL_MS=n     freeze the main thread at second s; the
  *                             scheduler should resume at the same position
  *                             instead of skipping ahead (recoverFromStall)
@@ -319,6 +320,14 @@ try {
                  byType: (window.__nodeStat || {}).byType };
     })()`);
     console.log(`${path.basename(SONG)}: ${JSON.stringify(status)}\n`);
+
+    if (process.env.PAUSE_AT) {
+        const at = Number(process.env.PAUSE_AT);
+        setTimeout(() => {
+            evaluate('window.picoAudio.stop()').catch(() => {});
+            console.log(`      --- paused at ${at}s ---`);
+        }, at * 1000);
+    }
 
     let prev = await evaluate(SAMPLE).catch(() => null);
     console.log(fmtRow(0, prev, null));
