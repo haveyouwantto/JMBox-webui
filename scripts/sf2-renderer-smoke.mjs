@@ -58,8 +58,9 @@ const fakePicoAudio = {
     states: { startTime: 0 },
     baseLatency: 0.02,
     masterGainNode: { connect() {}, disconnect() {} },
-    // streaming off here: this block checks the single buffer path
-    settings: { generateVolume: 0.15, sf2Streaming: false },
+    // there is only the streaming path now: a 1 s note is primed with the
+    // lead chunk and the rest is synthesized by the pump
+    settings: { generateVolume: 0.15 },
     channels: [0, 0, 1],
 };
 
@@ -73,8 +74,13 @@ const stop = renderSF2Note.call(fakePicoAudio, {
 });
 
 if (typeof stop !== 'function') throw new Error('renderSF2Note did not return a stop function');
-if (created.buffers.length !== 1) throw new Error(`expected 1 buffer, got ${created.buffers.length}`);
-if (created.sources.length !== 1) throw new Error(`expected 1 source, got ${created.sources.length}`);
+// note-on must not synthesize the whole note: the lead chunk is all that may
+// exist before the clock moves
+const leadChunks = created.buffers.length;
+if (leadChunks < 1) throw new Error('no chunk scheduled at note-on');
+if (created.sources.length !== leadChunks) {
+    throw new Error(`expected ${leadChunks} sources, got ${created.sources.length}`);
+}
 
 const buffer = created.buffers[0];
 const left = buffer.getChannelData(0);
@@ -89,8 +95,10 @@ console.log('start scheduled at :', source.startCalls[0] && source.startCalls[0]
 console.log('channel volumes    :', created.gains.map((g) => g.gain.events[0]));
 
 stop();
-console.log('stop() muted       :', created.gains.some((g) => g.gain.events.some(
-    (e) => e[0] === 'setValueAtTime' && e[1] === 0)));
+// The mute is the source stop itself now: the note has no gain stage of its own.
+const stopped = created.sources.every((n) => n.stopCalls.length > 0);
+console.log('stop() silenced it :', stopped);
+if (!stopped) throw new Error('stop() left a source playing');
 
 if (!(peak > 0.001)) throw new Error('rendered buffer is silent');
 if (Math.abs(source.startCalls[0][0] - 0.52) > 1e-9) throw new Error('start time is not startTime + baseLatency');
@@ -120,16 +128,27 @@ const drumStop = renderSF2Note.call(fakePicoAudio, {
     startTime: 2.0, stopTime: 2.05, instrument: 0, pitch: 36,
     velocity: 100 / 127, channel: 9, midiVelocity: 100, midiVolume: 127, midiExpression: 127,
 });
+if (typeof drumStop !== 'function') throw new Error('drum note did not render');
+// Snapshot before the next note: chunk buffers are pooled and reused, so the
+// content has to be copied out now, and the chunk length is the same fixed size
+// for every note - only the samples tell the two presets apart.
+const drumPcm = Float32Array.from(created.buffers[created.buffers.length - 1].getChannelData(0));
+drumStop();
+
 const melodicStop = renderSF2Note.call(fakePicoAudio, {
     startTime: 3.0, stopTime: 3.05, instrument: 0, pitch: 36,
     velocity: 100 / 127, channel: 0, midiVelocity: 100, midiVolume: 127, midiExpression: 127,
 });
-const drumFrames = created.buffers[created.buffers.length - 2].length;
-const melodicFrames = created.buffers[created.buffers.length - 1].length;
-console.log('renderer channel 9  :', drumFrames, 'frames | channel 0:', melodicFrames, 'frames');
-if (typeof drumStop !== 'function' || typeof melodicStop !== 'function') throw new Error('note did not render');
-if (drumFrames === melodicFrames) throw new Error('channel 9 rendered the melodic preset');
-drumStop(); melodicStop();
+if (typeof melodicStop !== 'function') throw new Error('melodic note did not render');
+const melodicPcm = Float32Array.from(created.buffers[created.buffers.length - 1].getChannelData(0));
+melodicStop();
+
+let kitDiff = 0;
+for (let i = 0; i < Math.min(drumPcm.length, melodicPcm.length); i++) {
+    kitDiff = Math.max(kitDiff, Math.abs(drumPcm[i] - melodicPcm[i]));
+}
+console.log('renderer channel 9  :', drumPcm.length, 'frames, max |diff| vs melodic', kitDiff.toExponential(2));
+if (kitDiff === 0) throw new Error('channel 9 rendered the melodic preset');
 
 // --- interpolation setting must reach the engine ------------------------
 function renderWithMode(mode) {
@@ -160,7 +179,6 @@ if (diff(a, bufNearest.getChannelData(0)) === 0) throw new Error('nearest interp
 if (diff(a, bufCubic.getChannelData(0)) === 0) throw new Error('cubic interpolation had no effect');
 
 // --- streaming: a long note is synthesized in chunks while it plays ------
-fakePicoAudio.settings.sf2Streaming = true;
 const buffersBefore = created.buffers.length;
 const sourcesBefore = created.sources.length;
 const noteSeconds = 20;
