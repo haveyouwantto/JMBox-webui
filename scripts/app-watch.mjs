@@ -18,6 +18,11 @@
  *     the memory back it is retained, not just uncollected.
  *
  * Usage: node scripts/app-watch.mjs [url] [song.mid] [seconds]
+ *   PRESET=sf2|dsp|webaudio   boot with that engine configuration saved
+ *   MAXPOLY=n                 cap voices once the song is loaded
+ *   STALL_AT=s STALL_MS=n     freeze the main thread at second s; the
+ *                             scheduler should resume at the same position
+ *                             instead of skipping ahead (recoverFromStall)
  */
 import fs from 'fs';
 import os from 'os';
@@ -135,6 +140,10 @@ const SAMPLE = `(() => {
         heap: mem ? +(mem.usedJSHeapSize / 1048576).toFixed(1) : -1,
         total: mem ? +(mem.totalJSHeapSize / 1048576).toFixed(1) : -1,
         created: S.created, released: S.released, liveSources: S.liveSources,
+        // Notes the scheduler has dispatched so far, and how far it has moved
+        // the play index: the difference between two samples is the note-on
+        // rate, which is what a stall followed by a catch-up burst looks like.
+        disp: st && st.playIndices ? st.playIndices.reduce((a, b) => a + b, 0) : -1,
         byType: S.byType,
         quality,
         workletReady: pa && pa.isSF2WorkletReady ? pa.isSF2WorkletReady() : null,
@@ -169,6 +178,7 @@ function fmtRow(t, a, prev) {
         `tick ${String(a.tickRate).padStart(4)}`,
         `nodes ${String(a.created - a.released).padStart(6)}`,
         `+${String(dc).padStart(5)}/-${String(dr).padStart(5)}`,
+        `note+${String(prev && a.disp >= 0 && prev.disp >= 0 ? a.disp - prev.disp : 0).padStart(5)}`,
         `heap ${String(a.heap).padStart(6)} (${dh >= 0 ? '+' : ''}${dh.toFixed(1)})`,
         // Only a problem when the worklet was asked for and did not come up.
         a.sf2Engine === 'worklet' && a.workletReady === false ? 'BK:no-worklet' : '',
@@ -332,6 +342,23 @@ try {
             prev = g;
             samples.push(g);
             continue;
+        }
+        if (process.env.STALL_AT && t === Number(process.env.STALL_AT)) {
+            // Freeze the main thread the way a long task or a backgrounded tab
+            // does, and see what the scheduler does when it comes back: the
+            // audio clock kept running while nothing was produced.
+            const ms = Number(process.env.STALL_MS || 1500);
+            const before = await evaluate('window.picoAudio.context.currentTime');
+            await evaluate(`(() => { const t0 = performance.now();`
+                + ` while (performance.now() - t0 < ${ms}); return 1; })()`);
+            const afterStall = await evaluate(`(() => {
+                const pa = window.picoAudio, ctx = pa.context, st = pa.states;
+                return { ctx: +ctx.currentTime.toFixed(3),
+                         pos: +(ctx.currentTime - st.startTime).toFixed(3),
+                         voices: st.stopFuncs.length };
+            })()`);
+            console.log(`      --- stall ${ms} ms: ctx ${before.toFixed(3)} -> ${afterStall.ctx},`
+                + ` pos ${afterStall.pos}, voices ${afterStall.voices} ---`);
         }
         prev = a;
     }
