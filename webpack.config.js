@@ -83,7 +83,14 @@ module.exports = {
     rules: [
       {
         test: /\.js$/i,
-        exclude: /node_modules/,
+        // lib/PicoAudio is already ES2018+ that every browser we support runs,
+        // and it must stay that way: the SF2 AudioWorklet processor is shipped
+        // by stringifying its own source (sf2WorkletSource), so a transform that
+        // injects module-scope helpers (_wrapNativeSuper for `class extends
+        // AudioWorkletProcessor`) produces a blob that throws on evaluation. The
+        // worklet then never registers and every SF2 note silently falls back to
+        // the DSP engine, which synthesizes on the main thread.
+        exclude: /node_modules|lib[\\/]PicoAudio/,
         use: {
           loader: "babel-loader",
           options: {
