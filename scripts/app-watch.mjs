@@ -59,8 +59,7 @@ const INSTRUMENT = `(() => {
     const Ctor = window.AudioContext || window.webkitAudioContext;
     if (!Ctor) return;
     const S = window.__nodeStat = {
-        created: 0, released: 0, byType: Object.create(null),
-        bufCreated: 0, bufBytes: 0, liveSources: 0,
+        created: 0, released: 0, byType: Object.create(null), liveSources: 0,
     };
     const NAMES = ['createGain', 'createOscillator', 'createBufferSource', 'createStereoPanner',
         'createBiquadFilter', 'createConvolver', 'createDelay', 'createWaveShaper',
@@ -97,15 +96,6 @@ const INSTRUMENT = `(() => {
                 return disc.apply(this, x);
             };
             return node;
-        };
-    }
-    const buf = Ctor.prototype.createBuffer;
-    if (typeof buf === 'function') {
-        Ctor.prototype.createBuffer = function (...a) {
-            const b = buf.apply(this, a);
-            S.bufCreated++;
-            S.bufBytes += b.length * b.numberOfChannels * 4;
-            return b;
         };
     }
     // The note scheduler is a 1 ms setInterval; counting its callbacks shows
@@ -145,8 +135,7 @@ const SAMPLE = `(() => {
         heap: mem ? +(mem.usedJSHeapSize / 1048576).toFixed(1) : -1,
         total: mem ? +(mem.totalJSHeapSize / 1048576).toFixed(1) : -1,
         created: S.created, released: S.released, liveSources: S.liveSources,
-        byType: S.byType, bufCreated: S.bufCreated,
-        bufMB: +(S.bufBytes / 1048576).toFixed(1),
+        byType: S.byType,
         quality,
         workletReady: pa && pa.isSF2WorkletReady ? pa.isSF2WorkletReady() : null,
         sf2Engine: pa && pa.settings ? pa.settings.sf2Engine : null,
@@ -253,9 +242,12 @@ try {
     // after the fact leaves the worklet cold, and the first notes fall back to
     // the DSP engine, which synthesizes on the main thread - a completely
     // different machine than the one we mean to measure.
-    if (process.env.PRESET === 'sf2' || process.env.PRESET === 'dsp' || process.env.PRESET === 'webaudio') {
-        const engine = process.env.PRESET === 'sf2' ? 'worklet' : process.env.PRESET;
-        const preset = await evaluate(`(() => {
+    // soundQuality 4 selects the soundfont; sf2Engine picks how it is rendered
+    // (worklet = on the audio thread, dsp/webaudio = on the main thread).
+    const preset = process.env.PRESET;
+    if (['sf2', 'dsp', 'webaudio'].includes(preset)) {
+        const engine = preset === 'sf2' ? 'worklet' : preset;
+        const keys = await evaluate(`(() => {
             const set = (k, v) => localStorage.setItem('jmbox.' + k, v);
             set('configVersion', '2');
             set('soundQuality', '4');
@@ -273,7 +265,7 @@ try {
             await sleep(1000);
         }
         if (!again) throw new Error('app did not come back after preset');
-        console.log(`preset applied (${preset} keys), reloaded`);
+        console.log(`preset applied (${keys} keys), reloaded`);
         // The font download and parse plus the worklet module are async.
         for (let i = 0; i < 30; i++) {
             const st = await evaluate(`(() => {
@@ -284,57 +276,6 @@ try {
             if (st && st.sf2 && st.worklet) { console.log(`font+worklet ready (${i}s)`); break; }
             await sleep(1000);
         }
-    }
-
-    // Is AudioWorklet itself usable here, or is the generated module source the
-    // thing that fails to register? A two-line processor answers that.
-    if (process.env.PROBE_WORKLET) {
-        const probe = await evaluate(`(async () => {
-            const pa = window.picoAudio;
-            const ctx = pa && pa.context;
-            if (!ctx) return 'no context';
-            const out = { hasAddModule: !!ctx.audioWorklet, state: ctx.state };
-            const useReal = ${process.env.REAL_SRC ? 'true' : 'false'};
-            const src = useReal
-                ? window.__sf2WorkletSource()
-                : ('registerProcessor("probe-x", class extends AudioWorkletProcessor {'
-                    + ' process() { return true; } });');
-            out.kind = useReal ? 'sf2' : 'stub';
-            out.srcLen = src ? src.length : -1;
-            const url = URL.createObjectURL(new Blob([src], { type: 'text/javascript' }));
-            try {
-                await ctx.audioWorklet.addModule(url);
-                out.addModule = 'ok';
-            } catch (e) {
-                out.addModule = 'throw ' + e.name + ': ' + e.message;
-            } finally {
-                URL.revokeObjectURL(url);
-            }
-            if (useReal) {
-                // Run the same source in the window scope with stubbed worklet
-                // globals: whatever makes registerProcessor not happen usually
-                // throws a real error here.
-                try {
-                    let registered = null;
-                    const fn = new Function('registerProcessor', 'AudioWorkletProcessor',
-                        'currentFrame', 'sampleRate', src);
-                    fn((name) => { registered = name; }, class {}, 0, 48000);
-                    out.evalInWindow = 'ok, registered=' + registered;
-                } catch (e) {
-                    out.evalInWindow = 'throw ' + e.name + ': ' + e.message;
-                }
-            }
-            try {
-                const n = new AudioWorkletNode(ctx, useReal ? 'picoaudio-sf2' : 'probe-x');
-                out.node = 'ok';
-                n.disconnect();
-            } catch (e) {
-                out.node = 'throw ' + e.name + ': ' + e.message;
-            }
-            return out;
-        })()`).catch((e) => ({ error: e.message }));
-        console.log(`worklet probe: ${JSON.stringify(probe)}`);
-        throw new Error('probe only');
     }
 
     const doc = await send('DOM.getDocument', { depth: -1 });
@@ -355,36 +296,6 @@ try {
         await sleep(1500);
     }
 
-    // Engine switch done the way the app does it, so resolveSoundQuality()
-    // really returns the new value for the notes created afterwards.
-    if (process.env.SET_SQ) {
-        const want = Number(process.env.SET_SQ);
-        // The font is served from the webpack output root, which is what the
-        // app's own loadSoundFontSF2('Neo1MGM.sf2') resolves. Fetching it from
-        // /resources/assets/ 404s the dev server and the parse fails silently,
-        // which makes the "SF2 run" fall back to the basic wave engine and
-        // look slower than it is. Verified through isSF2Loaded() below.
-        const r = await evaluate(`(async () => {
-            const pa = window.picoAudio;
-            let fontOk = null;
-            if (${want === 4}) {
-                const res = await fetch('Neo1MGM.sf2');
-                if (!res.ok) return { error: 'font fetch ' + res.status };
-                fontOk = pa.loadSF2(await res.arrayBuffer());
-            }
-            pa.settings.soundQuality = ${want};
-            if (pa.settings.sf2Engine === 'worklet' && pa.prepareSF2Worklet) pa.prepareSF2Worklet();
-            pa.stop();
-            pa.play();
-            return { soundQuality: pa.settings.soundQuality,
-                     fontOk,
-                     sf2Loaded: pa.isSF2Loaded ? pa.isSF2Loaded() : null,
-                     engine: pa.settings.sf2Engine, preset: pa.settings.sf2Quality };
-        })()`).catch((e) => ({ error: e.message }));
-        console.log(`switch -> ${JSON.stringify(r)}`);
-        await sleep(3000);
-    }
-
     const status = await evaluate(`(() => {
         const pa = window.picoAudio, st = pa && pa.states, s = (pa && pa.settings) || {};
         return { playing: !!(st && st.isPlaying),
@@ -399,10 +310,8 @@ try {
     })()`);
     console.log(`${path.basename(SONG)}: ${JSON.stringify(status)}\n`);
 
-    let prev = null;
-    const first = await evaluate(SAMPLE).catch(() => null);
-    prev = first;
-    console.log(fmtRow(0, first, null));
+    let prev = await evaluate(SAMPLE).catch(() => null);
+    console.log(fmtRow(0, prev, null));
 
     const samples = [];
     for (let t = 1; t <= SECONDS; t++) {
@@ -411,32 +320,6 @@ try {
         try { a = await evaluate(SAMPLE); } catch (e) { continue; }
         samples.push(a);
         console.log(fmtRow(t, a, prev));
-
-        if (process.env.BACKGROUND_AT && t === Number(process.env.BACKGROUND_AT)) {
-            let how = 'none';
-            try {
-                // The CDP override changes document.visibilityState but does not
-                // reproduce a real background tab (timers keep running), so the
-                // timer-throttling failures only show up with a second tab.
-                if (process.env.BACKGROUND_MODE === 'tab') throw new Error('forced tab mode');
-                await send('Emulation.setPageVisibilityOverride', { visibilityState: 'hidden' });
-                how = 'override';
-            } catch (e) {
-                try {
-                    const t2 = await (await fetch(`http://127.0.0.1:${debugPort}/json/new?about:blank`, { method: 'PUT' })).json();
-                    const ws2 = new WebSocket(t2.webSocketDebuggerUrl);
-                    await new Promise((r, j) => { ws2.onopen = r; ws2.onerror = j; });
-                    let i2 = 0;
-                    ws2.send(JSON.stringify({ id: ++i2, method: 'Page.enable' }));
-                    ws2.send(JSON.stringify({ id: ++i2, method: 'Page.bringToFront' }));
-                    await sleep(300);
-                    how = 'other-tab';
-                } catch (e2) {
-                    how = 'failed ' + e2.message;
-                }
-            }
-            console.log(`      --- ${t}s: page hidden (${how}) ---`);
-        }
 
         // Halfway through, ask for a full collection. The heap reading before
         // and after tells garbage apart from retention.
@@ -474,8 +357,7 @@ try {
         const el = document.getElementById('perf-monitor');
         return el ? el.innerText : '(no panel)';
     })()`).catch(() => '(unreadable)');
-    console.log(`\nperf panel at end://n${panel}`);
-    void samples.filter((s) => s.latMs > 100).length;
+    console.log(`\nperf panel at end:\n${panel}`);
 } catch (e) {
     console.error(`failed: ${e.message}`);
     process.exitCode = 1;

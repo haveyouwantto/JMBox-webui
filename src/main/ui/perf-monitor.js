@@ -11,6 +11,15 @@
  * so the instrument never becomes the thing that leaks.
  */
 const REFRESH_MS = 500;
+/** Comparing the audio clock over less than this is all noise. */
+const CLOCK_MIN_SAMPLE_MS = 200;
+/** Under this ratio of audio seconds per wall second, the engine is losing. */
+const CLOCK_SLOW = 0.85;
+/** 3 x the 128 voices one audio thread was benchmarked to carry. */
+const SOURCE_WARN = 384;
+
+/** soundQuality -> the sound source that value selects. */
+const SOURCE_NAMES = { 4: 'sf2', 3: 'sf2', 1: 'additive', 0: 'basic-wave', '-1': 'sine' };
 
 const ROWS = [
     ['fps', 'fps'],
@@ -27,7 +36,7 @@ const ROWS = [
 ];
 
 /**
- * How many source nodes are running on the audio thread right now.
+ * How many source nodes are sounding right now.
  *
  * `states.stopFuncs.length` is not that number. A note leaves the stop list the
  * moment its note-off arrives, but its source keeps playing through the release
@@ -36,39 +45,28 @@ const ROWS = [
  * reads like a light load while the audio thread is actually trying to render
  * five times that, and it is the five times that matters.
  *
- * Counting is done by wrapping the AudioContext factory methods once and
- * listening for the source's own 'ended' event. Nothing is retained.
+ * Only the factories that make sound are wrapped, and the count ends on the
+ * node's own 'ended' event: stop(t) only schedules that, so decrementing on
+ * stop() would count a voice as gone while it is still audible.
  */
-const NODE_COUNTER_KEY = '__jmboxNodeCounter';
+let sourceStat = null;
 
-function installNodeCounter() {
-    if (window[NODE_COUNTER_KEY]) return window[NODE_COUNTER_KEY];
+function countSources() {
+    if (sourceStat) return sourceStat;
+    sourceStat = { live: 0 };
     const Ctor = window.AudioContext || window.webkitAudioContext;
-    const stat = { liveSources: 0, createdSources: 0, createdNodes: 0, byType: Object.create(null) };
-    window[NODE_COUNTER_KEY] = stat;
-    if (!Ctor || !Ctor.prototype) return stat;
+    if (!Ctor || !Ctor.prototype) return sourceStat;
 
-    const SOURCES = ['createOscillator', 'createBufferSource', 'createConstantSource'];
-    const NODES = SOURCES.concat([
-        'createGain', 'createStereoPanner', 'createBiquadFilter', 'createConvolver',
-        'createDelay', 'createWaveShaper', 'createDynamicsCompressor', 'createPanner',
-        'createChannelSplitter', 'createChannelMerger', 'createIIRFilter',
-    ]);
-    for (const name of NODES) {
+    const stat = sourceStat;
+    for (const name of ['createOscillator', 'createBufferSource', 'createConstantSource']) {
         const original = Ctor.prototype[name];
         if (typeof original !== 'function') continue;
-        const isSource = SOURCES.indexOf(name) >= 0;
         Ctor.prototype[name] = function (...args) {
             const node = original.apply(this, args);
-            stat.createdNodes++;
-            stat.byType[name] = (stat.byType[name] || 0) + 1;
-            if (isSource) {
-                stat.createdSources++;
-                stat.liveSources++;
-                try {
-                    node.addEventListener('ended', () => { stat.liveSources--; });
-                } catch (e) { /* noop */ }
-            }
+            stat.live++;
+            try {
+                node.addEventListener('ended', () => { stat.live--; });
+            } catch (e) { /* noop */ }
             return node;
         };
     }
@@ -114,7 +112,8 @@ export class PerfMonitor {
         for (const [key, label] of ROWS) {
             const line = document.createElement('div');
             const name = document.createElement('span');
-            name.textContent = label.padEnd(6);
+            // one space more than the longest label, so columns never collide
+            name.textContent = label.padEnd(8);
             name.style.color = '#5f8f6c';
             const value = document.createElement('span');
             line.appendChild(name);
@@ -124,7 +123,7 @@ export class PerfMonitor {
         }
         document.body.appendChild(box);
         this.el = box;
-        this.nodeStat = installNodeCounter();
+        this.sources = countSources();
         this.startedAt = performance.now();
         this.windowStart = this.startedAt;
 
@@ -209,22 +208,21 @@ export class PerfMonitor {
         const ctx = pa && pa.context;
         if (ctx) {
             const latency = Number.isFinite(ctx.baseLatency) ? ` ${(ctx.baseLatency * 1000).toFixed(0)}ms` : '';
-            // How fast the audio clock is running compared to the wall clock.
-            // AudioContext.currentTime counts rendered quanta, so when the
-            // render callback stops keeping up this ratio drops and the song
+            // AudioContext.currentTime counts rendered quanta, so when the render
+            // callback falls behind the wall clock this ratio drops and the song
             // plays slow - which is what an overloaded engine sounds like.
             const now = performance.now();
             let speed = '';
-            if (this.lastCtxAt && Number.isFinite(this.lastCtxTime)) {
-                const wall = (now - this.lastCtxAt) / 1000;
-                const audio = ctx.currentTime - this.lastCtxTime;
-                if (wall > 0.2) speed = `  ${(audio / wall).toFixed(2)}x`;
+            let slow = false;
+            if (this.lastCtxAt && now - this.lastCtxAt >= CLOCK_MIN_SAMPLE_MS) {
+                const ratio = (ctx.currentTime - this.lastCtxTime) / ((now - this.lastCtxAt) / 1000);
+                speed = `  ${ratio.toFixed(2)}x`;
+                slow = ratio < CLOCK_SLOW;
             }
             this.lastCtxAt = now;
             this.lastCtxTime = ctx.currentTime;
-            const ratio = speed ? parseFloat(speed) : 1;
             this.set('ctx', `${ctx.state} ${Math.round(ctx.sampleRate / 1000)}kHz${latency}${speed}`,
-                ctx.state !== 'running' || ratio < 0.85);
+                ctx.state !== 'running' || slow);
         } else {
             this.set('ctx', 'no context', true);
         }
@@ -237,17 +235,11 @@ export class PerfMonitor {
         // worklet was asked for but did not come up (the silent DSP fallback).
         const st = pa && pa.states;
         const settings = (pa && pa.settings) || {};
-        const sq = Number(settings.soundQuality);
+        const kind = SOURCE_NAMES[Number(settings.soundQuality)] || `quality ${settings.soundQuality}`;
         const workletDriving = !!(pa && pa.isSF2WorkletReady && pa.isSF2WorkletReady());
-        let source;
-        if (sq === 4 || sq === 3) source = `sf2/${settings.sf2Engine || '?'} ${settings.sf2Quality || ''}`;
-        else if (sq === 1) source = 'additive';
-        else if (sq === 0) source = 'basic-wave';
-        else if (sq === -1) source = 'sine';
-        else source = `quality ${settings.soundQuality}`;
-        const degraded = (sq === 4 || sq === 3)
-            && settings.sf2Engine === 'worklet' && !workletDriving;
-        this.set('engine', source.trim() + (degraded ? '  FALLBACK!' : ''), degraded);
+        const detail = kind === 'sf2' ? `/${settings.sf2Engine || '?'} ${settings.sf2Quality || ''}` : '';
+        const degraded = kind === 'sf2' && settings.sf2Engine === 'worklet' && !workletDriving;
+        this.set('engine', `${kind}${detail}`.trim() + (degraded ? '  FALLBACK!' : ''), degraded);
 
         // --- position --------------------------------------------------
         if (st && ctx && Number.isFinite(st.startTime)) {
@@ -271,20 +263,15 @@ export class PerfMonitor {
             voices > 192);
 
         // --- sources ---------------------------------------------------
-        // The player's own count only covers notes that have not reached
-        // note-off; this is what the audio thread is really rendering.
-        const stat = this.nodeStat || {};
-        const live = stat.liveSources != null ? stat.liveSources : -1;
+        // Live source nodes, i.e. what the audio thread is really rendering.
+        // Under the worklet there are none: it mixes every note itself.
+        const live = this.sources ? this.sources.live : -1;
         if (workletDriving) {
-            // The AudioWorklet mixes every note itself, so there is no per-note
-            // node to count - the whole engine is one node.
-            this.set('src', 'worklet  (no per-note nodes)');
+            this.set('src', 'worklet');
         } else {
             if (live > this.peak.sources) this.peak.sources = live;
-            this.set('src',
-                `${String(live).padStart(4)} peak ${String(this.peak.sources).padStart(4)}`
-                + `  ${(live / 128).toFixed(1)}x128vo`,
-                live > 384);
+            this.set('src', `${String(live).padStart(4)} peak ${String(this.peak.sources).padStart(4)}`,
+                live > SOURCE_WARN);
         }
 
         // --- notes -----------------------------------------------------
