@@ -1,4 +1,4 @@
-import { collectBarLines } from "./waterfall";
+import { collectBarLines, palette as LEGACY_PALETTE } from "./waterfall";
 
 const TAU = Math.PI * 2;
 const NOTE_NAMES = ["C", "C♯", "D", "E♭", "E", "F", "F♯", "G", "A♭", "A", "B♭", "B"];
@@ -12,6 +12,8 @@ const PAL_HEX = [
 ];
 const PAL = PAL_HEX.map(hex => [1, 3, 5].map(i => parseInt(hex.slice(i, i + 2), 16)).join(","));
 const PALN = PAL.map(rgb => rgb.split(",").map(Number));
+const LEGACY_PAL = LEGACY_PALETTE.map(hex => [1, 3, 5].map(i => parseInt(hex.slice(i, i + 2), 16)).join(","));
+const LEGACY_PALN = LEGACY_PAL.map(rgb => rgb.split(",").map(Number));
 const TRAIL_STEP = 0.035;
 const TRAIL_BREAK = 8;
 const TRAIL_SPD = 0.55;
@@ -63,14 +65,16 @@ function makeGauss(rgb) {
     return canvas;
 }
 
-const GLOW = PAL.map(makeGlow);
-const GAUSS = PALN.map(makeGauss);
+const NEO_GLOW = PAL.map(makeGlow);
+const NEO_GAUSS = PALN.map(makeGauss);
+const LEGACY_GLOW = LEGACY_PAL.map(makeGlow);
+const LEGACY_GAUSS = LEGACY_PALN.map(makeGauss);
 
 function glow(renderer, channel, x, y, size, alpha = 1) {
     if (alpha <= 0.003) return;
     const context = renderer.ctx;
     context.globalAlpha = Math.min(1, alpha);
-    context.drawImage(GLOW[channel & 15], x - size / 2, y - size / 2, size, size);
+    context.drawImage(renderer.glowSprites[channel & 15], x - size / 2, y - size / 2, size, size);
     context.globalAlpha = 1;
 }
 
@@ -475,6 +479,7 @@ const Cascade = {
 
     draw(renderer, time, delta) {
         const context = renderer.ctx;
+        const PAL = renderer.paletteRgb;
         const W = renderer.W;
         const H = renderer.H;
         const score = renderer.score;
@@ -708,6 +713,7 @@ const Orbit = {
 
     draw(renderer, time, delta) {
         const context = renderer.ctx;
+        const PAL = renderer.paletteRgb;
         const W = renderer.W;
         const H = renderer.H;
         const score = renderer.score;
@@ -955,6 +961,7 @@ const Warp = {
 
     draw(renderer, time, delta) {
         const context = renderer.ctx;
+        const PAL = renderer.paletteRgb;
         const W = renderer.W;
         const H = renderer.H;
         const score = renderer.score;
@@ -1229,7 +1236,7 @@ const Trail = {
         const sin = Math.sin(seed);
         const twinkle = age * 24 | 0;
         const dot = Math.max(3, scale * (0.012 + 0.016 * velocity) * (1 - normalized * 0.5));
-        const sprite = GAUSS[note.ch & 15];
+        const sprite = renderer.gaussSprites[note.ch & 15];
         renderer.ctx.globalAlpha = Math.min(1, (1 - normalized) ** 1.1 * fog * brightness);
         for (let i = 0; i < count; i++) {
             if ((i * 7 + twinkle) % 5 === 0) continue;
@@ -1290,6 +1297,8 @@ const Trail = {
 
     draw(renderer, time, delta) {
         const context = renderer.ctx;
+        const PAL = renderer.paletteRgb;
+        const PALN = renderer.paletteRgbArray;
         const W = renderer.W;
         const H = renderer.H;
         const score = renderer.score;
@@ -1490,8 +1499,10 @@ export class NeoRenderer {
             spanDuration: 4,
             maxNoteDuration: 30,
             showBarLines: true,
+            neoLegacyPalette: false,
             rendererMode: "neo-cascade"
         }, settings);
+        this._updatePalette();
         this.midiData = null;
         this.score = buildScore(null, this.settings);
         this.activeNotes = [];
@@ -1511,7 +1522,11 @@ export class NeoRenderer {
 
     updateSettings(settings) {
         const oldMaxDuration = this.settings.maxNoteDuration;
+        const oldLegacyPalette = this.settings.neoLegacyPalette;
         Object.assign(this.settings, settings);
+        if (oldLegacyPalette !== this.settings.neoLegacyPalette) {
+            this._updatePalette();
+        }
         const nextMode = resolveModeName(this.settings);
         if (nextMode !== this._modeName) {
             this._modeName = nextMode;
@@ -1525,6 +1540,14 @@ export class NeoRenderer {
             this.activeNotes = [];
         }
         this._mode.layout(this);
+    }
+
+    _updatePalette() {
+        const legacy = !!this.settings.neoLegacyPalette;
+        this.paletteRgb = legacy ? LEGACY_PAL : PAL;
+        this.paletteRgbArray = legacy ? LEGACY_PALN : PALN;
+        this.glowSprites = legacy ? LEGACY_GLOW : NEO_GLOW;
+        this.gaussSprites = legacy ? LEGACY_GAUSS : NEO_GAUSS;
     }
 
     setMidiData(midiData) {

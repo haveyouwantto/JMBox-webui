@@ -87,6 +87,7 @@
     "settings.render.mode": "渲染模式",
     "settings.render.webgl": "WebGL 3D",
     "settings.render.canvas2d": "Canvas 2D",
+      "settings.render.neo-legacy-palette": "使用舊版調色盤",
     "settings.render.bloom": "輝光",
     "settings.render.bloom-strength": "輝光強度",
     "settings.render.bloom-radius": "輝光半徑",

@@ -133,6 +133,7 @@
       "settings.render.neo-orbit": "Neo Orbit",
       "settings.render.neo-warp": "Neo Warp",
       "settings.render.neo-trail": "Neo Trail",
+      "settings.render.neo-legacy-palette": "Legacy palette",
     "settings.render.bloom": "Bloom",
     "settings.render.bloom-strength": "Bloom Strength",
     "settings.render.bloom-radius": "Bloom Radius",
