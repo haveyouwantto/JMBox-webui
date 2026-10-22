@@ -7,6 +7,7 @@ import { filelist } from "./ui/filelist";
 import { navbar } from "./ui/navbar";
 import * as playerBar from "./ui/player-bar";
 import { MidiFall, MidiFallController, WebGLRenderer } from './ui/waterfall'
+import { isNeoRendererMode, NeoRenderer } from './ui/neo-renderer';
 import Playlist from "./player/playlist";
 import { $, dbToGain, generatePlaylist, resetMIDI, supportsWebGL2 } from "./utils";
 import { editSetting, loadSettings, settingChangeListener, settings } from "./settings";
@@ -419,6 +420,9 @@ export class JMBoxApp {
 
     _createRenderer(canvas) {
         const mode = settings.rendererMode || 'webgl';
+        if (isNeoRendererMode(mode)) {
+            return new NeoRenderer(canvas, settings);
+        }
         if (mode !== 'canvas2d') {
             if (!supportsWebGL2()) {
                 // 没有 WebGL2（老浏览器 / 关掉硬件加速）时不能建 3D 渲染器，
@@ -438,9 +442,14 @@ export class JMBoxApp {
     // 按模式换渲染器（设置里切换、以及 3D 渲染失败回退时都用它）
     applyRendererMode(mode) {
         const midiFall = this.waterfall.midiFall;
-        const currentIsWebGL = midiFall instanceof WebGLRenderer;
-        const targetIsWebGL = mode !== 'canvas2d';
-        if (currentIsWebGL === targetIsWebGL) return;
+        const currentKind = midiFall instanceof NeoRenderer ? 'neo'
+            : midiFall instanceof WebGLRenderer ? 'webgl' : 'canvas2d';
+        const targetKind = isNeoRendererMode(mode) ? 'neo'
+            : mode === 'canvas2d' ? 'canvas2d' : 'webgl';
+        if (currentKind === targetKind) {
+            midiFall.updateSettings(settings);
+            return;
+        }
 
         const oldCanvas = midiFall.canvas;
         const newCanvas = document.createElement('canvas');

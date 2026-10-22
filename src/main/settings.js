@@ -53,7 +53,7 @@ const defaultValue = {
     showInfoOverlay: true,
 
     // ── 渲染器模式 ──
-    rendererMode: "canvas2d",  // "webgl" | "canvas2d"
+    rendererMode: "canvas2d",  // "webgl" | "canvas2d" | "neo-cascade" | "neo-orbit" | "neo-warp" | "neo-trail"
 
     // ── WebGL 3D ──
     zScale: 16,

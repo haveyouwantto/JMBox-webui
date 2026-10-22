@@ -9,6 +9,7 @@ A browser-based MIDI player with real-time waterfall visualization (inspired by 
 -   **SoundFont (SF2) Playback** — the SF2 mode runs a JavaScript port of [TinySoundFont](https://github.com/schellingb/TinySoundFont), so envelopes, filters, LFOs, loops, drum kits and gain follow the reference implementation sample for sample. Any GM/GS SoundFont can be uploaded, and the sample interpolation is selectable (Linear / Nearest / Cubic).
 -   **Waterfall / Piano Roll** — real-time 2D (Canvas2D) or 3D (WebGL/Three.js) note visualization with bloom effects, nebula, and camera controls.
 -   **3D Renderer** — WebGL render mode with Three.js: per-note glow, playline effects, star particles and nebula background.
+-   **Neo Renderers** — four additional Canvas scenes sharing the app's MIDI data: Cascade, Orbit, Warp, and Trail.
 -   **Video Export** — render MIDI playback to WebM video with audio, configurable resolution and frame rate.
 -   **Settings** — extensive configuration for audio, PicoAudio engine, piano roll, 3D rendering, and more.
 -   **Multi-language** — 13 languages: English, 简体中文, 繁體中文, 日本語, 한국어, Español, Français, Русский, العربية, हिन्दी, বাংলা, Português, اردو.
