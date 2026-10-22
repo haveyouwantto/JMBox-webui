@@ -1223,7 +1223,7 @@ const Trail = {
         const brightness = 0.2 + 0.8 * velocity;
         const ease = 1 - Math.exp(-age * 5.5);
         glow(renderer, note.ch, x, y, scale * radius * 3.4 * (0.5 + ease), (0.8 * Math.exp(-age * 4) + 0.12 * (1 - normalized)) * fog * brightness);
-        const count = Math.round(34 + velocity * 80);
+        const count = Math.round(14 + velocity * 32);
         const seed = (note.note * 131 + (note.start * 977 | 0)) % 1000 / 1000 * TAU;
         const cos = Math.cos(seed);
         const sin = Math.sin(seed);
