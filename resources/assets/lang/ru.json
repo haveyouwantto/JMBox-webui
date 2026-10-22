@@ -141,18 +141,18 @@
 
     "settings.picoaudio.sf2.quality": "Качество звука",
 
-    "settings.picoaudio.sf2.quality.high": "Высокое (эталон)",
+    "settings.picoaudio.sf2.quality.high": "Высокое",
 
-    "settings.picoaudio.sf2.quality.medium": "Среднее (без модуляции)",
+    "settings.picoaudio.sf2.quality.medium": "Среднее",
 
-    "settings.picoaudio.sf2.quality.low": "Низкое (самое быстрое)",
-    "settings.picoaudio.sf2.interpolation.linear": "Линейная (эталон)",
-    "settings.picoaudio.sf2.interpolation.nearest": "Ближайший отсчёт (быстрее всего)",
-    "settings.picoaudio.sf2.interpolation.cubic": "Кубическая (самая гладкая)",
+    "settings.picoaudio.sf2.quality.low": "Низкое",
+    "settings.picoaudio.sf2.interpolation.linear": "Линейная",
+    "settings.picoaudio.sf2.interpolation.nearest": "Ближайший отсчёт",
+    "settings.picoaudio.sf2.interpolation.cubic": "Кубическая",
     "settings.picoaudio.sf2.engine": "Движок синтеза",
-    "settings.picoaudio.sf2.engine.webaudio": "Web Audio (быстро)",
-    "settings.picoaudio.sf2.engine.worklet": "AudioWorklet (самый быстрый)",
-    "settings.picoaudio.sf2.engine.dsp": "DSP (TinySoundFont)",
+    "settings.picoaudio.sf2.engine.webaudio": "Web Audio",
+    "settings.picoaudio.sf2.engine.worklet": "AudioWorklet",
+    "settings.picoaudio.sf2.engine.dsp": "DSP",
     "sf2.uploaded": "SF2 загружен и установлен",
     "sf2.loadFailed": "Не удалось загрузить файл SF2.",
     "sf2.restored": "Восстановлен SF2 по умолчанию",

@@ -153,10 +153,9 @@ export function loadMIDI(buffer) {
     }
 }
 
-export async function loadWavetable(path) {
-    const r = await fetch(path);
-    const b = await r.arrayBuffer();
-    picoAudio.loadWaves(b);
+/** @deprecated soundQuality 1 now uses the built-in synth instruments. */
+export async function loadWavetable() {
+    console.warn('JMBox: loadWavetable() is deprecated; soundQuality 1 uses the built-in synth instruments');
 }
 
 window.picoAudio = picoAudio;

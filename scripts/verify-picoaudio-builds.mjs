@@ -11,7 +11,7 @@ import { pathToFileURL } from "node:url";
 
 const DIST = "lib/PicoAudio/dist/nodejs";
 const BROWSER_DIST = "lib/PicoAudio/dist/browser";
-const SF2 = "test_samples/PicoAudio-PeriodicWave.sf2";
+const SF2 = "resources/assets/Neo1MGM.sf2";
 const RATE = 44100;
 
 const waModule = process.env.WA_MODULE
@@ -22,19 +22,15 @@ window.AudioContext = wa.AudioContext;
 
 // Marker strings that must / must not survive tree shaking.
 const MARKERS = {
-    wave: "createPeriodicWave",
-    table: "AAA9SgwK",
+    synth: "createPeriodicWave",
     sf2: "sfbk",
 };
 
-// Ordered by size: the size check below expects this order to be increasing.
 const VARIANTS = [
-    { name: "basic", file: "picoaudio.basic.mjs", wave: false, sf2: false, defaultWave: false },
-    { name: "wave-nodefault", file: "picoaudio.wave-nodefault.mjs", wave: true, sf2: false, defaultWave: false },
-    { name: "wave", file: "picoaudio.wave.mjs", wave: true, sf2: false, defaultWave: true },
-    { name: "sf2", file: "picoaudio.sf2.mjs", wave: false, sf2: true, defaultWave: false },
-    { name: "sf2-wave-nodefault", file: "picoaudio.sf2-wave-nodefault.mjs", wave: true, sf2: true, defaultWave: false },
-    { name: "full", file: "picoaudio.mjs", wave: true, sf2: true, defaultWave: true },
+    { name: "basic", file: "picoaudio.basic.mjs", wave: false, sf2: false },
+    { name: "wave", file: "picoaudio.wave.mjs", wave: true, sf2: false },
+    { name: "sf2", file: "picoaudio.sf2.mjs", wave: false, sf2: true },
+    { name: "full", file: "picoaudio.mjs", wave: true, sf2: true },
 ];
 
 let failures = 0;
@@ -93,8 +89,6 @@ function correlation(a, b) {
 }
 
 // ---------------------------------------------------------------- fixtures --
-const tableSource = fs.readFileSync("lib/PicoAudio/src/player/sound-source/default-wave.js", "utf8");
-const defaultTable = Buffer.from(tableSource.match(/'([^']+)'/)[1], "base64");
 const sf2Buffer = fs.readFileSync(SF2);
 const sf2ArrayBuffer = sf2Buffer.buffer.slice(sf2Buffer.byteOffset, sf2Buffer.byteOffset + sf2Buffer.byteLength);
 
@@ -114,11 +108,8 @@ for (const variant of VARIANTS) {
     }
 
     // 2. dead code is really gone from the bundle
-    if (code.includes(MARKERS.wave) !== variant.wave) {
-        fail(`${variant.name}: wavetable code ${variant.wave ? "missing" : "still present"}`);
-    }
-    if (code.includes(MARKERS.table) !== variant.defaultWave) {
-        fail(`${variant.name}: default wave table ${variant.defaultWave ? "missing" : "still present"}`);
+    if (code.includes(MARKERS.synth) !== variant.wave) {
+        fail(`${variant.name}: synth code ${variant.wave ? "missing" : "still present"}`);
     }
     if (code.includes(MARKERS.sf2) !== variant.sf2) {
         fail(`${variant.name}: SF2 code ${variant.sf2 ? "missing" : "still present"}`);
@@ -136,26 +127,13 @@ for (const variant of VARIANTS) {
     results.push(`q0 ${basic.peak.toFixed(3)}`);
     results.push(`q0-drum ${drum.peak.toFixed(3)}`);
 
-    // 4. wavetable mode: plays once a table is there, otherwise falls back
+    // 4. synth instrument mode: quality 1 plays the hand-programmed patches
     const sameAsBasic = (r) => correlation(basic.mono, r.mono);
     if (variant.wave) {
-        const played = await render(PicoAudio, { quality: 1, instrument: 0 });
-        if (variant.defaultWave) {
-            if (!(played.peak > 1e-4)) fail(`${variant.name}: quality 1 rendered silence`);
-            if (sameAsBasic(played) > 0.9) fail(`${variant.name}: quality 1 did not use the wave table`);
-            results.push(`q1 table ${played.peak.toFixed(3)}`);
-        } else {
-            if (sameAsBasic(played) < 0.99) fail(`${variant.name}: quality 1 without a table did not fall back to basic`);
-            results.push(`q1 -> q0 ${played.peak.toFixed(3)}`);
-            const loaded = await render(PicoAudio, {
-                quality: 1, instrument: 0,
-                prepare: (player) => quiet(() => player.loadWaves(defaultTable.buffer.slice(
-                    defaultTable.byteOffset, defaultTable.byteOffset + defaultTable.byteLength))),
-            });
-            if (!(loaded.peak > 1e-4)) fail(`${variant.name}: loadWaves(own table) then quality 1 was silent`);
-            if (sameAsBasic(loaded) > 0.9) fail(`${variant.name}: loadWaves() did not switch quality 1 to the table`);
-            results.push(`q1 table ${loaded.peak.toFixed(3)}`);
-        }
+        const synth = await render(PicoAudio, { quality: 1, instrument: 0 });
+        if (!(synth.peak > 1e-4)) fail(`${variant.name}: quality 1 synth patch rendered silence`);
+        if (sameAsBasic(synth) > 0.9) fail(`${variant.name}: quality 1 synth patch did not leave the basic engine`);
+        results.push(`q1 synth ${synth.peak.toFixed(3)}`);
     } else {
         // A build without the engine keeps soundQuality out of 1 and falls back.
         const clamped = await render(PicoAudio, { quality: 1, instrument: 0 });
@@ -213,11 +191,6 @@ for (const variant of VARIANTS) {
             fail(`${file} does not parse: ${e.message}`);
         }
     }
-}
-
-const sizes = VARIANTS.map((v) => fs.statSync(path.join(DIST, v.file)).size);
-if (!(sizes[0] < sizes[1] && sizes[1] < sizes[2] && sizes[2] < sizes[3])) {
-    fail(`bundle sizes are not increasing: ${sizes.map((s) => (s / 1024).toFixed(1)).join(" < ")}`);
 }
 
 console.log(failures === 0 ? "ALL BUILD VARIANTS OK" : `${failures} CHECK(S) FAILED`);

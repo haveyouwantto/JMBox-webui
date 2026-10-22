@@ -2374,12 +2374,6 @@ export class MidiFallController {
                     if (el) el.classList.add('lyrics-highlight');
                 }
                 const lrcElement = document.getElementById('lyrics-' + lyrics.ord)
-                if (lrcElement) {
-                    lrcElement.scrollIntoView({
-                        block: "center",
-                        behavior: 'smooth'
-                    })
-                }
             }
         }
     }

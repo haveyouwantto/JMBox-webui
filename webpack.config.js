@@ -8,8 +8,8 @@ const JsonMinimizerPlugin = require("json-minimizer-webpack-plugin");
 const HTMLInlineCSSWebpackPlugin = require("html-inline-css-webpack-plugin").default;
 
 // Which PicoAudio build to bundle. Defaults to the full source build (every
-// engine, features.js all true); set PICO_VARIANT=basic|wave|wave-nodefault|
-// full to bundle one of the prebuilt variants from lib/PicoAudio/dist instead.
+// engine, features.js all true); set PICO_VARIANT=basic|wave|sf2|full to
+// bundle one of the prebuilt variants from lib/PicoAudio/dist instead.
 //   PowerShell: $env:PICO_VARIANT='wave'; npm run build
 const picoVariant = process.env.PICO_VARIANT;
 const picoAudioEntry = picoVariant && picoVariant !== 'full'

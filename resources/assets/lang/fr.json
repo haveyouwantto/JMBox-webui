@@ -141,18 +141,18 @@
 
     "settings.picoaudio.sf2.quality": "Qualité audio",
 
-    "settings.picoaudio.sf2.quality.high": "Élevée (référence)",
+    "settings.picoaudio.sf2.quality.high": "Élevée",
 
-    "settings.picoaudio.sf2.quality.medium": "Moyenne (sans modulation)",
+    "settings.picoaudio.sf2.quality.medium": "Moyenne",
 
-    "settings.picoaudio.sf2.quality.low": "Basse (la plus rapide)",
-    "settings.picoaudio.sf2.interpolation.linear": "Linéaire (référence)",
-    "settings.picoaudio.sf2.interpolation.nearest": "Plus proche (le plus rapide)",
-    "settings.picoaudio.sf2.interpolation.cubic": "Cubique (le plus lisse)",
+    "settings.picoaudio.sf2.quality.low": "Basse",
+    "settings.picoaudio.sf2.interpolation.linear": "Linéaire",
+    "settings.picoaudio.sf2.interpolation.nearest": "Plus proche",
+    "settings.picoaudio.sf2.interpolation.cubic": "Cubique",
     "settings.picoaudio.sf2.engine": "Moteur de synthèse",
-    "settings.picoaudio.sf2.engine.webaudio": "Web Audio (rapide)",
-    "settings.picoaudio.sf2.engine.worklet": "AudioWorklet (le plus rapide)",
-    "settings.picoaudio.sf2.engine.dsp": "DSP (TinySoundFont)",
+    "settings.picoaudio.sf2.engine.webaudio": "Web Audio",
+    "settings.picoaudio.sf2.engine.worklet": "AudioWorklet",
+    "settings.picoaudio.sf2.engine.dsp": "DSP",
     "sf2.uploaded": "SF2 téléversé et chargé",
     "sf2.loadFailed": "Échec du chargement du fichier SF2.",
     "sf2.restored": "SF2 par défaut restauré",

@@ -141,18 +141,18 @@
 
     "settings.picoaudio.sf2.quality": "جودة الصوت",
 
-    "settings.picoaudio.sf2.quality.high": "عالية (مرجعية)",
+    "settings.picoaudio.sf2.quality.high": "عالية",
 
-    "settings.picoaudio.sf2.quality.medium": "متوسطة (بدون تعديل)",
+    "settings.picoaudio.sf2.quality.medium": "متوسطة",
 
-    "settings.picoaudio.sf2.quality.low": "منخفضة (أسرع)",
-    "settings.picoaudio.sf2.interpolation.linear": "خطي (المرجع)",
-    "settings.picoaudio.sf2.interpolation.nearest": "أقرب جار (الأسرع)",
-    "settings.picoaudio.sf2.interpolation.cubic": "تكعيبي (الأكثر نعومة)",
+    "settings.picoaudio.sf2.quality.low": "منخفضة",
+    "settings.picoaudio.sf2.interpolation.linear": "خطي",
+    "settings.picoaudio.sf2.interpolation.nearest": "أقرب جار",
+    "settings.picoaudio.sf2.interpolation.cubic": "تكعيبي",
     "settings.picoaudio.sf2.engine": "محرك التوليد",
-    "settings.picoaudio.sf2.engine.webaudio": "Web Audio (أسرع)",
-    "settings.picoaudio.sf2.engine.worklet": "AudioWorklet (الأسرع)",
-    "settings.picoaudio.sf2.engine.dsp": "DSP (TinySoundFont)",
+    "settings.picoaudio.sf2.engine.webaudio": "Web Audio",
+    "settings.picoaudio.sf2.engine.worklet": "AudioWorklet",
+    "settings.picoaudio.sf2.engine.dsp": "DSP",
     "sf2.uploaded": "تم رفع SF2 وتحميله",
     "sf2.loadFailed": "فشل تحميل ملف SF2.",
     "sf2.restored": "تم استعادة SF2 الافتراضي",

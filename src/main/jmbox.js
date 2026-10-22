@@ -717,19 +717,25 @@ export class JMBoxApp {
                     playerBar.setVolume(Math.sqrt(e.value));
                     break;
                 case "soundQuality":
-                    // 3 was the sample bank; the engine is gone and the
-                    // setting now plays SF2, so both load the soundfont.
-                    if (parseInt(e.value) == 4 || parseInt(e.value) == 3) {
-                        // Try loading a user-stored SF2 first; fall back to the default if none.
-                        loadStoredSF2IfAny().then(ok => {
-                            if (!ok) {
-                                // Load SF2 SoundFont from the embedded default path
-                                loadSoundFontSF2('Neo1MGM.sf2');
-                            }
-                        });
+                    {
+                        const quality = parseInt(e.value);
+                        if (quality === -1) {
+                            console.warn('JMBox: soundQuality -1 (sine wave) is deprecated; using basic waves');
+                        }
+                        // 3 was the sample bank; the engine is gone and the
+                        // setting now plays SF2, so both load the soundfont.
+                        if (quality == 4 || quality == 3) {
+                            // Try loading a user-stored SF2 first; fall back to the default if none.
+                            loadStoredSF2IfAny().then(ok => {
+                                if (!ok) {
+                                    // Load SF2 SoundFont from the embedded default path
+                                    loadSoundFontSF2('Neo1MGM.sf2');
+                                }
+                            });
+                        }
+                        picoAudio.settings.soundQuality = quality
+                        break;
                     }
-                    picoAudio.settings.soundQuality = parseInt(e.value)
-                    break;
                 case "sf2Interpolation":
                     picoAudio.settings.sf2Interpolation = e.value;
                     break;
