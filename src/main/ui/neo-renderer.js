@@ -14,6 +14,7 @@ const PAL = PAL_HEX.map(hex => [1, 3, 5].map(i => parseInt(hex.slice(i, i + 2), 
 const PALN = PAL.map(rgb => rgb.split(",").map(Number));
 const LEGACY_PAL = LEGACY_PALETTE.map(hex => [1, 3, 5].map(i => parseInt(hex.slice(i, i + 2), 16)).join(","));
 const LEGACY_PALN = LEGACY_PAL.map(rgb => rgb.split(",").map(Number));
+const TRAIL_TAIL = 6;
 const TRAIL_ENTER = 0.9;
 const TRAIL_STEP = 0.035;
 const TRAIL_BREAK = 8;
@@ -182,7 +183,7 @@ const drumWX = note => {
     return side * (1.04 + 0.11 * ((note * 7) % 3));
 };
 
-function trailArc(x, y, phi, ex, ey) {
+function trailArc(x, y, phi, ex, ey, allowLong = false) {
     const wx = ex - x;
     const wy = ey - y;
     const length = Math.hypot(wx, wy);
@@ -192,13 +193,17 @@ function trailArc(x, y, phi, ex, ey) {
         Math.cos(phi) * wx + Math.sin(phi) * wy
     );
     const sine = Math.sin(angle);
-    if (Math.abs(angle) > 2.6) return null;
+    if (!allowLong && Math.abs(angle) > 2.6) return null;
+    if (Math.abs(sine) < 1e-9) {
+        if (Math.abs(angle) < 1e-9) return { x, y, phi, k: 0, len: length, end: phi };
+        return null;
+    }
     return {
         x,
         y,
         phi,
         k: 2 * sine / length,
-        len: Math.abs(sine) < 1e-6 ? length : length * angle / sine,
+        len: length * angle / sine,
         end: phi + 2 * angle
     };
 }
@@ -240,7 +245,7 @@ function trailPoly(arcs) {
     const cumulative = [];
     let total = 0;
     for (const arc of arcs) {
-        const steps = Math.max(2, Math.min(48, Math.ceil(Math.abs(arc.k * arc.len) / 0.1)));
+        const steps = Math.max(2, Math.min(128, Math.ceil(Math.abs(arc.k * arc.len) / 0.04)));
         for (let i = points.length ? 1 : 0; i <= steps; i++) {
             const distance = arc.len * i / steps;
             if (Math.abs(arc.k) < 1e-9) {
@@ -265,7 +270,7 @@ function trailPoly(arcs) {
     };
 }
 
-function buildTrail(score) {
+function buildTrail(score, singleArc = false) {
     const byChannel = new Map();
     const edges = [];
     for (const note of score.notes) {
@@ -413,17 +418,43 @@ function buildTrail(score) {
 
     for (const notes of byChannel.values()) {
         for (const child of notes) {
-            if (!child.par) continue;
+            if (!child.par) {
+                child.singleTx = child.tx;
+                child.singleTy = child.ty;
+                continue;
+            }
             const parent = child.par;
+            let arcs;
+            if (singleArc) {
+                const startTx = parent.singleTx ?? parent.tx;
+                const startTy = parent.singleTy ?? parent.ty;
+                const arc = trailArc(
+                    parent.wx,
+                    parent.wy,
+                    Math.atan2(startTy, startTx),
+                    child.wx,
+                    child.wy,
+                    true
+                );
+                arcs = arc ? [arc] : trailBiarc(
+                    parent.wx, parent.wy, startTx, startTy,
+                    child.wx, child.wy, child.tx, child.ty
+                );
+                const endTangent = arcs[arcs.length - 1].end;
+                child.singleTx = Math.cos(endTangent);
+                child.singleTy = Math.sin(endTangent);
+            } else {
+                arcs = trailBiarc(
+                    parent.wx, parent.wy, parent.tx, parent.ty,
+                    child.wx, child.wy, child.tx, child.ty
+                );
+            }
             edges.push({
                 ta: parent.start,
                 tb: child.start,
                 ch: child.ch,
                 v: child.vel,
-                arcs: trailBiarc(
-                    parent.wx, parent.wy, parent.tx, parent.ty,
-                    child.wx, child.wy, child.tx, child.ty
-                ),
+                arcs,
                 poly: null
             });
         }
@@ -462,7 +493,7 @@ const Cascade = {
                 whiteIndex++;
             }
         }
-        this.vis = clamp(Number(renderer.settings.spanDuration) || 3, 0.8, 12);
+        this.vis = clamp(Number(renderer.settings.neoCascadeSpan) || 3, 0.8, 12);
         this.kh = Math.max(70, Math.min(130, renderer.H * 0.14));
         this.hitY = renderer.H - this.kh;
     },
@@ -1165,12 +1196,36 @@ const Trail = {
     },
 
     layout(renderer) {
+        const tiltDegrees = Number(renderer.settings.neoTrailTilt);
+        this.tilt = (Number.isFinite(tiltDegrees) ? clamp(tiltDegrees, 34, 86) : 60) * Math.PI / 180;
         this.S0 = Math.min(renderer.W * 0.34, renderer.H * 0.85);
         this.D = (0.5 * renderer.H / Math.tan(this.FOV * Math.PI / 360)) / this.S0;
-        if (!renderer.score.trail) renderer.score.trail = buildTrail(renderer.score);
-        this.tree = renderer.score.trail;
+        const singleArc = !!renderer.settings.neoTrailSingleArc;
+        const trailKey = singleArc ? "trailSingleArc" : "trail";
+        if (!renderer.score[trailKey]) renderer.score[trailKey] = buildTrail(renderer.score, singleArc);
+        this.tree = renderer.score[trailKey];
+        let lastNote = null;
+        const notes = renderer.score.notes;
+        for (let i = notes.length - 1; i >= 0; i--) {
+            if (notes[i].ch !== 9) {
+                lastNote = notes[i];
+                break;
+            }
+        }
+        if (!lastNote && notes.length) lastNote = notes[notes.length - 1];
+        this.endT = lastNote ? lastNote.start : Infinity;
+        this.endX = lastNote && lastNote.ch !== 9 ? trailX(lastNote.note, renderer.score) : 0;
         this.cam = 0;
         this.setCam(renderer, 0);
+    },
+
+    camT(time) {
+        const endT = this.endT;
+        if (!(endT < Infinity)) return time;
+        const start = endT - TRAIL_TAIL / 2;
+        if (time <= start) return time;
+        const progress = Math.min(1, (time - start) / TRAIL_TAIL);
+        return start + TRAIL_TAIL * (progress - progress * progress / 2);
     },
 
     setCam(renderer, worldY) {
@@ -1279,8 +1334,8 @@ const Trail = {
         renderer.ctx.drawImage(sprite, this.P.x - size / 2, this.P.y - size / 2, size, size);
     },
 
-    marker(renderer, note, age) {
-        const fade = Math.min(1, (this.BACK - age) / 0.6);
+    marker(renderer, note, age, cameraAge) {
+        const fade = Math.min(1, (this.BACK - cameraAge) / 0.6);
         if (fade <= 0) return;
         const point = this.P;
         const role = note.role;
@@ -1530,9 +1585,10 @@ const Trail = {
         const H = renderer.H;
         const score = renderer.score;
         const notes = score.notes;
-        const worldY = time * TRAIL_SPD;
+        const cameraTime = this.camT(time);
+        const worldY = cameraTime * TRAIL_SPD;
         const energy = Math.min(2.5, renderer.energy);
-        const maxTime = time + this.LOOK;
+        const maxTime = cameraTime + this.LOOK;
         const point = this.P;
         const lookWorldY = this.LOOK * TRAIL_SPD;
 
@@ -1544,7 +1600,14 @@ const Trail = {
                 count++;
             }
         }
-        this.cam += ((count ? centerX / count * 0.7 : 0) - this.cam) * Math.min(1, delta * 1.6);
+        let cameraTarget = count ? centerX / count * 0.7 : 0;
+        if (this.endT < Infinity) {
+            cameraTarget += (this.endX - cameraTarget) * Math.max(
+                0,
+                Math.min(1, (time - (this.endT - TRAIL_TAIL / 2)) / TRAIL_TAIL)
+            );
+        }
+        this.cam += (cameraTarget - this.cam) * Math.min(1, delta * 1.6);
         this.setCam(renderer, worldY);
         const fog = wy => {
             const age = wy - worldY;
@@ -1566,7 +1629,7 @@ const Trail = {
         const cycle = this.LOOK + this.BACK;
         const railLength = 0.5 * W / this.S0 * 0.9;
         for (const dust of this.dust) {
-            const wy = worldY + ((((dust.t0 - time) % cycle) + cycle) % cycle - this.BACK) * TRAIL_SPD;
+            const wy = worldY + ((((dust.t0 - cameraTime) % cycle) + cycle) % cycle - this.BACK) * TRAIL_SPD;
             if (!this.pr(renderer, dust.x * railLength, wy)) continue;
             context.fillStyle = (dust.c ? "rgba(255,214,120," : "rgba(200,220,255,") + (fog(wy) * 0.5) + ")";
             const size = Math.max(1, point.k * 0.005);
@@ -1574,8 +1637,8 @@ const Trail = {
         }
 
         if (renderer.settings.showBarLines !== false && renderer.midiData) {
-            for (const line of collectBarLines(renderer.midiData, time - this.BACK, this.LOOK + this.BACK)) {
-                if (line.time < time - this.BACK || line.time >= maxTime) continue;
+            for (const line of collectBarLines(renderer.midiData, cameraTime - this.BACK, this.LOOK + this.BACK)) {
+                if (line.time < cameraTime - this.BACK || line.time >= maxTime) continue;
                 const wy = line.time * TRAIL_SPD;
                 if (!this.pr(renderer, this.cam, wy)) continue;
                 const y = point.y;
@@ -1599,7 +1662,7 @@ const Trail = {
         const edges = this.tree.edges;
         const span = TRAIL_BREAK + 2 * TRAIL_STEP + 0.05;
         let drawn = 0;
-        for (let i = lb(edges, time - this.BACK, edge => edge.tb); i < edges.length && edges[i].tb - span <= time && drawn < 2500; i++) {
+        for (let i = lb(edges, cameraTime - this.BACK, edge => edge.tb); i < edges.length && edges[i].tb - span <= time && drawn < 2500; i++) {
             const edge = edges[i];
             if (edge.ta > time) continue;
             const progress = Math.min(1, (time - edge.ta) / (edge.tb - edge.ta));
@@ -1652,7 +1715,7 @@ const Trail = {
         }
         context.lineWidth = 1;
 
-        const firstIndex = lb(notes, time - this.BACK, note => note.start);
+        const firstIndex = lb(notes, cameraTime - this.BACK, note => note.start);
         let blockCount = 0;
         context.globalCompositeOperation = "source-over";
         for (let i = firstIndex; i < notes.length && notes[i].start < maxTime && blockCount < 2200; i++) {
@@ -1717,7 +1780,7 @@ const Trail = {
                     if (note.role === 1) this.birthFx(renderer, note, age);
                     else if (note.role === 2) this.exitFx(renderer, note, age);
                     else if (note.role === 3) this.novaFx(renderer, note, age);
-                    if (note.role) this.marker(renderer, note, age);
+                    if (note.role) this.marker(renderer, note, age, cameraTime - note.start);
                 }
             }
         }
@@ -1747,6 +1810,9 @@ export class NeoRenderer {
             maxNoteDuration: 30,
             showBarLines: true,
             neoLegacyPalette: false,
+            neoCascadeSpan: 3,
+            neoTrailTilt: 60,
+            neoTrailSingleArc: false,
             rendererMode: "neo-cascade"
         }, settings);
         this._updatePalette();
@@ -1808,18 +1874,18 @@ export class NeoRenderer {
 
     detectSize() {
         const rect = this.canvas.getBoundingClientRect();
-        return {
-            w: Math.max(1, rect.width || this.canvas.width || 1),
-            h: Math.max(1, rect.height || this.canvas.height || 1)
-        };
+        return { w: rect.width, h: rect.height };
     }
 
     resize() {
         const size = this.detectSize();
+        if (!(size.w > 0) || !(size.h > 0)) return;
         const offscreen = typeof OffscreenCanvas !== "undefined" && this.canvas instanceof OffscreenCanvas;
         this.dpr = offscreen ? 1 : Math.min(window.devicePixelRatio || 1, 2);
         const pixelWidth = Math.max(1, Math.round(size.w * this.dpr));
         const pixelHeight = Math.max(1, Math.round(size.h * this.dpr));
+        if (this.canvas.width === pixelWidth && this.canvas.height === pixelHeight &&
+            this.W === size.w && this.H === size.h) return;
         if (this.canvas.width !== pixelWidth) this.canvas.width = pixelWidth;
         if (this.canvas.height !== pixelHeight) this.canvas.height = pixelHeight;
         this.W = size.w;

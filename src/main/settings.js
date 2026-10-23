@@ -55,6 +55,9 @@ const defaultValue = {
     // ── 渲染器模式 ──
     rendererMode: "canvas2d",  // "webgl" | "canvas2d" | "neo-cascade" | "neo-orbit" | "neo-warp" | "neo-trail"
     neoLegacyPalette: false,
+    neoCascadeSpan: 3,
+    neoTrailTilt: 60,
+    neoTrailSingleArc: false,
 
     // ── WebGL 3D ──
     zScale: 16,
