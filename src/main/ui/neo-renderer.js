@@ -14,6 +14,7 @@ const PAL = PAL_HEX.map(hex => [1, 3, 5].map(i => parseInt(hex.slice(i, i + 2), 
 const PALN = PAL.map(rgb => rgb.split(",").map(Number));
 const LEGACY_PAL = LEGACY_PALETTE.map(hex => [1, 3, 5].map(i => parseInt(hex.slice(i, i + 2), 16)).join(","));
 const LEGACY_PALN = LEGACY_PAL.map(rgb => rgb.split(",").map(Number));
+const TRAIL_ENTER = 0.9;
 const TRAIL_STEP = 0.035;
 const TRAIL_BREAK = 8;
 const TRAIL_SPD = 0.55;
@@ -401,6 +402,12 @@ function buildTrail(score) {
             const direction = unit(tx, ty);
             note.tx = direction[0];
             note.ty = direction[1];
+        }
+    }
+
+    for (const notes of byChannel.values()) {
+        for (const note of notes) {
+            note.role = note.par ? (note.kids ? 0 : 2) : (note.kids ? 1 : 3);
         }
     }
 
@@ -1194,8 +1201,8 @@ const Trail = {
         return true;
     },
 
-    block(renderer, wx, wy, size, rgb, alpha) {
-        if (!this.pr(renderer, wx, wy)) return false;
+    block(renderer, wx, wy, size, rgb, alpha, lift = 0) {
+        if (!this.pr(renderer, wx, wy, lift)) return false;
         const context = renderer.ctx;
         const point = this.P;
         const scale = point.k;
@@ -1214,7 +1221,7 @@ const Trail = {
         return true;
     },
 
-    burst(renderer, note, age, fog) {
+    burst(renderer, note, age, fog, big = 1) {
         const life = 1.25 + Math.min(0.7, (note.end - note.start) * 0.3);
         if (age >= life) return;
         const velocity = note.vel / 127;
@@ -1226,8 +1233,8 @@ const Trail = {
         const scale = point.k;
         if (x < -250 || x > renderer.W + 250 || y < -250 || y > renderer.H + 250) return;
         const normalized = age / life;
-        const radius = 0.03 + 0.09 * velocity;
-        const brightness = 0.2 + 0.8 * velocity;
+        const radius = (0.03 + 0.09 * velocity) * big;
+        const brightness = (0.2 + 0.8 * velocity) * (big > 1 ? 0.7 : 1);
         const ease = 1 - Math.exp(-age * 5.5);
         glow(renderer, note.ch, x, y, scale * radius * 3.4 * (0.5 + ease), (0.8 * Math.exp(-age * 4) + 0.12 * (1 - normalized)) * fog * brightness);
         const count = Math.round(14 + velocity * 32);
@@ -1252,6 +1259,226 @@ const Trail = {
             }
         }
         renderer.ctx.globalAlpha = 1;
+    },
+
+    ring(renderer, wx, wy, radius, color, alpha, lineWidth) {
+        if (alpha < 0.01 || !this.pr(renderer, wx, wy, 0.004)) return;
+        const point = this.P;
+        const screenRadius = radius * point.k;
+        const context = renderer.ctx;
+        context.strokeStyle = `rgba(${color[0]},${color[1]},${color[2]},${alpha})`;
+        context.lineWidth = lineWidth;
+        context.beginPath();
+        context.ellipse(point.x, point.y, screenRadius, screenRadius * this.st, 0, 0, TAU);
+        context.stroke();
+    },
+
+    dot(renderer, wx, wy, z, diameter, sprite) {
+        if (!this.pr(renderer, wx, wy, z)) return;
+        const size = this.P.k * diameter;
+        renderer.ctx.drawImage(sprite, this.P.x - size / 2, this.P.y - size / 2, size, size);
+    },
+
+    marker(renderer, note, age) {
+        const fade = Math.min(1, (this.BACK - age) / 0.6);
+        if (fade <= 0) return;
+        const point = this.P;
+        const role = note.role;
+        const velocity = note.vel / 127;
+        const size = (0.032 + 0.014 * velocity) * (1 + 0.8 * Math.exp(-age * 8));
+        const alpha = 0.9 * fade;
+        if (!this.pr(renderer, note.wx, note.wy, 0.003)) return;
+        const x = point.x;
+        const y = point.y;
+        const scale = point.k;
+        if (x < -60 || x > renderer.W + 60 || y < -60 || y > renderer.H + 80) return;
+        const color = renderer.paletteRgbArray[note.ch].map(value => value + (255 - value) * 0.35 | 0);
+        const radius = size * 1.1;
+        const context = renderer.ctx;
+        glow(renderer, note.ch, x, y, scale * size * 3.2, alpha * 0.35);
+        context.strokeStyle = `rgba(${color[0]},${color[1]},${color[2]},${alpha})`;
+        context.lineWidth = Math.max(1.6, scale * 0.0045);
+        context.lineCap = "round";
+        context.lineJoin = "round";
+        const path = (points, close) => {
+            let started = false;
+            context.beginPath();
+            for (const offset of points) {
+                if (!this.pr(renderer, note.wx + offset[0], note.wy + offset[1], 0.003)) {
+                    started = false;
+                    continue;
+                }
+                if (started) context.lineTo(point.x, point.y);
+                else context.moveTo(point.x, point.y);
+                started = true;
+            }
+            if (close) context.closePath();
+            context.stroke();
+        };
+        if (role === 1) {
+            path(Array.from({ length: 24 }, (_, i) => [
+                Math.cos(i / 24 * TAU) * radius,
+                Math.sin(i / 24 * TAU) * radius
+            ]), true);
+        } else if (role === 2) {
+            path([
+                [radius * 1.25, 0],
+                [0, radius * 1.25],
+                [-radius * 1.25, 0],
+                [0, -radius * 1.25]
+            ], true);
+        } else {
+            path([[-radius, -radius], [radius, radius]], false);
+            path([[-radius, radius], [radius, -radius]], false);
+        }
+        if (role !== 3) {
+            context.globalAlpha = alpha * 0.9;
+            this.dot(renderer, note.wx, note.wy, 0.004, 0.028, renderer.gaussSprites[note.ch & 15]);
+            context.globalAlpha = 1;
+        }
+    },
+
+    enterFx(renderer, note, progress) {
+        const eased = progress * progress * (3 - 2 * progress);
+        const color = renderer.paletteRgbArray[note.ch];
+        const sprite = renderer.gaussSprites[note.ch & 15];
+        const count = 18;
+        renderer.ctx.globalAlpha = progress * 0.9;
+        for (let i = 0; i < count; i++) {
+            const angle = i / count * TAU + (1 - eased) * 5;
+            const radius = 0.16 * (1 - eased) + 0.012;
+            const z = 0.01 + 0.07 * (1 - eased) * (0.5 + 0.5 * Math.sin(i * 1.7));
+            this.dot(
+                renderer,
+                note.wx + Math.cos(angle) * radius,
+                note.wy + Math.sin(angle) * radius,
+                z,
+                0.02,
+                sprite
+            );
+        }
+        renderer.ctx.globalAlpha = 1;
+        this.ring(renderer, note.wx, note.wy, 0.16 * (1 - eased) + 0.02, color, progress * 0.6, 1.5);
+    },
+
+    birthFx(renderer, note, age) {
+        const life = 1;
+        if (age >= life) return;
+        const normalized = age / life;
+        const brightness = 0.3 + 0.7 * note.vel / 127;
+        const color = renderer.paletteRgbArray[note.ch];
+        this.ring(
+            renderer,
+            note.wx,
+            note.wy,
+            0.04 + 0.22 * (1 - Math.exp(-age * 5)),
+            color,
+            (1 - normalized) * 0.8 * brightness,
+            2.2
+        );
+        if (age > 0.12) {
+            this.ring(
+                renderer,
+                note.wx,
+                note.wy,
+                0.03 + 0.15 * (1 - Math.exp(-(age - 0.12) * 5)),
+                color,
+                (1 - normalized) * 0.5 * brightness,
+                1.4
+            );
+        }
+    },
+
+    exitFx(renderer, note, age) {
+        const life = 1.9;
+        if (age >= life) return;
+        const normalized = age / life;
+        const velocity = note.vel / 127;
+        const color = renderer.paletteRgbArray[note.ch];
+        const sprite = renderer.gaussSprites[note.ch & 15];
+        const point = this.P;
+        if (age < 1.1 && this.pr(renderer, note.wx, note.wy, 0)) {
+            const x0 = point.x;
+            const y0 = point.y;
+            const width = Math.max(2, 0.012 * point.k);
+            if (this.pr(renderer, note.wx, note.wy, 0.5 * (1 - Math.exp(-age * 4)))) {
+                const context = renderer.ctx;
+                const gradient = context.createLinearGradient(x0, y0, point.x, point.y);
+                gradient.addColorStop(0, `rgba(${color},${0.6 * (1 - age / 1.1) * (0.4 + 0.6 * velocity)})`);
+                gradient.addColorStop(1, `rgba(${color},0)`);
+                context.strokeStyle = gradient;
+                context.lineWidth = width;
+                context.beginPath();
+                context.moveTo(x0, y0);
+                context.lineTo(point.x, point.y);
+                context.stroke();
+            }
+        }
+        renderer.ctx.globalAlpha = (1 - normalized) ** 1.2 * (0.4 + 0.6 * velocity);
+        for (let i = 0; i < 16; i++) {
+            const fraction = (i * 0.618) % 1;
+            const angle = i * 2.4 + age * 2;
+            const radius = 0.015 + 0.02 * fraction;
+            this.dot(
+                renderer,
+                note.wx + Math.cos(angle) * radius,
+                note.wy + Math.sin(angle) * radius,
+                0.03 + age * (0.1 + 0.16 * fraction),
+                0.014 * (1 - 0.4 * normalized),
+                sprite
+            );
+        }
+        renderer.ctx.globalAlpha = 1;
+        this.ring(
+            renderer,
+            note.wx,
+            note.wy,
+            0.12 * (1 - Math.exp(-age * 3)),
+            color,
+            (1 - normalized) * 0.45,
+            1.4
+        );
+    },
+
+    novaFx(renderer, note, age) {
+        const life = 1.7;
+        if (age >= life) return;
+        const normalized = age / life;
+        const velocity = note.vel / 127;
+        const color = renderer.paletteRgbArray[note.ch];
+        const sprite = renderer.gaussSprites[note.ch & 15];
+        const point = this.P;
+        if (age > 0.15) this.burst(renderer, note, age - 0.15, 1, 1.7);
+        const ease = 1 - Math.exp(-age * 6);
+        const length = 0.26 * (0.6 + 0.8 * velocity) * ease;
+        const seed = (note.note * 0.37) % 1 * TAU;
+        if (this.pr(renderer, note.wx, note.wy, 0.02)) {
+            const x0 = point.x;
+            const y0 = point.y;
+            const context = renderer.ctx;
+            context.lineCap = "round";
+            for (let i = 0; i < 8; i++) {
+                const angle = seed + i * TAU / 8;
+                const rayLength = length * (i % 2 ? 0.6 : 1);
+                if (!this.pr(
+                    renderer,
+                    note.wx + Math.cos(angle) * rayLength,
+                    note.wy + Math.sin(angle) * rayLength,
+                    0.02
+                )) continue;
+                context.strokeStyle = `rgba(${color},${(1 - normalized) ** 1.4 * 0.8 * (0.4 + 0.6 * velocity)})`;
+                context.lineWidth = 0.5 + 2.5 * (1 - normalized);
+                context.beginPath();
+                context.moveTo(x0, y0);
+                context.lineTo(point.x, point.y);
+                context.stroke();
+                context.globalAlpha = (1 - normalized) * 0.9;
+                const size = point.k * 0.03;
+                context.drawImage(sprite, point.x - size / 2, point.y - size / 2, size, size);
+                context.globalAlpha = 1;
+            }
+        }
+        this.exitFx(renderer, note, age);
     },
 
     drumBurst(renderer, note, wx, wy, age, fog) {
@@ -1437,8 +1664,21 @@ const Trail = {
             if (note.ch === 9) {
                 const kind = drumKind(note.note);
                 if (this.block(renderer, drumWX(note.note), wy, 0.04 + 0.025 * velocity, DRUM_RGB[kind], alpha)) blockCount++;
-            } else if (this.block(renderer, note.wx, wy, 0.026 + 0.014 * velocity, PALN[note.ch], alpha)) {
-                blockCount++;
+            } else {
+                let size = 0.026 + 0.014 * velocity;
+                let blockAlpha = alpha;
+                let lift = 0;
+                if (note.role === 1) {
+                    const enter = 1 - (note.start - time) / TRAIL_ENTER;
+                    if (enter <= 0) continue;
+                    const eased = enter * enter * (3 - 2 * enter);
+                    size *= 0.4 + 0.6 * eased;
+                    blockAlpha *= eased;
+                    lift = (1 - eased) * 0.18;
+                }
+                if (this.block(renderer, note.wx, wy, size, PALN[note.ch], blockAlpha, lift)) {
+                    blockCount++;
+                }
             }
         }
 
@@ -1452,6 +1692,9 @@ const Trail = {
             const drum = note.ch === 9;
             const wx = drum ? drumWX(note.note) : note.wx;
             if (age < 0) {
+                const root = note.role === 1;
+                if (root && -age >= TRAIL_ENTER) continue;
+                if (root) this.enterFx(renderer, note, 1 + age / TRAIL_ENTER);
                 if (!this.pr(renderer, wx, wy, 0.015)) continue;
                 const arm = Math.max(0, 1 - (note.start - time) / 0.3);
                 glow(
@@ -1460,7 +1703,7 @@ const Trail = {
                     point.x,
                     point.y,
                     point.k * 0.1,
-                    alpha * (0.28 + 0.6 * arm)
+                    alpha * (0.28 + 0.6 * arm) * (root ? 1 + age / TRAIL_ENTER : 1)
                 );
             } else {
                 bursts++;
@@ -1471,6 +1714,10 @@ const Trail = {
                     if (note.end > time && this.pr(renderer, wx, wy)) {
                         glow(renderer, note.ch, point.x, point.y, point.k * 0.05, 0.5);
                     }
+                    if (note.role === 1) this.birthFx(renderer, note, age);
+                    else if (note.role === 2) this.exitFx(renderer, note, age);
+                    else if (note.role === 3) this.novaFx(renderer, note, age);
+                    if (note.role) this.marker(renderer, note, age);
                 }
             }
         }
