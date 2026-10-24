@@ -2788,6 +2788,14 @@ const Meteor = {
 
 const MODES = { cascade: Cascade, orbit: Orbit, warp: Warp, trail: Trail, meteor: Meteor };
 
+function createModeInstance(base) {
+    const mode = Object.create(base);
+    if (base.P) mode.P = { ...base.P };
+    if (base.cv) mode.cv = { ...base.cv };
+    if (base.mt) mode.mt = { chunks: [], maxT: { ...base.mt.maxT } };
+    return mode;
+}
+
 function resolveModeName(settings) {
     const direct = String(settings.neoMode || "").replace(/^neo-/, "");
     if (MODES[direct]) return direct;
@@ -2828,8 +2836,12 @@ export class NeoRenderer {
         this.dpr = 1;
         this._lastPlayTime = null;
         this._lastFrameTime = performance.now();
+        this._modes = {};
+        for (const [name, base] of Object.entries(MODES)) {
+            this._modes[name] = createModeInstance(base);
+        }
         this._modeName = resolveModeName(this.settings);
-        this._mode = MODES[this._modeName];
+        this._mode = this._modes[this._modeName];
         this._mode.init(this);
     }
 
@@ -2843,7 +2855,7 @@ export class NeoRenderer {
         const nextMode = resolveModeName(this.settings);
         if (nextMode !== this._modeName) {
             this._modeName = nextMode;
-            this._mode = MODES[nextMode];
+            this._mode = this._modes[nextMode];
             this.particles.length = 0;
             this._mode.init(this);
         }
