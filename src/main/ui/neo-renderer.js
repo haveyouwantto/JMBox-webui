@@ -2281,16 +2281,16 @@ const Meteor = {
         this.kf[pitch] = 1;
         this.kc[pitch] = note.ch;
         this.shk = Math.min(1, this.shk + 0.08 * velocity);
-        this.flashes.push({ x, y: y + 0.01, z, life: 0.4, max: 0.4, ch: note.ch, s: 0.12 + 0.12 * velocity });
-        this.rings.push({ x, y: y + 0.002, z, life: 0.7, max: 0.7, ch: note.ch, mx: 0.1 + 0.16 * velocity });
+        this.flashes.push({ x, y: y + 0.01, z, life: 0.4, max: 0.4, ch: note.ch, s: 0.08 + 0.07 * velocity });
+        this.rings.push({ x, y: y + 0.002, z, life: 0.7, max: 0.7, ch: note.ch, mx: 0.07 + 0.1 * velocity });
         this.beams.push({ x, y, z, life: 0.45, max: 0.45, ch: note.ch, h: 0.35 + 0.9 * velocity });
-        for (let i = 0, count = 8 + Math.round(velocity * 24); i < count && sparks.length < 1800; i++) {
+        for (let i = 0, count = 4 + Math.round(velocity * 12); i < count && sparks.length < 1800; i++) {
             const angle = rand(0, TAU);
             const speed = rand(0.15, 0.6) * (0.6 + velocity);
             sparks.push({ x, y: y + 0.01, z, vx: Math.cos(angle) * speed, vy: rand(0.5, 1.5) * (0.6 + 0.6 * velocity), vz: Math.sin(angle) * speed * 0.7, life: rand(0.6, 1.3), max: 1.3, ch: note.ch, s: 1 });
         }
         if (velocity > 0.65) {
-            for (let i = 0; i < 14 && sparks.length < 1800; i++) {
+            for (let i = 0; i < 8 && sparks.length < 1800; i++) {
                 const angle = i / 14 * TAU;
                 sparks.push({ x, y: y + 0.01, z, vx: Math.cos(angle) * 0.35, vy: 0.7, vz: Math.sin(angle) * 0.35, life: 1, max: 1, ch: 9, s: 0.8 });
             }
@@ -2392,8 +2392,8 @@ const Meteor = {
             context.fillStyle = `rgba(200,225,255,${0.1 + 0.15 * Math.sin(time * 1.4 + star.p)})`;
             context.fillRect(star.x * W, star.y * H, star.s, star.s);
         }
-        const haze = context.createRadialGradient(W / 2, horizon, 0, W / 2, horizon, W * 0.6);
-        haze.addColorStop(0, `rgba(60,170,170,${0.1 + energy * 0.04})`);
+        const haze = context.createRadialGradient(W / 2, horizon, 0, W / 2, horizon, W * 0.5);
+        haze.addColorStop(0, `rgba(60,170,170,${0.06 + energy * 0.025})`);
         haze.addColorStop(1, "rgba(0,0,0,0)");
         context.save();
         context.translate(0, horizon);
@@ -2403,8 +2403,8 @@ const Meteor = {
         context.fillRect(0, horizon - W, W, W * 2);
         context.restore();
         if (this.pr(renderer, 0, -0.08, 0.6)) {
-            const floor = context.createRadialGradient(point.x, point.y, 0, point.x, point.y, W * 0.5);
-            floor.addColorStop(0, `rgba(70,190,190,${0.16 + energy * 0.05})`);
+            const floor = context.createRadialGradient(point.x, point.y, 0, point.x, point.y, W * 0.42);
+            floor.addColorStop(0, `rgba(70,190,190,${0.1 + energy * 0.03})`);
             floor.addColorStop(1, "rgba(0,0,0,0)");
             context.save();
             context.translate(point.x, point.y);
@@ -2458,10 +2458,8 @@ const Meteor = {
                 this.cube(renderer, drop.x, FLOOR + height / 2, drop.z, drop.sx * widen, height, drop.sz * widen, 0, fade);
             }
         }
-        context.globalCompositeOperation = "source-over";
-        this.drawPiano(renderer);
-        context.globalCompositeOperation = "lighter";
 
+        context.globalCompositeOperation = "lighter";
         for (let i = this.dust.length - 1; i >= 0; i--) {
             const particle = this.dust[i];
             particle.life -= delta;
@@ -2515,6 +2513,66 @@ const Meteor = {
             const progress = age / DROP_T;
             this.ring3(renderer, drop.x, FLOOR + 0.003, drop.z, (drop.sx + drop.sz) * (0.9 - 0.5 * progress), "235,240,255", 0.15 + 0.5 * progress, 1.3);
         }
+        for (let i = this.flashes.length - 1; i >= 0; i--) {
+            const flash = this.flashes[i];
+            flash.life -= delta;
+            if (flash.life <= 0) {
+                this.flashes.splice(i, 1);
+                continue;
+            }
+            if (flash.ch === 9 && this.pr(renderer, flash.x, flash.y, flash.z)) {
+                glow(renderer, flash.ch, point.x, point.y, point.k * flash.s * (2 - flash.life / flash.max), (flash.life / flash.max) ** 1.4);
+            }
+        }
+        for (let i = this.rings.length - 1; i >= 0; i--) {
+            const ring = this.rings[i];
+            ring.life -= delta;
+            if (ring.life <= 0) {
+                this.rings.splice(i, 1);
+                continue;
+            }
+            if (ring.ch !== 9) continue;
+            const alpha = ring.life / ring.max;
+            this.ring3(renderer, ring.x, ring.y, ring.z, 0.01 + ring.mx * (1 - alpha * alpha), PAL[ring.ch], alpha * 0.8 * (ring.o ?? 1), (1 + 2 * alpha) * (ring.w || 1));
+        }
+        for (let i = this.sparks.length - 1; i >= 0; i--) {
+            const particle = this.sparks[i];
+            particle.life -= delta;
+            if (particle.life <= 0 || particle.y < -0.09) {
+                this.sparks[i] = this.sparks[this.sparks.length - 1];
+                this.sparks.pop();
+                continue;
+            }
+            particle.vy -= 1.7 * delta;
+            particle.x += particle.vx * delta;
+            particle.y += particle.vy * delta;
+            particle.z += particle.vz * delta;
+            if (particle.ch !== 9 && !particle.sq) continue;
+            const alpha = particle.life / particle.max;
+            if (!this.pr(renderer, particle.x, particle.y, particle.z)) continue;
+            const x = point.x;
+            const y = point.y;
+            const scale = point.k;
+            if (particle.sq) {
+                const size = Math.max(1.5, scale * 0.01);
+                context.fillStyle = `rgba(235,240,255,${alpha})`;
+                context.fillRect(x - size / 2, y - size / 2, size, size);
+                continue;
+            }
+            if (this.pr(renderer, particle.x - particle.vx * 0.04, particle.y - particle.vy * 0.04, particle.z - particle.vz * 0.04)) {
+                context.strokeStyle = `rgba(${PAL[particle.ch]},${alpha * 0.8})`;
+                context.lineWidth = Math.max(1, scale * 0.004);
+                context.beginPath();
+                context.moveTo(x, y);
+                context.lineTo(point.x, point.y);
+                context.stroke();
+            }
+            glow(renderer, particle.ch, x, y, scale * 0.03 * particle.s * (0.5 + alpha), alpha);
+        }
+
+        context.globalCompositeOperation = "source-over";
+        this.drawPiano(renderer);
+        context.globalCompositeOperation = "lighter";
 
         const chunks = this.mt.chunks;
         for (let i = lb(chunks, time - this.maxDur - 3, chunk => chunk.tStart); i < chunks.length && chunks[i].tStart - 0.5 <= time; i++) {
@@ -2522,27 +2580,27 @@ const Meteor = {
             if (time > chunk.tEnd + 0.5) continue;
             const alpha = Math.min(1, (time - (chunk.tStart - 0.5)) / 0.5, (chunk.tEnd + 0.5 - time) / 0.5);
             if (alpha <= 0 || !this.pr(renderer, chunk.spawn.x, chunk.spawn.y, chunk.spawn.z)) continue;
-            const radius = Math.min(46, 0.05 * point.k) * (1 + 0.08 * Math.sin(time * 5));
+            const radius = Math.min(30, 0.032 * point.k) * (1 + 0.08 * Math.sin(time * 5));
             const cx = point.x;
             const cy = point.y;
-            glow(renderer, chunk.ch, cx, cy, radius * 5, alpha * 0.45);
-            context.strokeStyle = `rgba(${PAL[chunk.ch]},${alpha * 0.6})`;
+            glow(renderer, chunk.ch, cx, cy, radius * 3, alpha * 0.25);
+            context.strokeStyle = `rgba(${PAL[chunk.ch]},${alpha * 0.42})`;
             context.lineWidth = 1.4;
             context.beginPath();
             context.arc(cx, cy, radius, 0, TAU);
             context.stroke();
-            for (let k = 0; k < 5; k++) {
-                const angle = time * 2 + k * TAU / 5;
-                glow(renderer, chunk.ch, cx + Math.cos(angle) * radius * 1.5, cy + Math.sin(angle) * radius * 1.5, radius * 0.7, alpha * 0.7);
+            for (let k = 0; k < 3; k++) {
+                const angle = time * 2 + k * TAU / 3;
+                glow(renderer, chunk.ch, cx + Math.cos(angle) * radius * 1.25, cy + Math.sin(angle) * radius * 1.25, radius * 0.45, alpha * 0.42);
             }
             const launch = (time - chunk.tStart) / 0.9;
             if (this.burst && launch >= 0 && launch < 1) {
-                context.strokeStyle = `rgba(${PAL[chunk.ch]},${(1 - launch) * 0.8})`;
+                context.strokeStyle = `rgba(${PAL[chunk.ch]},${(1 - launch) * 0.5})`;
                 context.lineWidth = 2.5 * (1 - launch) + 0.5;
                 context.beginPath();
-                context.arc(cx, cy, radius * (1 + 5 * Math.sqrt(launch)), 0, TAU);
+                context.arc(cx, cy, radius * (1 + 3.2 * Math.sqrt(launch)), 0, TAU);
                 context.stroke();
-                glow(renderer, chunk.ch, cx, cy, radius * (6 + 8 * launch), (1 - launch) * 0.7);
+                glow(renderer, chunk.ch, cx, cy, radius * (3 + 4 * launch), (1 - launch) * 0.38);
             }
         }
 
@@ -2569,33 +2627,33 @@ const Meteor = {
                     motion.y0 + motion.vy * trailAge - 0.5 * motion.g * trailAge * trailAge,
                     motion.z0 + motion.vz * trailAge
                 )) continue;
-                const size = point.k * (0.02 + 0.016 * velocity) * (1 - 0.65 * u);
-                context.globalAlpha = Math.min(1, (1 - u) ** 1.15 * (0.75 + 0.5 * velocity));
+                const size = point.k * (0.013 + 0.01 * velocity) * (1 - 0.65 * u);
+                context.globalAlpha = Math.min(1, (1 - u) ** 1.15 * (0.5 + 0.3 * velocity));
                 context.drawImage(u < 0.06 ? whiteSprite : sprite, point.x - size, point.y - size, size * 2, size * 2);
             }
             context.globalAlpha = 1;
             if (age < 0.2 && this.pr(renderer, motion.x0, motion.y0, motion.z0)) {
-                glow(renderer, note.ch, point.x, point.y, point.k * 0.12, (1 - age / 0.2) * (this.burst ? 0.25 : 0.8));
+                glow(renderer, note.ch, point.x, point.y, point.k * 0.08, (1 - age / 0.2) * (this.burst ? 0.18 : 0.55));
             }
             if (!alive) continue;
             if (this.pr(renderer, motion.x0 + motion.vx * age, motion.y0 + motion.vy * age - 0.5 * motion.g * age * age, motion.z0 + motion.vz * age)) {
                 const x = point.x;
                 const y = point.y;
                 const scale = point.k;
-                glow(renderer, note.ch, x, y, scale * (0.07 + 0.05 * velocity), 0.95);
-                const core = scale * 0.026;
-                context.globalAlpha = 0.95;
+                glow(renderer, note.ch, x, y, scale * (0.045 + 0.028 * velocity), 0.78);
+                const core = scale * 0.018;
+                context.globalAlpha = 0.82;
                 context.drawImage(whiteSprite, x - core, y - core, core * 2, core * 2);
                 context.globalAlpha = 1;
                 if (!many) {
-                    context.globalAlpha = 0.5 * (0.5 + velocity / 2);
-                    context.strokeStyle = "rgba(255,255,255,0.8)";
+                    context.globalAlpha = 0.32 * (0.5 + velocity / 2);
+                    context.strokeStyle = "rgba(255,255,255,0.65)";
                     context.lineWidth = 1;
                     context.beginPath();
-                    context.moveTo(x - scale * 0.05, y);
-                    context.lineTo(x + scale * 0.05, y);
-                    context.moveTo(x, y - scale * 0.05);
-                    context.lineTo(x, y + scale * 0.05);
+                    context.moveTo(x - scale * 0.035, y);
+                    context.lineTo(x + scale * 0.035, y);
+                    context.moveTo(x, y - scale * 0.035);
+                    context.lineTo(x, y + scale * 0.035);
                     context.stroke();
                     context.globalAlpha = 1;
                 }
@@ -2603,8 +2661,8 @@ const Meteor = {
             const remaining = duration - age;
             if (remaining < 0.4 && this.pr(renderer, motion.kx, motion.ky, motion.kz)) {
                 const progress = 1 - remaining / 0.4;
-                glow(renderer, note.ch, point.x, point.y, point.k * 0.08, 0.35 * progress);
-                this.ring3(renderer, motion.kx, motion.ky + 0.003, motion.kz, 0.012 + 0.05 * remaining / 0.4, PAL[note.ch], 0.5 * progress, 1.2);
+                glow(renderer, note.ch, point.x, point.y, point.k * 0.055, 0.24 * progress);
+                this.ring3(renderer, motion.kx, motion.ky + 0.003, motion.kz, 0.009 + 0.035 * remaining / 0.4, PAL[note.ch], 0.35 * progress, 1.2);
             }
         }
         context.globalAlpha = 1;
@@ -2612,17 +2670,13 @@ const Meteor = {
         for (let note = 21; note <= 108; note++) {
             const amount = Math.min(1, this.kp[note] * 0.7 + this.kf[note] * 0.8);
             if (amount > 0.02 && this.pr(renderer, PK.kx[note], PK.ky[note] + 0.01, PK.kz[note])) {
-                glow(renderer, this.kc[note], point.x, point.y, point.k * PK.ww * 3.2, amount * 0.8);
+                glow(renderer, this.kc[note], point.x, point.y, point.k * PK.ww * 2.2, amount * 0.55);
             }
         }
 
-        for (let i = this.flashes.length - 1; i >= 0; i--) {
+        for (let i = 0; i < this.flashes.length; i++) {
             const flash = this.flashes[i];
-            flash.life -= delta;
-            if (flash.life <= 0) {
-                this.flashes.splice(i, 1);
-                continue;
-            }
+            if (flash.ch === 9) continue;
             if (this.pr(renderer, flash.x, flash.y, flash.z)) {
                 glow(renderer, flash.ch, point.x, point.y, point.k * flash.s * (2 - flash.life / flash.max), (flash.life / flash.max) ** 1.4);
             }
@@ -2642,58 +2696,39 @@ const Meteor = {
             const scale = point.k;
             if (this.pr(renderer, beam.x, beam.y + height, beam.z)) {
                 const gradient = context.createLinearGradient(x0, y0, point.x, point.y);
-                gradient.addColorStop(0, `rgba(${PAL[beam.ch]},${0.8 * alpha})`);
+                gradient.addColorStop(0, `rgba(${PAL[beam.ch]},${0.55 * alpha})`);
                 gradient.addColorStop(1, `rgba(${PAL[beam.ch]},0)`);
                 context.strokeStyle = gradient;
-                context.lineWidth = Math.max(1.5, scale * 0.012 * (0.4 + alpha));
+                context.lineWidth = Math.max(1.2, scale * 0.008 * (0.4 + alpha));
                 context.beginPath();
                 context.moveTo(x0, y0);
                 context.lineTo(point.x, point.y);
                 context.stroke();
             }
         }
-        for (let i = this.rings.length - 1; i >= 0; i--) {
+        for (let i = 0; i < this.rings.length; i++) {
             const ring = this.rings[i];
-            ring.life -= delta;
-            if (ring.life <= 0) {
-                this.rings.splice(i, 1);
-                continue;
-            }
+            if (ring.ch === 9) continue;
             const alpha = ring.life / ring.max;
-            this.ring3(renderer, ring.x, ring.y, ring.z, 0.01 + ring.mx * (1 - alpha * alpha), PAL[ring.ch], alpha * 0.8 * (ring.o ?? 1), (1 + 2 * alpha) * (ring.w || 1));
+            this.ring3(renderer, ring.x, ring.y, ring.z, 0.01 + ring.mx * (1 - alpha * alpha), PAL[ring.ch], alpha * 0.65 * (ring.o ?? 1), (1 + 2 * alpha) * (ring.w || 1));
         }
-        for (let i = this.sparks.length - 1; i >= 0; i--) {
+        for (let i = 0; i < this.sparks.length; i++) {
             const particle = this.sparks[i];
-            particle.life -= delta;
-            if (particle.life <= 0 || particle.y < -0.09) {
-                this.sparks[i] = this.sparks[this.sparks.length - 1];
-                this.sparks.pop();
-                continue;
-            }
-            particle.vy -= 1.7 * delta;
-            particle.x += particle.vx * delta;
-            particle.y += particle.vy * delta;
-            particle.z += particle.vz * delta;
+            if (particle.ch === 9 || particle.sq) continue;
             const alpha = particle.life / particle.max;
             if (!this.pr(renderer, particle.x, particle.y, particle.z)) continue;
             const x = point.x;
             const y = point.y;
             const scale = point.k;
-            if (particle.sq) {
-                const size = Math.max(1.5, scale * 0.01);
-                context.fillStyle = `rgba(235,240,255,${alpha})`;
-                context.fillRect(x - size / 2, y - size / 2, size, size);
-                continue;
-            }
             if (this.pr(renderer, particle.x - particle.vx * 0.04, particle.y - particle.vy * 0.04, particle.z - particle.vz * 0.04)) {
-                context.strokeStyle = `rgba(${PAL[particle.ch]},${alpha * 0.8})`;
+                context.strokeStyle = `rgba(${PAL[particle.ch]},${alpha * 0.6})`;
                 context.lineWidth = Math.max(1, scale * 0.004);
                 context.beginPath();
                 context.moveTo(x, y);
                 context.lineTo(point.x, point.y);
                 context.stroke();
             }
-            glow(renderer, particle.ch, x, y, scale * 0.03 * particle.s * (0.5 + alpha), alpha);
+            glow(renderer, particle.ch, x, y, scale * 0.022 * particle.s * (0.5 + alpha), alpha * 0.8);
         }
         context.lineWidth = 1;
         context.globalAlpha = 1;
