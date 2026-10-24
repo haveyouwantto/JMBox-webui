@@ -1951,9 +1951,9 @@ function buildMeteor(renderer, meteor) {
             const targetY = PK.ky[pitch];
             const targetZ = PK.kz[pitch];
             const jitter = [random(), random(), random(), random()];
-            const x0 = spawn.x + (jitter[0] - 0.5) * 0.05;
-            const y0 = spawn.y + (jitter[1] - 0.5) * 0.05;
-            const z0 = spawn.z + (jitter[2] - 0.5) * 0.05;
+            const x0 = chunk.spawn.x + (jitter[0] - 0.5) * 0.03;
+            const y0 = chunk.spawn.y + (jitter[1] - 0.5) * 0.03;
+            const z0 = chunk.spawn.z + (jitter[2] - 0.5) * 0.03;
             const peakY = Math.max(y0, targetY) + extra * (0.88 + jitter[3] * 0.24);
             const up = Math.max(1e-4, peakY - y0);
             const down = Math.max(1e-4, peakY - targetY);
@@ -2049,18 +2049,15 @@ const Meteor = {
     },
 
     camSet(renderer, time, delta) {
-        this.shk *= Math.exp(-delta * 7);
         const baseDistance = Math.min(2.6, this.FOCAL / (0.46 * renderer.W)) * this.zoom;
-        const fitKey = `${renderer.W.toFixed(1)}x${renderer.H.toFixed(1)}:${this.zoom}`;
+        const fitKey = `${renderer.W.toFixed(1)}x${renderer.H.toFixed(1)}:${this.zoom}:framing2`;
         if (this._fitKey !== fitKey) {
             this._fitFactor = this._findFit(renderer, baseDistance);
             this._fitKey = fitKey;
         }
-        const sway = Math.sin(time * 0.13) * 0.12;
-        const jitterX = (Math.random() - 0.5) * this.shk * 0.02;
-        const jitterY = (Math.random() - 0.5) * this.shk * 0.02;
         this.cameraDistance = baseDistance * this._fitFactor;
-        this._setPose(renderer, sway + jitterX, 0.85 + jitterY, -this.cameraDistance);
+        const orbit = Math.sin(time * 0.18) * 0.1;
+        this._setPose(renderer, orbit, this.cameraDistance);
     },
 
     _findFit(renderer, baseDistance) {
@@ -2068,20 +2065,30 @@ const Meteor = {
         const marginY = Math.max(8, renderer.H * 0.035);
         let fit = 1;
         for (let iteration = 0; iteration < 10; iteration++) {
-            this._setPose(renderer, 0, 0.85, -baseDistance * fit);
-            const bounds = this._keyboardBounds(renderer);
-            if (bounds &&
-                bounds.minX >= marginX && bounds.maxX <= renderer.W - marginX &&
-                bounds.minY >= marginY && bounds.maxY <= renderer.H - marginY) return fit;
+            let visible = true;
+            for (const orbit of [-0.1, 0, 0.1]) {
+                this._setPose(renderer, orbit, baseDistance * fit);
+                const bounds = this._keyboardBounds(renderer);
+                if (!bounds ||
+                    bounds.minX < marginX || bounds.maxX > renderer.W - marginX ||
+                    bounds.minY < marginY || bounds.maxY > renderer.H - marginY) {
+                    visible = false;
+                    break;
+                }
+            }
+            if (visible) return fit;
             fit *= 1.2;
         }
         return fit;
     },
 
-    _setPose(renderer, cameraX, cameraY, cameraZ) {
-        const camera = this.C = [cameraX, cameraY, cameraZ];
-        const sway = cameraX;
-        const target = [sway * 0.35, 0.5, 0.55];
+    _setPose(renderer, orbit, distance) {
+        const target = [0, 0.5, 0.55];
+        const camera = this.C = [
+            Math.sin(orbit) * distance,
+            0.85,
+            -Math.cos(orbit) * distance
+        ];
         let forward = [target[0] - camera[0], target[1] - camera[1], target[2] - camera[2]];
         const forwardLength = Math.hypot(...forward);
         forward = forward.map(value => value / forwardLength);
@@ -2124,7 +2131,7 @@ const Meteor = {
         const point = this.P;
         const depth = point.dep;
         const scale = this.FOCAL / depth;
-        const margin = Math.min(72, Math.max(28, Math.min(renderer.W, renderer.H) * 0.12));
+        const margin = Math.min(96, Math.max(36, Math.min(renderer.W, renderer.H) * 0.15));
         const minX = margin;
         const maxX = Math.max(minX, renderer.W - margin);
         const minY = margin;
@@ -2257,17 +2264,17 @@ const Meteor = {
             const size = drop.sx + drop.sz;
             const y = FLOOR + 0.01;
             this.shk = Math.min(1, this.shk + [0.6, 0.38, 0.1, 0.35, 0.22][drop.kind] * (0.5 + 0.5 * velocity));
-            this.flashes.push({ x: drop.x, y: y + drop.sy * 0.5, z: drop.z, life: 0.55, max: 0.55, ch: 9, s: 0.18 + size * 0.8 + 0.12 * velocity });
-            for (let i = 0; i < 3; i++) {
-                this.rings.push({ x: drop.x, y, z: drop.z, life: 0.7 + 0.25 * i, max: 0.7 + 0.25 * i, ch: 9, mx: (0.3 + size * 1.6) * (0.55 + 0.3 * i) * (0.6 + 0.5 * velocity), w: 2.2 - 0.5 * i, o: 0.55 });
+            this.flashes.push({ x: drop.x, y: y + drop.sy * 0.5, z: drop.z, life: 0.55, max: 0.55, ch: 9, s: 0.08 + size * 0.35 + 0.05 * velocity });
+            for (let i = 0; i < 2; i++) {
+                this.rings.push({ x: drop.x, y, z: drop.z, life: 0.7 + 0.25 * i, max: 0.7 + 0.25 * i, ch: 9, mx: (0.3 + size * 1.3) * (0.55 + 0.3 * i) * (0.6 + 0.5 * velocity), w: 2 - 0.45 * i, o: 0.3 });
             }
             this.cracks.push({ x: drop.x, y, z: drop.z, life: 0.9, max: 0.9, mx: 0.25 + size * 1.4, seed: drop.x * 7, n: 8 + Math.round(velocity * 6) });
-            for (let i = 0, count = 8 + Math.round(size * 28 * (0.6 + velocity)); i < count; i++) {
+            for (let i = 0, count = 6 + Math.round(size * 20 * (0.6 + velocity)); i < count; i++) {
                 const angle = rand(0, TAU);
                 const speed = rand(0.15, 0.55) * (0.5 + size * 3);
                 this.dust.push({ x: drop.x, y, z: drop.z, vx: Math.cos(angle) * speed, vz: Math.sin(angle) * speed, life: rand(0.7, 1.2), max: 1.2, r0: 0.03 + size * 0.14 });
             }
-            for (let i = 0, count = 8 + Math.round(size * 45 * (0.6 + velocity)); i < count && sparks.length < 1800; i++) {
+            for (let i = 0, count = 6 + Math.round(size * 28 * (0.6 + velocity)); i < count && sparks.length < 1800; i++) {
                 const angle = rand(0, TAU);
                 const speed = rand(0.1, 0.7) * (0.6 + size * 2);
                 sparks.push({ x: drop.x, y: y + 0.02, z: drop.z, vx: Math.cos(angle) * speed, vy: rand(0.6, 2) * (0.6 + size * 2), vz: Math.sin(angle) * speed, life: rand(0.6, 1.3), max: 1.3, ch: 9, s: 1, sq: true });
@@ -2475,7 +2482,7 @@ const Meteor = {
             const alpha = particle.life / particle.max;
             if (this.pr(renderer, particle.x, particle.y + 0.02, particle.z)) {
                 const size = point.k * (particle.r0 + (1 - alpha) * 0.14);
-                context.globalAlpha = alpha * 0.12;
+                context.globalAlpha = alpha * 0.07;
                 context.drawImage(GAUSS[9], point.x - size, point.y - size * 0.8, size * 2, size * 1.6);
             }
         }
@@ -2492,8 +2499,8 @@ const Meteor = {
             if (!this.pr(renderer, crack.x, crack.y, crack.z)) continue;
             const x0 = point.x;
             const y0 = point.y;
-            context.strokeStyle = `rgba(235,240,255,${alpha * 0.8})`;
-            context.lineWidth = 1 + 2 * alpha;
+            context.strokeStyle = `rgba(235,240,255,${alpha * 0.5})`;
+            context.lineWidth = 1 + 1.4 * alpha;
             context.lineCap = "round";
             for (let k = 0; k < crack.n; k++) {
                 const angle = crack.seed + k * TAU / crack.n;
@@ -2511,7 +2518,7 @@ const Meteor = {
             if (age >= DROP_T) continue;
             const drop = dropInfo(note.note);
             const progress = age / DROP_T;
-            this.ring3(renderer, drop.x, FLOOR + 0.003, drop.z, (drop.sx + drop.sz) * (0.9 - 0.5 * progress), "235,240,255", 0.15 + 0.5 * progress, 1.3);
+            this.ring3(renderer, drop.x, FLOOR + 0.003, drop.z, (drop.sx + drop.sz) * (0.9 - 0.5 * progress), "235,240,255", 0.1 + 0.26 * progress, 1.3);
         }
         for (let i = this.flashes.length - 1; i >= 0; i--) {
             const flash = this.flashes[i];
@@ -2555,7 +2562,7 @@ const Meteor = {
             const scale = point.k;
             if (particle.sq) {
                 const size = Math.max(1.5, scale * 0.01);
-                context.fillStyle = `rgba(235,240,255,${alpha})`;
+                context.fillStyle = `rgba(235,240,255,${alpha * 0.65})`;
                 context.fillRect(x - size / 2, y - size / 2, size, size);
                 continue;
             }
@@ -2604,7 +2611,6 @@ const Meteor = {
             }
         }
 
-        const tailCount = flying.length > 400 ? 6 : flying.length > 250 ? 9 : flying.length > 160 ? 12 : flying.length > 80 ? 20 : 32;
         const tailLife = this.burst ? 1.4 : 1;
         const many = flying.length > 160;
         for (const note of flying) {
@@ -2612,26 +2618,61 @@ const Meteor = {
             const age = time - motion.tl;
             const duration = motion.T;
             const velocity = note.vel / 127;
-            const sprite = GAUSS[note.ch];
             const whiteSprite = GAUSS[9];
             if (age > duration + tailLife) continue;
             const alive = age <= duration;
-            for (let i = 0; i < tailCount; i++) {
-                const u = i / (tailCount - 1);
-                const trailAge = age - tailLife * u ** 1.35;
-                if (trailAge < 0) break;
-                if (trailAge > duration) continue;
-                if (!this.pr(
-                    renderer,
-                    motion.x0 + motion.vx * trailAge,
-                    motion.y0 + motion.vy * trailAge - 0.5 * motion.g * trailAge * trailAge,
-                    motion.z0 + motion.vz * trailAge
-                )) continue;
-                const size = point.k * (0.013 + 0.01 * velocity) * (1 - 0.65 * u);
-                context.globalAlpha = Math.min(1, (1 - u) ** 1.15 * (0.5 + 0.3 * velocity));
-                context.drawImage(u < 0.06 ? whiteSprite : sprite, point.x - size, point.y - size, size * 2, size * 2);
+            const headTime = Math.min(age, duration);
+            const tailStart = Math.max(0, headTime - tailLife);
+            if (headTime > tailStart) {
+                const sampleCount = many ? 7 : 11;
+                const points = [];
+                for (let i = 0; i <= sampleCount; i++) {
+                    const u = i / sampleCount;
+                    const sampleTime = tailStart + (headTime - tailStart) * u;
+                    if (!this.pr(
+                        renderer,
+                        motion.x0 + motion.vx * sampleTime,
+                        motion.y0 + motion.vy * sampleTime - 0.5 * motion.g * sampleTime * sampleTime,
+                        motion.z0 + motion.vz * sampleTime
+                    )) break;
+                    points.push({ x: point.x, y: point.y, k: point.k, dep: point.dep, u });
+                }
+                if (points.length >= 2) {
+                    const left = [];
+                    const right = [];
+                    for (let i = 0; i < points.length; i++) {
+                        const previous = points[Math.max(0, i - 1)];
+                        const next = points[Math.min(points.length - 1, i + 1)];
+                        const dx = next.x - previous.x;
+                        const dy = next.y - previous.y;
+                        const inverse = 1 / (Math.hypot(dx, dy) || 1);
+                        const nx = -dy * inverse;
+                        const ny = dx * inverse;
+                        const current = points[i];
+                        const halfWidth = Math.max(
+                            0.55,
+                            current.k * (0.0035 + 0.0035 * velocity) * (0.12 + 0.88 * current.u)
+                        );
+                        left.push([current.x + nx * halfWidth, current.y + ny * halfWidth]);
+                        right.push([current.x - nx * halfWidth, current.y - ny * halfWidth]);
+                    }
+                    const tailFade = age > duration ? Math.max(0, 1 - (age - duration) / tailLife) : 1;
+                    const gradient = context.createLinearGradient(
+                        points[0].x, points[0].y,
+                        points[points.length - 1].x, points[points.length - 1].y
+                    );
+                    gradient.addColorStop(0, `rgba(${PAL[note.ch]},0)`);
+                    gradient.addColorStop(0.55, `rgba(${PAL[note.ch]},${0.22 * tailFade * (0.55 + 0.3 * velocity)})`);
+                    gradient.addColorStop(1, `rgba(${PAL[note.ch]},${0.62 * tailFade * (0.55 + 0.3 * velocity)})`);
+                    context.fillStyle = gradient;
+                    context.beginPath();
+                    context.moveTo(left[0][0], left[0][1]);
+                    for (let i = 1; i < left.length; i++) context.lineTo(left[i][0], left[i][1]);
+                    for (let i = right.length - 1; i >= 0; i--) context.lineTo(right[i][0], right[i][1]);
+                    context.closePath();
+                    context.fill();
+                }
             }
-            context.globalAlpha = 1;
             if (age < 0.2 && this.pr(renderer, motion.x0, motion.y0, motion.z0)) {
                 glow(renderer, note.ch, point.x, point.y, point.k * 0.08, (1 - age / 0.2) * (this.burst ? 0.18 : 0.55));
             }
@@ -2640,20 +2681,30 @@ const Meteor = {
                 const x = point.x;
                 const y = point.y;
                 const scale = point.k;
-                glow(renderer, note.ch, x, y, scale * (0.045 + 0.028 * velocity), 0.78);
-                const core = scale * 0.018;
-                context.globalAlpha = 0.82;
+                const depthRatio = this.cameraDistance / Math.max(0.2, point.dep);
+                const inverseSquare = Math.min(1, depthRatio * depthRatio);
+                const headScale = scale;
+                glow(
+                    renderer,
+                    note.ch,
+                    x,
+                    y,
+                    headScale * (0.045 + 0.028 * velocity),
+                    0.78 * inverseSquare
+                );
+                const core = headScale * 0.018;
+                context.globalAlpha = 0.82 * inverseSquare;
                 context.drawImage(whiteSprite, x - core, y - core, core * 2, core * 2);
                 context.globalAlpha = 1;
                 if (!many) {
-                    context.globalAlpha = 0.32 * (0.5 + velocity / 2);
+                    context.globalAlpha = 0.32 * (0.5 + velocity / 2) * inverseSquare;
                     context.strokeStyle = "rgba(255,255,255,0.65)";
                     context.lineWidth = 1;
                     context.beginPath();
-                    context.moveTo(x - scale * 0.035, y);
-                    context.lineTo(x + scale * 0.035, y);
-                    context.moveTo(x, y - scale * 0.035);
-                    context.lineTo(x, y + scale * 0.035);
+                    context.moveTo(x - headScale * 0.035, y);
+                    context.lineTo(x + headScale * 0.035, y);
+                    context.moveTo(x, y - headScale * 0.035);
+                    context.lineTo(x, y + headScale * 0.035);
                     context.stroke();
                     context.globalAlpha = 1;
                 }
