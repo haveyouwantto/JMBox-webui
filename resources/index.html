@@ -405,6 +405,11 @@
                         <locale key="settings.render.neo-trail">Neo Trail</locale>
                         <icon class="right radio" checker>&#57371;</icon>
                     </button>
+                    <button class="dialog-item button-flash" setting="radio" key="rendererMode" value="neo-meteor">
+                        <icon>&#57344;</icon>
+                        <locale key="settings.render.neo-meteor">Neo Meteor</locale>
+                        <icon class="right radio" checker>&#57371;</icon>
+                    </button>
                     <a class="dialog-item" setting="spinner" key="neoCascadeSpan">
                         <icon>&#57367;</icon>
                         <locale key="settings.render.neo-cascade-span">Cascade span (s)</locale>
@@ -418,6 +423,16 @@
                     <button class="dialog-item button-flash" setting="toggle" key="neoTrailSingleArc">
                         <icon>&#57367;</icon>
                         <locale key="settings.render.neo-trail-single-arc">Single-arc threads</locale>
+                        <icon class="right" checker>&#57362;</icon>
+                    </button>
+                    <a class="dialog-item" setting="spinner" key="neoMeteorZoom">
+                        <icon>&#57367;</icon>
+                        <locale key="settings.render.neo-meteor-zoom">Meteor zoom</locale>
+                        <input class="right" type="number" min="0.6" max="1.8" step="0.05" value="1">
+                    </a>
+                    <button class="dialog-item button-flash" setting="toggle" key="neoMeteorBurst">
+                        <icon>&#57367;</icon>
+                        <locale key="settings.render.neo-meteor-burst">Meteor chunk burst</locale>
                         <icon class="right" checker>&#57362;</icon>
                     </button>
                     <button class="dialog-item button-flash" setting="toggle" key="neoLegacyPalette">

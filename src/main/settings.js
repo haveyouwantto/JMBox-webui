@@ -58,6 +58,8 @@ const defaultValue = {
     neoCascadeSpan: 3,
     neoTrailTilt: 60,
     neoTrailSingleArc: false,
+    neoMeteorZoom: 1,
+    neoMeteorBurst: true,
 
     // ── WebGL 3D ──
     zScale: 16,

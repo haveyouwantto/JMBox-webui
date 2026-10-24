@@ -1788,7 +1788,919 @@ const Trail = {
     }
 };
 
-const MODES = { cascade: Cascade, orbit: Orbit, warp: Warp, trail: Trail };
+const PK = (() => {
+    const lo = 21;
+    const hi = 108;
+    const ww = 2 / 52;
+    const LW = ww * 5.6;
+    const hb = ww * 0.5;
+    const BL = LW * 0.62;
+    const BW = ww * 0.58;
+    const x = new Float32Array(128);
+    const black = new Uint8Array(128);
+    const kx = new Float32Array(128);
+    const ky = new Float32Array(128);
+    const kz = new Float32Array(128);
+    let whiteIndex = 0;
+    for (let note = lo; note <= hi; note++) {
+        if (!isBlack(note)) x[note] = -1 + (whiteIndex++ + 0.5) * ww;
+    }
+    const offsets = { 1: -0.1, 3: 0.1, 6: -0.1, 8: 0, 10: 0.1 };
+    for (let note = lo; note <= hi; note++) {
+        if (isBlack(note)) {
+            black[note] = 1;
+            x[note] = (x[note - 1] + x[note + 1]) / 2 + (offsets[note % 12] || 0) * ww;
+        }
+    }
+    for (let note = lo; note <= hi; note++) {
+        kx[note] = x[note];
+        ky[note] = black[note] ? hb : 0;
+        kz[note] = black[note] ? LW - BL / 2 : (LW - BL) * 0.5;
+    }
+    return { lo, hi, ww, LW, hb, BL, BW, x, black, kx, ky, kz };
+})();
+
+const foldKey = note => {
+    while (note < 21) note += 12;
+    while (note > 108) note -= 12;
+    return note;
+};
+
+const mulberry = seed => () => {
+    seed |= 0;
+    seed = seed + 0x6D2B79F5 | 0;
+    let value = Math.imul(seed ^ seed >>> 15, 1 | seed);
+    value = value + Math.imul(value ^ value >>> 7, 61 | value) ^ value;
+    return ((value ^ value >>> 14) >>> 0) / 4294967296;
+};
+
+const DROP_T = 1.4;
+const DROP_H = 2;
+const FLOOR = -0.085;
+
+function dropInfo(note) {
+    const kind = drumKind(note);
+    const dimensions = [
+        [0.2, 0.2, 0.2],
+        [0.13, 0.1, 0.13],
+        [0.07, 0.07, 0.07],
+        [0.11, 0.13, 0.11],
+        [0.22, 0.035, 0.22]
+    ][kind];
+    const x = kind === 0
+        ? -0.38 + ((note * 3) % 3 - 1) * 0.08
+        : kind === 1
+            ? 0.38 + ((note * 5) % 3 - 1) * 0.08
+            : kind === 2
+                ? (note === 44 ? 1 : -1) * (0.95 + ((note * 7) % 3) * 0.12)
+                : kind === 3
+                    ? -0.9 + ((note * 13) % 10) * 0.2
+                    : (note % 2 ? -1 : 1) * (1.2 + ((note * 7) % 3) * 0.1);
+    return {
+        kind,
+        x,
+        z: [0.95, 0.95, 1.5, 1.2, 1.7][kind] + ((note * 11) % 3) * 0.08,
+        sx: dimensions[0],
+        sy: dimensions[1],
+        sz: dimensions[2],
+        yc: FLOOR + dimensions[1] / 2
+    };
+}
+
+function buildMeteor(renderer, meteor) {
+    const score = renderer.score;
+    const bars = [];
+    if (renderer.midiData) {
+        for (const line of collectBarLines(renderer.midiData, 0, Math.max(2, score.dur))) {
+            if (line.kind === "bar") bars.push(line.time);
+        }
+    }
+    if (bars.length < 2) {
+        bars.length = 0;
+        for (let time = 0; time <= score.dur + 2; time += 2) bars.push(time);
+    }
+    const barDuration = (bars[bars.length - 1] - bars[0]) / (bars.length - 1) || 2;
+    const byChannel = new Map();
+    const chunks = [];
+    for (const note of score.notes) {
+        if (note.ch === 9) continue;
+        let list = byChannel.get(note.ch);
+        if (!list) byChannel.set(note.ch, list = []);
+        list.push(note);
+    }
+    for (const [channel, notes] of byChannel) {
+        const span = Math.max(1, (notes[notes.length - 1].start - notes[0].start) / barDuration + 1);
+        const barsPerChunk = (barDuration >= 3 || notes.length / span > 28) ? 1 : 2;
+        const chunkMap = new Map();
+        for (const note of notes) {
+            let barIndex = lb(bars, note.start + 1e-6, time => time) - 1;
+            if (barIndex < 0) barIndex = 0;
+            const id = Math.floor(barIndex / barsPerChunk);
+            let chunk = chunkMap.get(id);
+            if (!chunk) {
+                chunk = { ch: channel, id, notes: [], tStart: 0, tlS: 0, tlB: 0, tEnd: -1e9, spawn: null };
+                chunkMap.set(id, chunk);
+                chunks.push(chunk);
+            }
+            chunk.notes.push(note);
+        }
+    }
+
+    let maxStreamTime = 0;
+    let maxBurstTime = 0;
+    for (const chunk of chunks) {
+        const random = mulberry(chunk.ch * 7919 + chunk.id * 104729 + 13);
+        let centerX = 0;
+        for (const note of chunk.notes) centerX += PK.kx[foldKey(note.note)];
+        centerX /= chunk.notes.length;
+        const style = random();
+        let spawn;
+        let low = false;
+        if (style < 0.55) {
+            spawn = {
+                x: clamp(centerX + (random() - 0.5) * 1.8, -2, 2),
+                y: 0.55 + random() * 1.2,
+                z: 0.25 + random() * 2
+            };
+        } else if (style < 0.85) {
+            const side = random() < 0.5 ? -1 : 1;
+            low = true;
+            spawn = {
+                x: side * (1.15 + random() * 0.9),
+                y: 0.05 + random() * 0.45,
+                z: 0.1 + random() * 1.4
+            };
+        } else {
+            spawn = {
+                x: (random() - 0.5) * 2.4,
+                y: 1 + random() * 0.8,
+                z: -0.1 + random() * 0.5
+            };
+        }
+        chunk.spawn = meteor.clampSpawn(renderer, spawn);
+        const streamTime = 2.4 + random();
+        const lead = 2.2 + random() * 0.8;
+        const extra = low ? 0.45 + random() * 0.45 : 0.1 + random() * 0.4;
+        const first = chunk.notes[0].start;
+        const burstTime = first - lead;
+        chunk.tlS = first - streamTime;
+        chunk.tlB = burstTime;
+        for (const note of chunk.notes) {
+            const pitch = foldKey(note.note);
+            const targetX = PK.kx[pitch];
+            const targetY = PK.ky[pitch];
+            const targetZ = PK.kz[pitch];
+            const jitter = [random(), random(), random(), random()];
+            const x0 = spawn.x + (jitter[0] - 0.5) * 0.05;
+            const y0 = spawn.y + (jitter[1] - 0.5) * 0.05;
+            const z0 = spawn.z + (jitter[2] - 0.5) * 0.05;
+            const peakY = Math.max(y0, targetY) + extra * (0.88 + jitter[3] * 0.24);
+            const up = Math.max(1e-4, peakY - y0);
+            const down = Math.max(1e-4, peakY - targetY);
+            const makeMotion = (duration, launchTime) => {
+                const gravity = 2 * (Math.sqrt(up) + Math.sqrt(down)) ** 2 / (duration * duration);
+                return {
+                    x0,
+                    y0,
+                    z0,
+                    vx: (targetX - x0) / duration,
+                    vy: Math.sqrt(2 * gravity * up),
+                    vz: (targetZ - z0) / duration,
+                    g: gravity,
+                    T: duration,
+                    tl: launchTime,
+                    kx: targetX,
+                    ky: targetY,
+                    kz: targetZ
+                };
+            };
+            note.m = makeMotion(streamTime, note.start - streamTime);
+            note.mb = makeMotion(note.start - burstTime, burstTime);
+            chunk.tEnd = Math.max(chunk.tEnd, note.start);
+            maxBurstTime = Math.max(maxBurstTime, note.start - burstTime);
+        }
+        maxStreamTime = Math.max(maxStreamTime, streamTime);
+    }
+    return { chunks, maxT: { s: maxStreamTime, b: maxBurstTime } };
+}
+
+const Meteor = {
+    name: "Meteor",
+    zoom: 1,
+    burst: true,
+    maxT: 3.4,
+    mt: { chunks: [], maxT: { s: 3.4, b: 7 } },
+    P: { x: 0, y: 0, dep: 1, k: 1 },
+    shk: 0,
+
+    init() {
+        this.kp = new Float32Array(128);
+        this.kf = new Float32Array(128);
+        this.kc = new Uint8Array(128);
+        this.tg = new Float32Array(128);
+        this.tc = new Uint8Array(128);
+        this.flashes = [];
+        this.rings = [];
+        this.beams = [];
+        this.sparks = [];
+        this.dust = [];
+        this.cracks = [];
+        this.fl = [];
+        this.dr = [];
+        this._q = new Float64Array(8);
+        this.stars = Array.from({ length: 170 }, () => ({
+            x: Math.random(),
+            y: Math.random(),
+            s: rand(0.6, 1.7),
+            p: Math.random() * TAU
+        }));
+    },
+
+    layout(renderer) {
+        this.FOCAL = 0.5 * renderer.H / Math.tan(27.5 * Math.PI / 180);
+        this.zoom = clamp(Number(renderer.settings.neoMeteorZoom) || 1, 0.6, 1.8);
+        this.camSet(renderer, 0, 0.016);
+        const meteorKey = `${renderer.W.toFixed(1)}x${renderer.H.toFixed(1)}:${this.zoom}`;
+        if (!renderer.score.meteor || renderer.score._meteorKey !== meteorKey) {
+            renderer.score.meteor = buildMeteor(renderer, this);
+            renderer.score._meteorKey = meteorKey;
+        }
+        this.mt = renderer.score.meteor;
+        this.flashes.length = 0;
+        this.rings.length = 0;
+        this.beams.length = 0;
+        this.sparks.length = 0;
+        this.dust.length = 0;
+        this.cracks.length = 0;
+        this.kp.fill(0);
+        this.kf.fill(0);
+        this.setBurst(renderer.settings.neoMeteorBurst !== false);
+        this.camSet(renderer, 0, 0.016);
+    },
+
+    setBurst(enabled) {
+        this.burst = enabled;
+        const chunks = this.mt.chunks;
+        for (const chunk of chunks) chunk.tStart = enabled ? chunk.tlB : chunk.tlS;
+        chunks.sort((a, b) => a.tStart - b.tStart);
+        this.maxT = enabled ? this.mt.maxT.b : this.mt.maxT.s;
+        this.maxDur = 0;
+        for (const chunk of chunks) this.maxDur = Math.max(this.maxDur, chunk.tEnd - chunk.tStart);
+    },
+
+    camSet(renderer, time, delta) {
+        this.shk *= Math.exp(-delta * 7);
+        const baseDistance = Math.min(2.6, this.FOCAL / (0.46 * renderer.W)) * this.zoom;
+        const fitKey = `${renderer.W.toFixed(1)}x${renderer.H.toFixed(1)}:${this.zoom}`;
+        if (this._fitKey !== fitKey) {
+            this._fitFactor = this._findFit(renderer, baseDistance);
+            this._fitKey = fitKey;
+        }
+        const sway = Math.sin(time * 0.13) * 0.12;
+        const jitterX = (Math.random() - 0.5) * this.shk * 0.02;
+        const jitterY = (Math.random() - 0.5) * this.shk * 0.02;
+        this.cameraDistance = baseDistance * this._fitFactor;
+        this._setPose(renderer, sway + jitterX, 0.85 + jitterY, -this.cameraDistance);
+    },
+
+    _findFit(renderer, baseDistance) {
+        const marginX = Math.max(8, renderer.W * 0.03);
+        const marginY = Math.max(8, renderer.H * 0.035);
+        let fit = 1;
+        for (let iteration = 0; iteration < 10; iteration++) {
+            this._setPose(renderer, 0, 0.85, -baseDistance * fit);
+            const bounds = this._keyboardBounds(renderer);
+            if (bounds &&
+                bounds.minX >= marginX && bounds.maxX <= renderer.W - marginX &&
+                bounds.minY >= marginY && bounds.maxY <= renderer.H - marginY) return fit;
+            fit *= 1.2;
+        }
+        return fit;
+    },
+
+    _setPose(renderer, cameraX, cameraY, cameraZ) {
+        const camera = this.C = [cameraX, cameraY, cameraZ];
+        const sway = cameraX;
+        const target = [sway * 0.35, 0.5, 0.55];
+        let forward = [target[0] - camera[0], target[1] - camera[1], target[2] - camera[2]];
+        const forwardLength = Math.hypot(...forward);
+        forward = forward.map(value => value / forwardLength);
+        let right = [forward[2], 0, -forward[0]];
+        const rightLength = Math.hypot(...right);
+        right = right.map(value => value / rightLength);
+        this.f = forward;
+        this.r = right;
+        this.u = [
+            forward[1] * right[2] - forward[2] * right[1],
+            forward[2] * right[0] - forward[0] * right[2],
+            forward[0] * right[1] - forward[1] * right[0]
+        ];
+    },
+
+    _keyboardBounds(renderer) {
+        let minX = Infinity;
+        let maxX = -Infinity;
+        let minY = Infinity;
+        let maxY = -Infinity;
+        for (const x of [-1.06, -0.5, 0, 0.5, 1.06]) {
+            for (const y of [-0.085, 0, 0.075]) {
+                for (const z of [0, PK.LW / 2, PK.LW]) {
+                    if (!this.pr(renderer, x, y, z)) return null;
+                    const point = this.P;
+                    minX = Math.min(minX, point.x);
+                    maxX = Math.max(maxX, point.x);
+                    minY = Math.min(minY, point.y);
+                    maxY = Math.max(maxY, point.y);
+                }
+            }
+        }
+        return { minX, maxX, minY, maxY };
+    },
+
+    clampSpawn(renderer, spawn) {
+        if (!this.pr(renderer, spawn.x, spawn.y, spawn.z)) {
+            return { x: 0, y: 0.9, z: 0.8 };
+        }
+        const point = this.P;
+        const depth = point.dep;
+        const scale = this.FOCAL / depth;
+        const margin = Math.min(72, Math.max(28, Math.min(renderer.W, renderer.H) * 0.12));
+        const minX = margin;
+        const maxX = Math.max(minX, renderer.W - margin);
+        const minY = margin;
+        const maxY = Math.max(minY, renderer.H * 0.7);
+        const screenX = clamp(point.x, minX, maxX);
+        const screenY = clamp(point.y, minY, maxY);
+        if (screenX === point.x && screenY === point.y) return spawn;
+        const localX = (screenX - renderer.W / 2) / scale;
+        const localY = (renderer.H / 2 - screenY) / scale;
+        const camera = this.C;
+        const forward = this.f;
+        const right = this.r;
+        const up = this.u;
+        return {
+            x: camera[0] + forward[0] * depth + right[0] * localX + up[0] * localY,
+            y: camera[1] + forward[1] * depth + right[1] * localX + up[1] * localY,
+            z: camera[2] + forward[2] * depth + right[2] * localX + up[2] * localY
+        };
+    },
+
+    pr(renderer, x, y, z) {
+        const camera = this.C;
+        const dx = x - camera[0];
+        const dy = y - camera[1];
+        const dz = z - camera[2];
+        const forward = this.f;
+        const right = this.r;
+        const up = this.u;
+        const depth = dx * forward[0] + dy * forward[1] + dz * forward[2];
+        if (depth < 0.08) return false;
+        const point = this.P;
+        const scale = this.FOCAL / depth;
+        point.k = scale;
+        point.dep = depth;
+        point.x = renderer.W / 2 + (dx * right[0] + dy * right[1] + dz * right[2]) * scale;
+        point.y = renderer.H / 2 - (dx * up[0] + dy * up[1] + dz * up[2]) * scale;
+        return true;
+    },
+
+    quad(renderer, corners, fill) {
+        const points = this._q;
+        for (let i = 0; i < 4; i++) {
+            if (!this.pr(renderer, corners[3 * i], corners[3 * i + 1], corners[3 * i + 2])) return;
+            points[2 * i] = this.P.x;
+            points[2 * i + 1] = this.P.y;
+        }
+        const context = renderer.ctx;
+        context.fillStyle = fill;
+        context.beginPath();
+        context.moveTo(points[0], points[1]);
+        context.lineTo(points[2], points[3]);
+        context.lineTo(points[4], points[5]);
+        context.lineTo(points[6], points[7]);
+        context.closePath();
+        context.fill();
+    },
+
+    ring3(renderer, x, y, z, radius, color, alpha, lineWidth) {
+        if (alpha < 0.01 || !this.pr(renderer, x, y, z)) return;
+        const point = this.P;
+        const centerX = point.x;
+        const centerY = point.y;
+        if (!this.pr(renderer, x + radius, y, z)) return;
+        const radiusX = Math.abs(point.x - centerX) || 1;
+        if (!this.pr(renderer, x, y, z + radius)) return;
+        const radiusY = Math.abs(point.y - centerY);
+        const context = renderer.ctx;
+        context.strokeStyle = `rgba(${color},${alpha})`;
+        context.lineWidth = lineWidth;
+        context.beginPath();
+        context.ellipse(centerX, centerY, radiusX, Math.max(1, radiusY), 0, 0, TAU);
+        context.stroke();
+    },
+
+    cube(renderer, cx, cy, cz, sx, sy, sz, angle, alpha) {
+        const ca = Math.cos(angle);
+        const sa = Math.sin(angle);
+        const hx = sx / 2;
+        const hy = sy / 2;
+        const hz = sz / 2;
+        const camera = this.C;
+        const points = this._q;
+        const faces = [
+            [0, 1, 0, -hx, hy, -hz, hx, hy, -hz, hx, hy, hz, -hx, hy, hz],
+            [0, 0, -1, -hx, -hy, -hz, hx, -hy, -hz, hx, hy, -hz, -hx, hy, -hz],
+            [0, 0, 1, -hx, -hy, hz, hx, -hy, hz, hx, hy, hz, -hx, hy, hz],
+            [1, 0, 0, hx, -hy, -hz, hx, -hy, hz, hx, hy, hz, hx, hy, -hz],
+            [-1, 0, 0, -hx, -hy, -hz, -hx, -hy, hz, -hx, hy, hz, -hx, hy, -hz]
+        ];
+        const context = renderer.ctx;
+        for (const face of faces) {
+            const nx = face[0] * ca + face[2] * sa;
+            const nz = -face[0] * sa + face[2] * ca;
+            const ny = face[1];
+            if (nx * (camera[0] - cx) + ny * (camera[1] - cy) + nz * (camera[2] - cz) <= 0) continue;
+            let visible = true;
+            for (let i = 0; i < 4; i++) {
+                const lx = face[3 + 3 * i];
+                const ly = face[4 + 3 * i];
+                const lz = face[5 + 3 * i];
+                if (!this.pr(renderer, cx + lx * ca + lz * sa, cy + ly, cz - lx * sa + lz * ca)) {
+                    visible = false;
+                    break;
+                }
+                points[2 * i] = this.P.x;
+                points[2 * i + 1] = this.P.y;
+            }
+            if (!visible) continue;
+            const shade = 0.32 + 0.68 * Math.max(0, -0.4 * nx + 0.9 * ny - 0.5 * nz) / 1.1;
+            const gray = 232 * shade | 0;
+            context.fillStyle = `rgba(${gray},${gray + 5 | 0},${Math.min(255, gray + 14)},${alpha})`;
+            context.strokeStyle = `rgba(255,255,255,${0.4 * alpha})`;
+            context.lineWidth = 1;
+            context.beginPath();
+            context.moveTo(points[0], points[1]);
+            context.lineTo(points[2], points[3]);
+            context.lineTo(points[4], points[5]);
+            context.lineTo(points[6], points[7]);
+            context.closePath();
+            context.fill();
+            context.stroke();
+        }
+    },
+
+    hit(renderer, note) {
+        const velocity = note.vel / 127;
+        const sparks = this.sparks;
+        if (note.ch === 9) {
+            const drop = dropInfo(note.note);
+            const size = drop.sx + drop.sz;
+            const y = FLOOR + 0.01;
+            this.shk = Math.min(1, this.shk + [0.6, 0.38, 0.1, 0.35, 0.22][drop.kind] * (0.5 + 0.5 * velocity));
+            this.flashes.push({ x: drop.x, y: y + drop.sy * 0.5, z: drop.z, life: 0.55, max: 0.55, ch: 9, s: 0.18 + size * 0.8 + 0.12 * velocity });
+            for (let i = 0; i < 3; i++) {
+                this.rings.push({ x: drop.x, y, z: drop.z, life: 0.7 + 0.25 * i, max: 0.7 + 0.25 * i, ch: 9, mx: (0.3 + size * 1.6) * (0.55 + 0.3 * i) * (0.6 + 0.5 * velocity), w: 2.2 - 0.5 * i, o: 0.55 });
+            }
+            this.cracks.push({ x: drop.x, y, z: drop.z, life: 0.9, max: 0.9, mx: 0.25 + size * 1.4, seed: drop.x * 7, n: 8 + Math.round(velocity * 6) });
+            for (let i = 0, count = 8 + Math.round(size * 28 * (0.6 + velocity)); i < count; i++) {
+                const angle = rand(0, TAU);
+                const speed = rand(0.15, 0.55) * (0.5 + size * 3);
+                this.dust.push({ x: drop.x, y, z: drop.z, vx: Math.cos(angle) * speed, vz: Math.sin(angle) * speed, life: rand(0.7, 1.2), max: 1.2, r0: 0.03 + size * 0.14 });
+            }
+            for (let i = 0, count = 8 + Math.round(size * 45 * (0.6 + velocity)); i < count && sparks.length < 1800; i++) {
+                const angle = rand(0, TAU);
+                const speed = rand(0.1, 0.7) * (0.6 + size * 2);
+                sparks.push({ x: drop.x, y: y + 0.02, z: drop.z, vx: Math.cos(angle) * speed, vy: rand(0.6, 2) * (0.6 + size * 2), vz: Math.sin(angle) * speed, life: rand(0.6, 1.3), max: 1.3, ch: 9, s: 1, sq: true });
+            }
+            return;
+        }
+        const pitch = foldKey(note.note);
+        const x = PK.kx[pitch];
+        const y = PK.ky[pitch];
+        const z = PK.kz[pitch];
+        this.kf[pitch] = 1;
+        this.kc[pitch] = note.ch;
+        this.shk = Math.min(1, this.shk + 0.08 * velocity);
+        this.flashes.push({ x, y: y + 0.01, z, life: 0.4, max: 0.4, ch: note.ch, s: 0.12 + 0.12 * velocity });
+        this.rings.push({ x, y: y + 0.002, z, life: 0.7, max: 0.7, ch: note.ch, mx: 0.1 + 0.16 * velocity });
+        this.beams.push({ x, y, z, life: 0.45, max: 0.45, ch: note.ch, h: 0.35 + 0.9 * velocity });
+        for (let i = 0, count = 8 + Math.round(velocity * 24); i < count && sparks.length < 1800; i++) {
+            const angle = rand(0, TAU);
+            const speed = rand(0.15, 0.6) * (0.6 + velocity);
+            sparks.push({ x, y: y + 0.01, z, vx: Math.cos(angle) * speed, vy: rand(0.5, 1.5) * (0.6 + 0.6 * velocity), vz: Math.sin(angle) * speed * 0.7, life: rand(0.6, 1.3), max: 1.3, ch: note.ch, s: 1 });
+        }
+        if (velocity > 0.65) {
+            for (let i = 0; i < 14 && sparks.length < 1800; i++) {
+                const angle = i / 14 * TAU;
+                sparks.push({ x, y: y + 0.01, z, vx: Math.cos(angle) * 0.35, vy: 0.7, vz: Math.sin(angle) * 0.35, life: 1, max: 1, ch: 9, s: 0.8 });
+            }
+        }
+    },
+
+    drawPiano(renderer) {
+        const K = PK;
+        const ww = K.ww;
+        const LW = K.LW;
+        const hb = K.hb;
+        const BL = K.BL;
+        const width = ww * 0.94;
+        const blackWidth = K.BW;
+        const cameraX = this.C[0];
+        const PALN = renderer.paletteRgbArray;
+        const quad = (corners, fill) => this.quad(renderer, corners, fill);
+        quad([-1.06, -0.003, -0.05, 1.06, -0.003, -0.05, 1.06, -0.003, LW + 0.12, -1.06, -0.003, LW + 0.12], "#0e141b");
+        quad([-1.06, -0.003, -0.05, 1.06, -0.003, -0.05, 1.06, -0.085, -0.05, -1.06, -0.085, -0.05], "#0a0f15");
+        quad([-1.06, 0, LW, 1.06, 0, LW, 1.06, 0.075, LW, -1.06, 0.075, LW], "#131b26");
+        quad([-1.06, 0.075, LW, 1.06, 0.075, LW, 1.06, 0.075, LW + 0.12, -1.06, 0.075, LW + 0.12], "#1b2634");
+        for (const side of [-1, 1]) {
+            const x0 = side;
+            const x1 = side * 1.06;
+            quad([x0, 0.075, -0.05, x1, 0.075, -0.05, x1, 0.075, LW + 0.12, x0, 0.075, LW + 0.12], "#1d2836");
+            quad([x0, 0.075, -0.05, x1, 0.075, -0.05, x1, -0.085, -0.05, x0, -0.085, -0.05], "#0f1620");
+            quad([x0, 0.075, -0.05, x0, 0.075, LW + 0.12, x0, -0.003, LW + 0.12, x0, -0.003, -0.05], "#0c121a");
+        }
+        const mix = (base, note, amount) => {
+            const color = PALN[this.kc[note]];
+            return `rgb(${base[0] + (color[0] - base[0]) * amount | 0},${base[1] + (color[1] - base[1]) * amount | 0},${base[2] + (color[2] - base[2]) * amount | 0})`;
+        };
+        for (let note = K.lo; note <= K.hi; note++) {
+            if (K.black[note]) continue;
+            const amount = Math.min(1, this.kp[note] * 0.8 + this.kf[note] * 0.5);
+            const frontDrop = 0.02 * this.kp[note];
+            const backDrop = 0.004 * this.kp[note];
+            const x0 = K.x[note] - width / 2;
+            const x1 = K.x[note] + width / 2;
+            quad([x0, -frontDrop, 0, x1, -frontDrop, 0, x1, -backDrop, LW, x0, -backDrop, LW], mix([226, 231, 240], note, amount));
+            quad([x0, -frontDrop, 0, x1, -frontDrop, 0, x1, -0.045, 0, x0, -0.045, 0], mix([164, 172, 188], note, amount * 0.8));
+        }
+        for (let note = K.lo; note <= K.hi; note++) {
+            if (!K.black[note]) continue;
+            const amount = Math.min(1, this.kp[note] * 0.8 + this.kf[note] * 0.5);
+            const drop = 0.012 * this.kp[note];
+            const top = hb - drop;
+            const frontZ = LW - BL;
+            const x0 = K.x[note] - blackWidth / 2;
+            const x1 = K.x[note] + blackWidth / 2;
+            const sideX = cameraX < K.x[note] ? x0 : x1;
+            quad([sideX, top, frontZ, sideX, top, LW, sideX, 0, LW, sideX, 0, frontZ], mix([10, 12, 16], note, amount * 0.5));
+            quad([x0, top, frontZ, x1, top, frontZ, x1, top, LW, x0, top, LW], mix([24, 27, 34], note, amount));
+            quad([x0, top, frontZ, x1, top, frontZ, x1, 0, frontZ, x0, 0, frontZ], mix([8, 9, 12], note, amount * 0.7));
+        }
+    },
+
+    draw(renderer, time, delta) {
+        const context = renderer.ctx;
+        const PAL = renderer.paletteRgb;
+        const GAUSS = renderer.gaussSprites;
+        const score = renderer.score;
+        const notes = score.notes;
+        const W = renderer.W;
+        const H = renderer.H;
+        const energy = Math.min(2.5, renderer.energy);
+        const point = this.P;
+        const motionKey = this.burst ? "mb" : "m";
+        this.camSet(renderer, time, delta);
+        this.tg.fill(0);
+        for (const note of renderer.activeNotes) {
+            if (note.ch === 9) continue;
+            const pitch = foldKey(note.note);
+            this.tg[pitch] = 1;
+            this.tc[pitch] = note.ch;
+        }
+        for (let note = 21; note <= 108; note++) {
+            const target = this.tg[note];
+            if (target) this.kc[note] = this.tc[note];
+            this.kp[note] += (target - this.kp[note]) * (1 - Math.exp(-delta * (target > this.kp[note] ? 30 : 12)));
+            this.kf[note] *= Math.exp(-delta * 5);
+        }
+
+        context.globalCompositeOperation = "source-over";
+        let horizon = H * 0.35;
+        if (this.pr(renderer, 0, 0, 400)) horizon = point.y;
+        const background = context.createLinearGradient(0, 0, 0, H);
+        const hq = clamp(horizon / H, 0.05, 0.95);
+        background.addColorStop(0, "#04101a");
+        background.addColorStop(hq * 0.8, "#0a2a36");
+        background.addColorStop(hq, "#0f3d47");
+        background.addColorStop(Math.min(1, hq + 0.02), "#0a252c");
+        background.addColorStop(1, "#04141a");
+        context.fillStyle = background;
+        context.fillRect(0, 0, W, H);
+        context.globalCompositeOperation = "lighter";
+        for (const star of this.stars) {
+            if (star.y * H >= horizon) continue;
+            context.fillStyle = `rgba(200,225,255,${0.1 + 0.15 * Math.sin(time * 1.4 + star.p)})`;
+            context.fillRect(star.x * W, star.y * H, star.s, star.s);
+        }
+        const haze = context.createRadialGradient(W / 2, horizon, 0, W / 2, horizon, W * 0.6);
+        haze.addColorStop(0, `rgba(60,170,170,${0.1 + energy * 0.04})`);
+        haze.addColorStop(1, "rgba(0,0,0,0)");
+        context.save();
+        context.translate(0, horizon);
+        context.scale(1, 0.4);
+        context.translate(0, -horizon);
+        context.fillStyle = haze;
+        context.fillRect(0, horizon - W, W, W * 2);
+        context.restore();
+        if (this.pr(renderer, 0, -0.08, 0.6)) {
+            const floor = context.createRadialGradient(point.x, point.y, 0, point.x, point.y, W * 0.5);
+            floor.addColorStop(0, `rgba(70,190,190,${0.16 + energy * 0.05})`);
+            floor.addColorStop(1, "rgba(0,0,0,0)");
+            context.save();
+            context.translate(point.x, point.y);
+            context.scale(1, 0.32);
+            context.translate(-point.x, -point.y);
+            context.fillStyle = floor;
+            context.fillRect(point.x - W, point.y - W, W * 2, W * 2);
+            context.restore();
+        }
+
+        const flying = this.fl;
+        const drums = this.dr;
+        flying.length = 0;
+        drums.length = 0;
+        const maxTime = time + Math.max(this.maxT, DROP_T);
+        for (let i = lb(notes, time - 1.1, note => note.start); i < notes.length && notes[i].start <= maxTime; i++) {
+            const note = notes[i];
+            if (note.ch === 9) {
+                const age = time - (note.start - DROP_T);
+                if (age >= 0 && age <= DROP_T + 1.05) drums.push(note);
+            } else {
+                const motion = note[motionKey];
+                if (motion && motion.tl <= time) flying.push(note);
+            }
+        }
+
+        context.globalCompositeOperation = "source-over";
+        for (const note of drums) {
+            const drop = dropInfo(note.note);
+            const age = time - (note.start - DROP_T);
+            if (age < DROP_T) {
+                const progress = age / DROP_T;
+                const y = drop.yc + DROP_H * (1 - progress * progress);
+                const angle = (0.9 + ((note.note * 37) % 10) / 10 * 1.2) * (1 - progress) ** 2;
+                if (this.pr(renderer, drop.x, FLOOR, drop.z)) {
+                    const cx = point.x;
+                    const cy = point.y;
+                    const radius = Math.max(drop.sx, drop.sz) * point.k * (0.5 + progress * 0.6);
+                    context.fillStyle = `rgba(0,0,0,${0.35 * progress})`;
+                    context.beginPath();
+                    context.ellipse(cx, cy, radius, radius * 0.3, 0, 0, TAU);
+                    context.fill();
+                }
+                this.cube(renderer, drop.x, y, drop.z, drop.sx, drop.sy, drop.sz, angle, Math.min(1, age / 0.25));
+            } else {
+                const after = age - DROP_T;
+                const squash = 1 - 0.28 * Math.exp(-after * 14);
+                const widen = 1 + 0.18 * Math.exp(-after * 14);
+                const fade = after < 0.5 ? 1 : Math.max(0, 1 - (after - 0.5) / 0.55);
+                const height = drop.sy * squash * (0.25 + 0.75 * fade);
+                this.cube(renderer, drop.x, FLOOR + height / 2, drop.z, drop.sx * widen, height, drop.sz * widen, 0, fade);
+            }
+        }
+        context.globalCompositeOperation = "source-over";
+        this.drawPiano(renderer);
+        context.globalCompositeOperation = "lighter";
+
+        for (let i = this.dust.length - 1; i >= 0; i--) {
+            const particle = this.dust[i];
+            particle.life -= delta;
+            if (particle.life <= 0) {
+                this.dust[i] = this.dust[this.dust.length - 1];
+                this.dust.pop();
+                continue;
+            }
+            particle.x += particle.vx * delta;
+            particle.z += particle.vz * delta;
+            particle.vx *= Math.exp(-delta * 2.2);
+            particle.vz *= Math.exp(-delta * 2.2);
+            const alpha = particle.life / particle.max;
+            if (this.pr(renderer, particle.x, particle.y + 0.02, particle.z)) {
+                const size = point.k * (particle.r0 + (1 - alpha) * 0.14);
+                context.globalAlpha = alpha * 0.12;
+                context.drawImage(GAUSS[9], point.x - size, point.y - size * 0.8, size * 2, size * 1.6);
+            }
+        }
+        context.globalAlpha = 1;
+        for (let i = this.cracks.length - 1; i >= 0; i--) {
+            const crack = this.cracks[i];
+            crack.life -= delta;
+            if (crack.life <= 0) {
+                this.cracks.splice(i, 1);
+                continue;
+            }
+            const alpha = crack.life / crack.max;
+            const length = crack.mx * (1 - alpha ** 3);
+            if (!this.pr(renderer, crack.x, crack.y, crack.z)) continue;
+            const x0 = point.x;
+            const y0 = point.y;
+            context.strokeStyle = `rgba(235,240,255,${alpha * 0.8})`;
+            context.lineWidth = 1 + 2 * alpha;
+            context.lineCap = "round";
+            for (let k = 0; k < crack.n; k++) {
+                const angle = crack.seed + k * TAU / crack.n;
+                const ray = length * (k % 2 ? 0.65 : 1);
+                if (this.pr(renderer, crack.x + Math.cos(angle) * ray, crack.y, crack.z + Math.sin(angle) * ray)) {
+                    context.beginPath();
+                    context.moveTo(x0, y0);
+                    context.lineTo(point.x, point.y);
+                    context.stroke();
+                }
+            }
+        }
+        for (const note of drums) {
+            const age = time - (note.start - DROP_T);
+            if (age >= DROP_T) continue;
+            const drop = dropInfo(note.note);
+            const progress = age / DROP_T;
+            this.ring3(renderer, drop.x, FLOOR + 0.003, drop.z, (drop.sx + drop.sz) * (0.9 - 0.5 * progress), "235,240,255", 0.15 + 0.5 * progress, 1.3);
+        }
+
+        const chunks = this.mt.chunks;
+        for (let i = lb(chunks, time - this.maxDur - 3, chunk => chunk.tStart); i < chunks.length && chunks[i].tStart - 0.5 <= time; i++) {
+            const chunk = chunks[i];
+            if (time > chunk.tEnd + 0.5) continue;
+            const alpha = Math.min(1, (time - (chunk.tStart - 0.5)) / 0.5, (chunk.tEnd + 0.5 - time) / 0.5);
+            if (alpha <= 0 || !this.pr(renderer, chunk.spawn.x, chunk.spawn.y, chunk.spawn.z)) continue;
+            const radius = Math.min(46, 0.05 * point.k) * (1 + 0.08 * Math.sin(time * 5));
+            const cx = point.x;
+            const cy = point.y;
+            glow(renderer, chunk.ch, cx, cy, radius * 5, alpha * 0.45);
+            context.strokeStyle = `rgba(${PAL[chunk.ch]},${alpha * 0.6})`;
+            context.lineWidth = 1.4;
+            context.beginPath();
+            context.arc(cx, cy, radius, 0, TAU);
+            context.stroke();
+            for (let k = 0; k < 5; k++) {
+                const angle = time * 2 + k * TAU / 5;
+                glow(renderer, chunk.ch, cx + Math.cos(angle) * radius * 1.5, cy + Math.sin(angle) * radius * 1.5, radius * 0.7, alpha * 0.7);
+            }
+            const launch = (time - chunk.tStart) / 0.9;
+            if (this.burst && launch >= 0 && launch < 1) {
+                context.strokeStyle = `rgba(${PAL[chunk.ch]},${(1 - launch) * 0.8})`;
+                context.lineWidth = 2.5 * (1 - launch) + 0.5;
+                context.beginPath();
+                context.arc(cx, cy, radius * (1 + 5 * Math.sqrt(launch)), 0, TAU);
+                context.stroke();
+                glow(renderer, chunk.ch, cx, cy, radius * (6 + 8 * launch), (1 - launch) * 0.7);
+            }
+        }
+
+        const tailCount = flying.length > 400 ? 6 : flying.length > 250 ? 9 : flying.length > 160 ? 12 : flying.length > 80 ? 20 : 32;
+        const tailLife = this.burst ? 1.4 : 1;
+        const many = flying.length > 160;
+        for (const note of flying) {
+            const motion = note[motionKey];
+            const age = time - motion.tl;
+            const duration = motion.T;
+            const velocity = note.vel / 127;
+            const sprite = GAUSS[note.ch];
+            const whiteSprite = GAUSS[9];
+            if (age > duration + tailLife) continue;
+            const alive = age <= duration;
+            for (let i = 0; i < tailCount; i++) {
+                const u = i / (tailCount - 1);
+                const trailAge = age - tailLife * u ** 1.35;
+                if (trailAge < 0) break;
+                if (trailAge > duration) continue;
+                if (!this.pr(
+                    renderer,
+                    motion.x0 + motion.vx * trailAge,
+                    motion.y0 + motion.vy * trailAge - 0.5 * motion.g * trailAge * trailAge,
+                    motion.z0 + motion.vz * trailAge
+                )) continue;
+                const size = point.k * (0.02 + 0.016 * velocity) * (1 - 0.65 * u);
+                context.globalAlpha = Math.min(1, (1 - u) ** 1.15 * (0.75 + 0.5 * velocity));
+                context.drawImage(u < 0.06 ? whiteSprite : sprite, point.x - size, point.y - size, size * 2, size * 2);
+            }
+            context.globalAlpha = 1;
+            if (age < 0.2 && this.pr(renderer, motion.x0, motion.y0, motion.z0)) {
+                glow(renderer, note.ch, point.x, point.y, point.k * 0.12, (1 - age / 0.2) * (this.burst ? 0.25 : 0.8));
+            }
+            if (!alive) continue;
+            if (this.pr(renderer, motion.x0 + motion.vx * age, motion.y0 + motion.vy * age - 0.5 * motion.g * age * age, motion.z0 + motion.vz * age)) {
+                const x = point.x;
+                const y = point.y;
+                const scale = point.k;
+                glow(renderer, note.ch, x, y, scale * (0.07 + 0.05 * velocity), 0.95);
+                const core = scale * 0.026;
+                context.globalAlpha = 0.95;
+                context.drawImage(whiteSprite, x - core, y - core, core * 2, core * 2);
+                context.globalAlpha = 1;
+                if (!many) {
+                    context.globalAlpha = 0.5 * (0.5 + velocity / 2);
+                    context.strokeStyle = "rgba(255,255,255,0.8)";
+                    context.lineWidth = 1;
+                    context.beginPath();
+                    context.moveTo(x - scale * 0.05, y);
+                    context.lineTo(x + scale * 0.05, y);
+                    context.moveTo(x, y - scale * 0.05);
+                    context.lineTo(x, y + scale * 0.05);
+                    context.stroke();
+                    context.globalAlpha = 1;
+                }
+            }
+            const remaining = duration - age;
+            if (remaining < 0.4 && this.pr(renderer, motion.kx, motion.ky, motion.kz)) {
+                const progress = 1 - remaining / 0.4;
+                glow(renderer, note.ch, point.x, point.y, point.k * 0.08, 0.35 * progress);
+                this.ring3(renderer, motion.kx, motion.ky + 0.003, motion.kz, 0.012 + 0.05 * remaining / 0.4, PAL[note.ch], 0.5 * progress, 1.2);
+            }
+        }
+        context.globalAlpha = 1;
+
+        for (let note = 21; note <= 108; note++) {
+            const amount = Math.min(1, this.kp[note] * 0.7 + this.kf[note] * 0.8);
+            if (amount > 0.02 && this.pr(renderer, PK.kx[note], PK.ky[note] + 0.01, PK.kz[note])) {
+                glow(renderer, this.kc[note], point.x, point.y, point.k * PK.ww * 3.2, amount * 0.8);
+            }
+        }
+
+        for (let i = this.flashes.length - 1; i >= 0; i--) {
+            const flash = this.flashes[i];
+            flash.life -= delta;
+            if (flash.life <= 0) {
+                this.flashes.splice(i, 1);
+                continue;
+            }
+            if (this.pr(renderer, flash.x, flash.y, flash.z)) {
+                glow(renderer, flash.ch, point.x, point.y, point.k * flash.s * (2 - flash.life / flash.max), (flash.life / flash.max) ** 1.4);
+            }
+        }
+        for (let i = this.beams.length - 1; i >= 0; i--) {
+            const beam = this.beams[i];
+            beam.life -= delta;
+            if (beam.life <= 0) {
+                this.beams.splice(i, 1);
+                continue;
+            }
+            const alpha = beam.life / beam.max;
+            const height = beam.h * (1 - alpha * alpha * 0.6);
+            if (!this.pr(renderer, beam.x, beam.y, beam.z)) continue;
+            const x0 = point.x;
+            const y0 = point.y;
+            const scale = point.k;
+            if (this.pr(renderer, beam.x, beam.y + height, beam.z)) {
+                const gradient = context.createLinearGradient(x0, y0, point.x, point.y);
+                gradient.addColorStop(0, `rgba(${PAL[beam.ch]},${0.8 * alpha})`);
+                gradient.addColorStop(1, `rgba(${PAL[beam.ch]},0)`);
+                context.strokeStyle = gradient;
+                context.lineWidth = Math.max(1.5, scale * 0.012 * (0.4 + alpha));
+                context.beginPath();
+                context.moveTo(x0, y0);
+                context.lineTo(point.x, point.y);
+                context.stroke();
+            }
+        }
+        for (let i = this.rings.length - 1; i >= 0; i--) {
+            const ring = this.rings[i];
+            ring.life -= delta;
+            if (ring.life <= 0) {
+                this.rings.splice(i, 1);
+                continue;
+            }
+            const alpha = ring.life / ring.max;
+            this.ring3(renderer, ring.x, ring.y, ring.z, 0.01 + ring.mx * (1 - alpha * alpha), PAL[ring.ch], alpha * 0.8 * (ring.o ?? 1), (1 + 2 * alpha) * (ring.w || 1));
+        }
+        for (let i = this.sparks.length - 1; i >= 0; i--) {
+            const particle = this.sparks[i];
+            particle.life -= delta;
+            if (particle.life <= 0 || particle.y < -0.09) {
+                this.sparks[i] = this.sparks[this.sparks.length - 1];
+                this.sparks.pop();
+                continue;
+            }
+            particle.vy -= 1.7 * delta;
+            particle.x += particle.vx * delta;
+            particle.y += particle.vy * delta;
+            particle.z += particle.vz * delta;
+            const alpha = particle.life / particle.max;
+            if (!this.pr(renderer, particle.x, particle.y, particle.z)) continue;
+            const x = point.x;
+            const y = point.y;
+            const scale = point.k;
+            if (particle.sq) {
+                const size = Math.max(1.5, scale * 0.01);
+                context.fillStyle = `rgba(235,240,255,${alpha})`;
+                context.fillRect(x - size / 2, y - size / 2, size, size);
+                continue;
+            }
+            if (this.pr(renderer, particle.x - particle.vx * 0.04, particle.y - particle.vy * 0.04, particle.z - particle.vz * 0.04)) {
+                context.strokeStyle = `rgba(${PAL[particle.ch]},${alpha * 0.8})`;
+                context.lineWidth = Math.max(1, scale * 0.004);
+                context.beginPath();
+                context.moveTo(x, y);
+                context.lineTo(point.x, point.y);
+                context.stroke();
+            }
+            glow(renderer, particle.ch, x, y, scale * 0.03 * particle.s * (0.5 + alpha), alpha);
+        }
+        context.lineWidth = 1;
+        context.globalAlpha = 1;
+    }
+};
+
+const MODES = { cascade: Cascade, orbit: Orbit, warp: Warp, trail: Trail, meteor: Meteor };
 
 function resolveModeName(settings) {
     const direct = String(settings.neoMode || "").replace(/^neo-/, "");
@@ -1813,6 +2725,8 @@ export class NeoRenderer {
             neoCascadeSpan: 3,
             neoTrailTilt: 60,
             neoTrailSingleArc: false,
+            neoMeteorZoom: 1,
+            neoMeteorBurst: true,
             rendererMode: "neo-cascade"
         }, settings);
         this._updatePalette();
