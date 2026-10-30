@@ -367,7 +367,7 @@ function trailLink(notes) {
     return previous;
 }
 
-function trailLinkLegacy(notes) {
+function trailLinkGreedy(notes) {
     const nearest = (list, pitch) => {
         let best = list[0];
         let distance = Infinity;
@@ -460,7 +460,7 @@ function trailLinkLegacy(notes) {
     flush();
 }
 
-function buildTrail(score, singleArc = false, linkMode = "legacy") {
+function buildTrail(score, singleArc = false, linkMode = "greedy") {
     const byChannel = new Map();
     const edges = [];
     for (const note of score.notes) {
@@ -475,8 +475,8 @@ function buildTrail(score, singleArc = false, linkMode = "legacy") {
     }
 
     for (const notes of byChannel.values()) {
-        if (linkMode !== "extended") {
-            trailLinkLegacy(notes);
+        if (linkMode !== "lookahead") {
+            trailLinkGreedy(notes);
             continue;
         }
         const previous = trailLink(notes);
@@ -1331,7 +1331,8 @@ const Trail = {
         this.S0 = Math.min(renderer.W * 0.34, renderer.H * 0.85);
         this.D = (0.5 * renderer.H / Math.tan(this.FOV * Math.PI / 360)) / this.S0;
         const singleArc = !!renderer.settings.neoTrailSingleArc;
-        const linkMode = renderer.settings.neoTrailLinkMode === "extended" ? "extended" : "legacy";
+        const configuredMode = renderer.settings.neoTrailLinkMode;
+        const linkMode = configuredMode === "lookahead" ? "lookahead" : "greedy";
         const trailKey = `trail:${linkMode}:${singleArc ? "single" : "biarc"}`;
         if (!renderer.score[trailKey]) renderer.score[trailKey] = buildTrail(renderer.score, singleArc, linkMode);
         this.tree = renderer.score[trailKey];
@@ -2962,19 +2963,12 @@ function buildRoad(renderer) {
     const fast = rdSm(raw, Math.exp(-RD_DT / 0.35));
     const slow = rdSm(raw, Math.exp(-RD_DT / 2.5));
     const sorted = Array.from(slow.subarray(0, nb)).sort((a, b) => a - b);
-    const low = sorted[nb * 0.1 | 0];
-    const range = Math.max(sorted[nb * 0.9 | 0] - low, 1e-3);
-    const smooth = x => {
-        x = rdCl(x, 0, 1);
-        x = x * x * (3 - 2 * x);
-        return x * x * (3 - 2 * x);
-    };
-    const median = smooth((sorted[nb >> 1] - low) / range);
-    const intensity = slow.map(value => smooth((value - low) / range));
-    const fastIntensity = fast.map(value => {
-        const scaled = (value - low) / range;
-        return scaled > 1 ? Math.min(1.5, scaled) : smooth(scaled);
-    });
+    const center = sorted[nb >> 1];
+    const spread = Math.max((sorted[nb * 0.9 | 0] - sorted[nb * 0.1 | 0]) * 0.5, 1e-3);
+    const centerWeight = value => 0.5 + 0.5 * Math.tanh((value - center) / spread);
+    const median = 0.5;
+    const intensity = slow.map(centerWeight);
+    const fastIntensity = fast.map(centerWeight);
     const loops = [];
     const window = Math.round(8 / RD_DT);
     let lastLoop = -99;
@@ -3064,11 +3058,7 @@ function buildRoad(renderer) {
         }
         const average = total / count;
         zoneAverages.push(average);
-        zoneKinds.push(
-            average < 0.28 ? 0 :
-            average < 0.5 ? 1 :
-            average < 0.68 ? (rdH(k * 3.7) < 0.6 ? 2 : 1) : 1
-        );
+        zoneKinds.push(average < 0.5 ? 0 : 1);
     }
     const cityCount = Math.max(1, Math.round(score.dur / 60));
     const cities = new Set();
@@ -3085,6 +3075,15 @@ function buildRoad(renderer) {
     for (const loop of loops) {
         const index = Math.max(0, (loop - 80) / chunkLength | 0);
         if (zoneKinds[index] !== 3) zoneKinds[index] = 2;
+    }
+    for (let index = 1; index + 1 < zoneCount; index++) {
+        if (zoneKinds[index] === 3) continue;
+        const before = zoneAverages[index - 1];
+        const current = zoneAverages[index];
+        const next = zoneAverages[index + 1];
+        if (next >= 0.55 && next - before >= 0.24 && current < 0.55) {
+            zoneKinds[index] = 2;
+        }
     }
     for (let i = 0; i < N; i++) zone[i] = zoneKinds[i / chunkLength | 0];
     const zoneStart = new Float32Array(N);
@@ -4275,7 +4274,7 @@ export class NeoRenderer {
             neoCascadeSpan: 3,
             neoTrailTilt: 60,
             neoTrailSingleArc: false,
-            neoTrailLinkMode: "legacy",
+            neoTrailLinkMode: "greedy",
             neoMeteorZoom: 1,
             neoMeteorBurst: true,
             rendererMode: "neo-cascade"

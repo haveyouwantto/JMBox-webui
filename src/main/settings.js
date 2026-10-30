@@ -58,7 +58,7 @@ const defaultValue = {
     neoCascadeSpan: 3,
     neoTrailTilt: 60,
     neoTrailSingleArc: false,
-    neoTrailLinkMode: "legacy",
+    neoTrailLinkMode: "greedy",
     neoMeteorZoom: 1,
     neoMeteorBurst: true,
 
@@ -94,6 +94,17 @@ const defaultValue = {
 
 const settings = {};
 const prefix = 'jmbox';
+const validSettingValues = {
+    neoTrailLinkMode: new Set(['greedy', 'lookahead'])
+};
+
+function validateSettingValues() {
+    for (const [key, allowed] of Object.entries(validSettingValues)) {
+        if (!allowed.has(settings[key])) {
+            editSetting(key, defaultValue[key]);
+        }
+    }
+}
 
 /**
  * One time reinterpretation of values written by an older build.
@@ -142,6 +153,7 @@ export function loadSettings() {
             }
         }
     }
+    validateSettingValues();
 }
 
 /**
