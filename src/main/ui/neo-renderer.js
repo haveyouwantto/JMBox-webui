@@ -1837,6 +1837,7 @@ const mulberry = seed => () => {
 const DROP_T = 1.4;
 const DROP_H = 2;
 const FLOOR = -0.085;
+const METEOR_GRAVITY = 0.5;
 
 function dropInfo(note) {
     const kind = drumKind(note);
@@ -1940,7 +1941,6 @@ function buildMeteor(renderer, meteor) {
         chunk.spawn = meteor.clampSpawn(renderer, spawn);
         const streamTime = 2.4 + random();
         const lead = 2.2 + random() * 0.8;
-        const extra = low ? 0.45 + random() * 0.45 : 0.1 + random() * 0.4;
         const first = chunk.notes[0].start;
         const burstTime = first - lead;
         chunk.tlS = first - streamTime;
@@ -1950,24 +1950,21 @@ function buildMeteor(renderer, meteor) {
             const targetX = PK.kx[pitch];
             const targetY = PK.ky[pitch];
             const targetZ = PK.kz[pitch];
-            const jitter = [random(), random(), random(), random()];
+            const jitter = [random(), random(), random()];
             const x0 = chunk.spawn.x + (jitter[0] - 0.5) * 0.03;
             const y0 = chunk.spawn.y + (jitter[1] - 0.5) * 0.03;
             const z0 = chunk.spawn.z + (jitter[2] - 0.5) * 0.03;
-            const peakY = Math.max(y0, targetY) + extra * (0.88 + jitter[3] * 0.24);
-            const up = Math.max(1e-4, peakY - y0);
-            const down = Math.max(1e-4, peakY - targetY);
             const makeMotion = (duration, launchTime) => {
-                const gravity = 2 * (Math.sqrt(up) + Math.sqrt(down)) ** 2 / (duration * duration);
+                const flightTime = Math.max(1e-3, duration);
                 return {
                     x0,
                     y0,
                     z0,
-                    vx: (targetX - x0) / duration,
-                    vy: Math.sqrt(2 * gravity * up),
-                    vz: (targetZ - z0) / duration,
-                    g: gravity,
-                    T: duration,
+                    vx: (targetX - x0) / flightTime,
+                    vy: (targetY - y0) / flightTime + 0.5 * METEOR_GRAVITY * flightTime,
+                    vz: (targetZ - z0) / flightTime,
+                    g: METEOR_GRAVITY,
+                    T: flightTime,
                     tl: launchTime,
                     kx: targetX,
                     ky: targetY,
