@@ -3282,6 +3282,16 @@ const Road = {
         }
         if (visible.length < 3) return;
         const context = this.ctx;
+        const previousAlpha = context.globalAlpha;
+        if (this.farFadeEnd > this.farFadeStart) {
+            let depth = 0;
+            for (const point of visible) depth += point[2];
+            depth /= visible.length;
+            const amount = rdCl((depth - this.farFadeStart) / (this.farFadeEnd - this.farFadeStart), 0, 1);
+            const fade = 1 - amount * amount * (3 - 2 * amount);
+            if (fade <= 0.01) return;
+            context.globalAlpha = previousAlpha * fade;
+        }
         context.beginPath();
         for (let i = 0; i < visible.length; i++) {
             const point = visible[i];
@@ -3298,6 +3308,7 @@ const Road = {
             context.lineWidth = 1;
             context.stroke();
         }
+        context.globalAlpha = previousAlpha;
     },
 
     isOpp(note) {
@@ -3961,6 +3972,14 @@ const Road = {
         const indices = [];
         for (let i = firstIndex; i <= lastIndex; i += step) indices.push(i);
         const frames = indices.map(i => this.fr(i));
+        if (frames.length > 1) {
+            const farCenter = this.off(frames[frames.length - 1], 0, 0);
+            this.farFadeEnd = farCenter[2];
+            this.farFadeStart = this.farFadeEnd * 0.68;
+        } else {
+            this.farFadeStart = 0;
+            this.farFadeEnd = 0;
+        }
         const fog = depth => Math.pow(rdCl(depth / RD_ZF, 0, 1), 1.2) * 0.9;
         const mixFog = (color, depth) => rdRgb(rdMix(color, colors.hor, fog(depth)));
         const lerp = (a, b, amount) => [a[0] + (b[0] - a[0]) * amount, a[1] + (b[1] - a[1]) * amount, a[2] + (b[2] - a[2]) * amount];
