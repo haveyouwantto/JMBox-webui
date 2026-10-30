@@ -2953,16 +2953,12 @@ function buildRoad(renderer) {
     const nb = Math.ceil(score.dur / RD_DT) + 1;
     const N = nb + Math.ceil(16 / RD_DT);
     const raw = new Float32Array(N);
-    const activeDelta = new Float32Array(N + 1);
     for (const note of score.notes) {
         const weight = (note.vel / 127) ** 2 * (note.ch === 9 ? 0.7 : 1) * (1.2 - note.note / 160);
         const start = Math.min(nb - 1, note.start / RD_DT | 0);
         const end = Math.min(nb - 1, Math.min(note.end, note.start + 1.2) / RD_DT | 0);
-        const fullEnd = Math.min(nb - 1, note.end / RD_DT | 0);
         raw[start] += weight * 3;
         for (let i = start; i <= end; i++) raw[i] += weight * 0.6;
-        activeDelta[start] += weight;
-        activeDelta[fullEnd + 1] -= weight;
     }
     const fast = rdSm(raw, Math.exp(-RD_DT / 0.35));
     const slow = rdSm(raw, Math.exp(-RD_DT / 2.5));
@@ -2970,22 +2966,9 @@ function buildRoad(renderer) {
     const center = sorted[nb >> 1];
     const spread = Math.max((sorted[nb * 0.9 | 0] - sorted[nb * 0.1 | 0]) * 0.5, 1e-3);
     const centerWeight = value => 0.5 + 0.5 * Math.tanh((value - center) / spread);
-    const active = new Float32Array(N);
-    let activeVoices = 0;
-    for (let i = 0; i < N; i++) {
-        activeVoices += activeDelta[i];
-        active[i] = activeVoices;
-    }
-    const presence = rdSm(active, Math.exp(-RD_DT / 2.5));
-    const absoluteStrength = presence.map(value => Math.tanh(value / 3));
-    const intensity = slow.map((value, index) =>
-        centerWeight(value) * (0.25 + 0.75 * absoluteStrength[index])
-    );
-    const fastIntensity = fast.map((value, index) =>
-        centerWeight(value) * (0.25 + 0.75 * absoluteStrength[index])
-    );
-    const intensitySorted = Array.from(intensity.subarray(0, nb)).sort((a, b) => a - b);
-    const median = intensitySorted[nb >> 1];
+    const median = 0.5;
+    const intensity = slow.map(centerWeight);
+    const fastIntensity = fast.map(centerWeight);
     const loops = [];
     const window = Math.round(8 / RD_DT);
     let lastLoop = -99;
