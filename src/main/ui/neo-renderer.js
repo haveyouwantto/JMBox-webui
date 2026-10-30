@@ -3999,8 +3999,17 @@ const Road = {
             if (Math.max(a[2], b[2], c[2], d[2]) < 0.4 || depth > RD_ZF) continue;
             if (!inLoop) {
                 const groundColor = rdRgb(zone === 2 ? rdMix(colors.ground, [14, 44, 100], 0.55) : colors.ground);
+                const dropFrom = road.drop[i];
+                const dropTo = road.drop[indices[k + 1]];
                 items.push([depth + 0.3, () => {
-                    for (const side of [-1, 1]) this.poly([this.gp(from, side * halfWidth, -drop), this.gp(from, side * (halfWidth + 130), -drop), this.gp(to, side * (halfWidth + 130), -drop), this.gp(to, side * halfWidth, -drop)], groundColor, 1);
+                    for (const side of [-1, 1]) {
+                        this.poly([
+                            this.gp(from, side * halfWidth, -dropFrom),
+                            this.gp(from, side * (halfWidth + 130), -dropFrom),
+                            this.gp(to, side * (halfWidth + 130), -dropTo),
+                            this.gp(to, side * halfWidth, -dropTo)
+                        ], groundColor);
+                    }
                 }]);
                 if (i % 4 === 0) {
                     for (const side of [-1, 1]) this.prop(items, road, i, from, side, colors, intensity);
