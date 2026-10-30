@@ -134,6 +134,7 @@
       "settings.render.neo-warp": "Neo Warp",
       "settings.render.neo-trail": "Neo Trail",
       "settings.render.neo-meteor": "Neo Meteor",
+      "settings.render.neo-road": "Neo Road",
       "settings.render.neo-legacy-palette": "Legacy palette",
       "settings.render.neo-cascade-span": "Cascade span (s)",
       "settings.render.neo-trail-tilt": "Trail tilt (°)",

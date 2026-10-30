@@ -2783,7 +2783,1262 @@ const Meteor = {
     }
 };
 
-const MODES = { cascade: Cascade, orbit: Orbit, warp: Warp, trail: Trail, meteor: Meteor };
+const RD_DT = 0.05;
+const RD_LN = 6;
+const RD_W = 15.6;
+const RD_ZF = 650;
+const rdH = value => {
+    const result = Math.sin(value * 12.9898 + 78.233) * 43758.5453;
+    return result - Math.floor(result);
+};
+const rdMix = (a, b, amount) => [
+    a[0] + (b[0] - a[0]) * amount,
+    a[1] + (b[1] - a[1]) * amount,
+    a[2] + (b[2] - a[2]) * amount
+];
+const rdRgb = (color, alpha = 1) => `rgba(${color[0] | 0},${color[1] | 0},${color[2] | 0},${alpha})`;
+const rdCl = (value, min, max) => value < min ? min : value > max ? max : value;
+const rdSm = (source, amount) => {
+    const output = Float32Array.from(source);
+    for (let i = 1; i < output.length; i++) output[i] += (output[i - 1] - output[i]) * amount;
+    for (let i = output.length - 2; i >= 0; i--) output[i] += (output[i + 1] - output[i]) * amount;
+    return output;
+};
+const RDC = {
+    top: [[3, 8, 30], [26, 10, 40]],
+    hor: [[12, 38, 92], [226, 100, 96]],
+    road: [[9, 16, 38], [36, 20, 36]],
+    line: [[130, 165, 235], [246, 166, 212]],
+    build: [[7, 13, 34], [32, 16, 36]],
+    ground: [[5, 11, 28], [28, 14, 28]],
+    glow: [[30, 80, 190], [255, 128, 80]],
+    win: [[255, 226, 150], [255, 190, 120]]
+};
+
+function buildRoad(renderer) {
+    const score = renderer.score;
+    const nb = Math.ceil(score.dur / RD_DT) + 1;
+    const N = nb + Math.ceil(16 / RD_DT);
+    const raw = new Float32Array(N);
+    for (const note of score.notes) {
+        const weight = (note.vel / 127) ** 2 * (note.ch === 9 ? 0.7 : 1) * (1.2 - note.note / 160);
+        const start = Math.min(nb - 1, note.start / RD_DT | 0);
+        const end = Math.min(nb - 1, Math.min(note.end, note.start + 1.2) / RD_DT | 0);
+        raw[start] += weight * 3;
+        for (let i = start; i <= end; i++) raw[i] += weight * 0.6;
+    }
+    const fast = rdSm(raw, Math.exp(-RD_DT / 0.35));
+    const slow = rdSm(raw, Math.exp(-RD_DT / 2.5));
+    const sorted = Array.from(slow.subarray(0, nb)).sort((a, b) => a - b);
+    const low = sorted[nb * 0.1 | 0];
+    const range = Math.max(sorted[nb * 0.9 | 0] - low, 1e-3);
+    const smooth = x => {
+        x = rdCl(x, 0, 1);
+        x = x * x * (3 - 2 * x);
+        return x * x * (3 - 2 * x);
+    };
+    const median = smooth((sorted[nb >> 1] - low) / range);
+    const intensity = slow.map(value => smooth((value - low) / range));
+    const fastIntensity = fast.map(value => {
+        const scaled = (value - low) / range;
+        return scaled > 1 ? Math.min(1.5, scaled) : smooth(scaled);
+    });
+    const loops = [];
+    const window = Math.round(8 / RD_DT);
+    let lastLoop = -99;
+    for (let i = window; i < nb; i++) {
+        let minimum = 1;
+        for (let k = i - window; k < i; k += 4) minimum = Math.min(minimum, intensity[k]);
+        if (intensity[i] > 0.55 && intensity[i] - minimum > 0.32 && i * RD_DT - lastLoop > 28) {
+            loops.push(i - 12);
+            lastLoop = i * RD_DT;
+        }
+    }
+    const X = new Float32Array(N);
+    const Y = new Float32Array(N);
+    const Z = new Float32Array(N);
+    const TH = new Float32Array(N);
+    const PS = new Float32Array(N);
+    const LP = new Float32Array(N);
+    const SD = new Float32Array(N);
+    const VS = new Float32Array(N);
+    let x = 0;
+    let y = 24;
+    let z = 0;
+    let baseHeading = 0;
+    let psi = 0;
+    let distance = 0;
+    let loopIndex = 0;
+    let loopProgress = -1;
+    let heading = 0;
+    const phase = score.notes.length * 0.37;
+    const loopLength = 190;
+    const loopLateral = 28;
+    const smoothStep = u => u * u * (3 - 2 * u);
+    for (let i = 0; i < N; i++) {
+        if (loopProgress < 0 && loopIndex < loops.length && i >= loops[loopIndex]) {
+            loopProgress = 0;
+            loopIndex++;
+        }
+        X[i] = x;
+        Y[i] = y;
+        Z[i] = z;
+        TH[i] = heading;
+        PS[i] = psi;
+        LP[i] = loopProgress;
+        SD[i] = distance;
+        const speed = 30 + 55 * intensity[i] + 20 * fastIntensity[i];
+        const step = speed * RD_DT;
+        VS[i] = speed;
+        if (loopProgress >= 0) {
+            const previous = loopProgress;
+            loopProgress = Math.min(1, loopProgress + step / loopLength);
+            heading = baseHeading + TAU * (loopIndex - 1) + TAU * loopProgress - Math.sin(TAU * loopProgress);
+            const lateral = loopLateral * (smoothStep(loopProgress) - smoothStep(previous));
+            x += Math.cos(heading) * Math.sin(psi) * step + Math.cos(psi) * lateral;
+            y += Math.sin(heading) * step;
+            z += Math.cos(heading) * Math.cos(psi) * step - Math.sin(psi) * lateral;
+            distance += step;
+            if (loopProgress >= 1) {
+                loopProgress = -1;
+                heading = baseHeading + TAU * loopIndex;
+            }
+        } else {
+            const target = rdCl(
+                rdCl((median - intensity[i]) * 1.9, -0.785, 0.785) +
+                rdCl((40 - y) * 0.012, -0.6, 0.6),
+                -0.785,
+                0.785
+            );
+            baseHeading += (target - baseHeading) * Math.min(1, RD_DT * 1.8);
+            heading = baseHeading + TAU * loopIndex;
+            psi += (0.003 * Math.sin(distance * 0.0023 + phase) + 0.0022 * Math.sin(distance * 0.0061 + phase * 2)) * step;
+            x += Math.cos(baseHeading) * Math.sin(psi) * step;
+            y += Math.sin(baseHeading) * step;
+            z += Math.cos(baseHeading) * Math.cos(psi) * step;
+            distance += step;
+        }
+    }
+    const chunkLength = Math.round(10 / RD_DT);
+    const zoneCount = Math.ceil(N / chunkLength);
+    const zoneAverages = [];
+    const zoneKinds = [];
+    const zone = new Uint8Array(N);
+    for (let k = 0; k < zoneCount; k++) {
+        let total = 0;
+        let count = 0;
+        for (let i = k * chunkLength; i < Math.min(N, (k + 1) * chunkLength); i += 4) {
+            total += intensity[i];
+            count++;
+        }
+        const average = total / count;
+        zoneAverages.push(average);
+        zoneKinds.push(
+            average < 0.28 ? 0 :
+            average < 0.5 ? 1 :
+            average < 0.68 ? (rdH(k * 3.7) < 0.6 ? 2 : 1) : 1
+        );
+    }
+    const cityCount = Math.max(1, Math.round(score.dur / 60));
+    const cities = new Set();
+    const tryCity = index => {
+        if (index >= 0 && index < zoneCount && cities.size < cityCount &&
+            !cities.has(index - 1) && !cities.has(index + 1) &&
+            !cities.has(index) && zoneAverages[index] >= 0.5) {
+            cities.add(index);
+        }
+    };
+    for (const loop of loops) tryCity(Math.min(zoneCount - 1, (loop + 80) / chunkLength | 0));
+    [...zoneAverages.keys()].sort((a, b) => zoneAverages[b] - zoneAverages[a]).forEach(tryCity);
+    for (const index of cities) zoneKinds[index] = 3;
+    for (const loop of loops) {
+        const index = Math.max(0, (loop - 80) / chunkLength | 0);
+        if (zoneKinds[index] !== 3) zoneKinds[index] = 2;
+    }
+    for (let i = 0; i < N; i++) zone[i] = zoneKinds[i / chunkLength | 0];
+    const zoneStart = new Float32Array(N);
+    const zoneEnd = new Float32Array(N);
+    for (let i = 0, start = 0; i < N; i++) {
+        if (i === N - 1 || zone[i + 1] !== zone[i]) {
+            for (let q = start; q <= i; q++) {
+                zoneStart[q] = SD[start];
+                zoneEnd[q] = SD[i];
+            }
+            start = i + 1;
+        }
+    }
+    const drop = rdSm(Float32Array.from(zone, kind => kind === 2 ? 30 : 1), Math.exp(-RD_DT / 1.2));
+    const pitches = score.notes.filter(note => note.ch !== 9).map(note => note.note).sort((a, b) => a - b);
+    const channelMap = new Map();
+    for (const note of score.notes) {
+        if (note.ch === 9) continue;
+        const values = channelMap.get(note.ch) || [0, 0];
+        values[0] += note.note;
+        values[1]++;
+        channelMap.set(note.ch, values);
+    }
+    const channels = [...channelMap.entries()].map(([channel, values]) => [channel, values[0] / values[1]]).sort((a, b) => a[1] - b[1]);
+    const single = channels.length < 2;
+    const medianPitch = pitches.length ? pitches[pitches.length >> 1] : 60;
+    const oncoming = new Set(channels.slice(0, single ? 0 : Math.ceil(channels.length * 0.4)).map(entry => entry[0]));
+    const isOncoming = note => note.ch !== 9 && (single ? note.note < medianPitch : oncoming.has(note.ch));
+    const rangeOf = oncomingGroup => {
+        const values = score.notes
+            .filter(note => note.ch !== 9 && isOncoming(note) === oncomingGroup)
+            .map(note => note.note)
+            .sort((a, b) => a - b);
+        return values.length ? [values[values.length * 0.03 | 0], values[values.length * 0.97 | 0]] : [48, 72];
+    };
+    const beatTimes = [];
+    const beatBars = [];
+    if (renderer.midiData) {
+        for (const line of collectBarLines(renderer.midiData, 0, score.dur + 1)) {
+            beatTimes.push(line.time);
+            beatBars.push(line.kind === "bar" ? 1 : 0);
+        }
+    }
+    if (beatTimes.length < 2) {
+        beatTimes.length = 0;
+        beatBars.length = 0;
+        for (let time = 0; time <= score.dur + 1; time += 0.5) {
+            beatTimes.push(time);
+            beatBars.push(Math.abs(time / 2 - Math.round(time / 2)) < 1e-6 ? 1 : 0);
+        }
+    }
+    return {
+        N, X, Y, Z, TH, PS, LP, SD, VS, ZS: zoneStart, ZE: zoneEnd,
+        I: intensity, Lf: fastIntensity, zone, drop, loops,
+        opp: oncoming, single, medp: medianPitch,
+        rg: { o: rangeOf(true), r: rangeOf(false) },
+        beats: Float32Array.from(beatTimes),
+        beatBars: Uint8Array.from(beatBars)
+    };
+}
+
+const Road = {
+    name: "Road",
+
+    init() {
+        this.lat0 = this.tgt = RD_W * 0.25;
+        this.fx = [];
+        this.cm = null;
+        this.rd = null;
+        this.stars = Array.from({ length: 120 }, () => ({
+            x: Math.random(),
+            y: Math.random(),
+            p: Math.random() * TAU
+        }));
+    },
+
+    layout(renderer) {
+        this.rd = renderer.score.road || (renderer.score.road = buildRoad(renderer));
+        this.cm = null;
+        this.fx.length = 0;
+    },
+
+    idxAt(distance) {
+        const positions = this.rd.SD;
+        if (distance < 0) return distance / 0.85;
+        let low = 0;
+        let high = this.rd.N - 1;
+        while (low < high) {
+            const middle = (low + high) >> 1;
+            if (positions[middle] < distance) low = middle + 1;
+            else high = middle;
+        }
+        if (low <= 0) return 0;
+        const before = positions[low - 1];
+        const after = positions[low];
+        return low - 1 + (after > before ? (distance - before) / (after - before) : 0);
+    },
+
+    at(values, index) {
+        const base = index | 0;
+        return values[base] + (values[base + 1] - values[base]) * (index - base);
+    },
+
+    pal(intensity) {
+        const amount = intensity * intensity * (3 - 2 * intensity);
+        const result = {};
+        for (const key in RDC) result[key] = rdMix(RDC[key][0], RDC[key][1], amount);
+        return result;
+    },
+
+    fr(index) {
+        const road = this.rd;
+        if (index < 0) {
+            const frame = this.fr(0);
+            for (let i = 0; i < 3; i++) frame.p[i] += frame.d[i] * index * 0.85;
+            return frame;
+        }
+        index = Math.min(index, road.N - 2);
+        const base = index | 0;
+        const weight = index - base;
+        const interpolate = values => values[base] + (values[base + 1] - values[base]) * weight;
+        const psi = interpolate(road.PS);
+        const theta = interpolate(road.TH);
+        const cosPsi = Math.cos(psi);
+        const sinPsi = Math.sin(psi);
+        const cosTheta = Math.cos(theta);
+        const sinTheta = Math.sin(theta);
+        return {
+            p: [interpolate(road.X), interpolate(road.Y), interpolate(road.Z)],
+            r: [cosPsi, 0, -sinPsi],
+            u: [-sinTheta * sinPsi, cosTheta, -sinTheta * cosPsi],
+            d: [cosTheta * sinPsi, sinTheta, cosTheta * cosPsi]
+        };
+    },
+
+    cs(x, y, z) {
+        const camera = this.cm;
+        const vx = x - camera.C[0];
+        const vy = y - camera.C[1];
+        const vz = z - camera.C[2];
+        return [
+            vx * camera.Rt[0] + vy * camera.Rt[1] + vz * camera.Rt[2],
+            vx * camera.U[0] + vy * camera.U[1] + vz * camera.U[2],
+            vx * camera.F[0] + vy * camera.F[1] + vz * camera.F[2]
+        ];
+    },
+
+    off(frame, lateral, up) {
+        return this.cs(
+            frame.p[0] + frame.r[0] * lateral + frame.u[0] * up,
+            frame.p[1] + frame.r[1] * lateral + frame.u[1] * up,
+            frame.p[2] + frame.r[2] * lateral + frame.u[2] * up
+        );
+    },
+
+    gp(frame, lateral, dy) {
+        return this.cs(
+            frame.p[0] + frame.r[0] * lateral,
+            frame.p[1] + dy,
+            frame.p[2] + frame.r[2] * lateral
+        );
+    },
+
+    cp(frame, lateral, up, forward) {
+        return this.cs(
+            frame.p[0] + frame.r[0] * lateral + frame.u[0] * up + frame.d[0] * forward,
+            frame.p[1] + frame.r[1] * lateral + frame.u[1] * up + frame.d[1] * forward,
+            frame.p[2] + frame.r[2] * lateral + frame.u[2] * up + frame.d[2] * forward
+        );
+    },
+
+    scr(camera) {
+        return camera[2] < 0.4 ? null : [
+            this.sx0 + this.Fl * camera[0] / camera[2],
+            this.sy0 - this.Fl * camera[1] / camera[2]
+        ];
+    },
+
+    poly(points, fill, edge) {
+        const visible = [];
+        for (let i = 0; i < points.length; i++) {
+            const a = points[i];
+            const b = points[(i + 1) % points.length];
+            const aVisible = a[2] >= 0.4;
+            const bVisible = b[2] >= 0.4;
+            if (aVisible) visible.push(a);
+            if (aVisible !== bVisible) {
+                const amount = (0.4 - a[2]) / (b[2] - a[2]);
+                visible.push([
+                    a[0] + (b[0] - a[0]) * amount,
+                    a[1] + (b[1] - a[1]) * amount,
+                    0.4
+                ]);
+            }
+        }
+        if (visible.length < 3) return;
+        const context = this.ctx;
+        context.beginPath();
+        for (let i = 0; i < visible.length; i++) {
+            const point = visible[i];
+            const x = this.sx0 + this.Fl * point[0] / point[2];
+            const y = this.sy0 - this.Fl * point[1] / point[2];
+            if (i) context.lineTo(x, y);
+            else context.moveTo(x, y);
+        }
+        context.closePath();
+        context.fillStyle = fill;
+        context.fill();
+        if (edge) {
+            context.strokeStyle = fill;
+            context.lineWidth = 1;
+            context.stroke();
+        }
+    },
+
+    isOpp(note) {
+        const road = this.rd;
+        return note.ch !== 9 && (road.single ? note.note < road.medp : road.opp.has(note.ch));
+    },
+
+    latOf(note) {
+        const road = this.rd;
+        const opposite = this.isOpp(note);
+        const range = opposite ? road.rg.o : road.rg.r;
+        const lane = rdCl(((note.note - range[0]) / (range[1] - range[0] + 1) * 3) | 0, 0, 2);
+        return (opposite ? -1 : 1) * (lane + 0.5) * RD_W / 6;
+    },
+
+    glow(channel, x, y, size, alpha) {
+        glow(this.renderer, channel, x, y, size, alpha);
+    },
+
+    car(frame, lateral, body, top, glass) {
+        const camera = this.cm.C;
+        const halfWidth = 0.95;
+        const y0 = 0.2;
+        const y1 = 0.85;
+        const y2 = 1.35;
+        const cabinWidth = 0.78;
+        const roofWidth = 0.64;
+        const length = 4.4;
+        const side = rdMix(body, [0, 0, 0], 0.3);
+        const faces = [
+            [[-halfWidth, y0, 0], [halfWidth, y0, 0], [halfWidth, y1, 0], [-halfWidth, y1, 0], [0, 0, -1], body],
+            [[halfWidth, y0, length], [-halfWidth, y0, length], [-halfWidth, y1, length], [halfWidth, y1, length], [0, 0, 1], side],
+            [[-halfWidth, y0, 0], [-halfWidth, y0, length], [-halfWidth, y1, length], [-halfWidth, y1, 0], [-1, 0, 0], side],
+            [[halfWidth, y0, length], [halfWidth, y0, 0], [halfWidth, y1, 0], [halfWidth, y1, length], [1, 0, 0], side],
+            [[-halfWidth, y1, 0], [halfWidth, y1, 0], [halfWidth, y1, length], [-halfWidth, y1, length], [0, 1, 0], top],
+            [[-cabinWidth, y1, 1.1], [cabinWidth, y1, 1.1], [roofWidth, y2, 1.7], [-roofWidth, y2, 1.7], [0, 0.6, -0.8], glass],
+            [[-roofWidth, y2, 1.7], [roofWidth, y2, 1.7], [roofWidth, y2, 2.8], [-roofWidth, y2, 2.8], [0, 1, 0], top],
+            [[-roofWidth, y2, 2.8], [roofWidth, y2, 2.8], [cabinWidth, y1, 3.4], [-cabinWidth, y1, 3.4], [0, 0.6, 0.8], glass],
+            [[-cabinWidth, y1, 1.1], [-cabinWidth, y1, 3.4], [-roofWidth, y2, 2.8], [-roofWidth, y2, 1.7], [-1, 0.3, 0], glass],
+            [[cabinWidth, y1, 3.4], [cabinWidth, y1, 1.1], [roofWidth, y2, 1.7], [roofWidth, y2, 2.8], [1, 0.3, 0], glass]
+        ];
+        const facesToDraw = [];
+        for (const face of faces) {
+            const world = face.slice(0, 4).map(point => [0, 1, 2].map(axis =>
+                frame.p[axis] + frame.r[axis] * (lateral + point[0]) + frame.u[axis] * point[1] + frame.d[axis] * point[2]
+            ));
+            const normalSource = face[4];
+            const normal = [0, 1, 2].map(axis =>
+                frame.r[axis] * normalSource[0] + frame.u[axis] * normalSource[1] + frame.d[axis] * normalSource[2]
+            );
+            const center = [0, 1, 2].map(axis => (world[0][axis] + world[2][axis]) / 2);
+            if (normal[0] * (camera[0] - center[0]) + normal[1] * (camera[1] - center[1]) + normal[2] * (camera[2] - center[2]) <= 0) continue;
+            const cameraPoints = world.map(point => this.cs(point[0], point[1], point[2]));
+            const depth = (cameraPoints[0][2] + cameraPoints[1][2] + cameraPoints[2][2] + cameraPoints[3][2]) / 4;
+            facesToDraw.push([depth, cameraPoints, face[5]]);
+        }
+        facesToDraw.sort((a, b) => b[0] - a[0]);
+        for (const face of facesToDraw) this.poly(face[1], rdRgb(face[2]), 1);
+    },
+
+    hit(renderer, note, time) {
+        if (!this.rd || note.ch === 9) return;
+        const index = rdCl(time / RD_DT, 0, this.rd.N - 60);
+        const frame = this.fr(index);
+        const lateral = this.latOf(note);
+        const intensity = this.at(this.rd.I, index);
+        const count = Math.min(60, 5 + note.vel / 14 | 0);
+        for (let i = 0; i < count; i++) {
+            const angle = rand(0, TAU);
+            const speed = rand(1.5, 7 + 6 * intensity);
+            const life = rand(0.5, 1.1);
+            this.fx.push({
+                p: [0, 1, 2].map(axis => frame.p[axis] + frame.r[axis] * lateral + frame.u[axis] * 0.6),
+                v: [0, 1, 2].map(axis =>
+                    frame.r[axis] * Math.cos(angle) * speed +
+                    frame.u[axis] * (Math.abs(Math.sin(angle)) * speed + 2) +
+                    frame.d[axis] * rand(-2, 2)
+                ),
+                life,
+                max: life,
+                ch: note.ch,
+                size: rand(0.5, 1.1)
+            });
+        }
+        if (this.fx.length > 700) this.fx.splice(0, this.fx.length - 700);
+    },
+
+    lamp(items, frame, side, zone, palette, intensity) {
+        const halfWidth = RD_W / 2;
+        const anchor = zone === 2
+            ? this.off(frame, side * (halfWidth - 0.4), 0)
+            : this.gp(frame, side * (halfWidth + 1.2), 0);
+        const depth = anchor[2];
+        if (depth < 1 || depth > RD_ZF) return;
+        const right = this.hr;
+        const up = this.wu;
+        const fog = Math.pow(rdCl(depth / RD_ZF, 0, 1), 1.2) * 0.9;
+        const itemsList = items;
+        itemsList.push([depth, () => {
+            const point = (u, v) => [
+                anchor[0] + right[0] * 0.3 * (u - 0.5) + up[0] * 8 * v,
+                anchor[1] + right[1] * 0.3 * (u - 0.5) + up[1] * 8 * v,
+                anchor[2] + right[2] * 0.3 * (u - 0.5) + up[2] * 8 * v
+            ];
+            this.poly([point(0, 0), point(1, 0), point(1, 1), point(0, 1)], rdRgb(rdMix(rdMix(palette.build, palette.line, 0.25), palette.hor, fog)), 1);
+            const screen = this.scr(point(0.5, 1));
+            if (screen) {
+                this.ctx.globalCompositeOperation = "lighter";
+                this.glow(intensity > 0.45 ? 1 : 10, screen[0], screen[1], Math.min(260, this.Fl * 7 / depth), 0.9 * (1 - fog));
+                this.ctx.globalCompositeOperation = "source-over";
+            }
+        }]);
+    },
+
+    bridge(items, road, index, nextIndex, from, to, depth, palette, intensity, fog) {
+        const zoneStart = road.ZS[index];
+        const length = road.ZE[index] - zoneStart;
+        const startDistance = road.SD[index];
+        const endDistance = road.SD[nextIndex];
+        const totalDistance = endDistance - startDistance;
+        if (totalDistance < 1e-4) return;
+        const lerp = (a, b, amount) => [a[0] + (b[0] - a[0]) * amount, a[1] + (b[1] - a[1]) * amount, a[2] + (b[2] - a[2]) * amount];
+        if (length < 360 || rdH(zoneStart * 0.0137) < 0.4) {
+            const halfWidth = RD_W / 2;
+            const postDistance = Math.floor(endDistance / 6) * 6;
+            const pierDistance = Math.floor(endDistance / 40) * 40;
+            const drop = road.drop[index];
+            const fenceColor = rdRgb(rdMix(palette.line, palette.hor, fog(depth)), 0.9);
+            const bar = (a, b, width) => [[a[0] - width, a[1], a[2]], [a[0] + width, a[1], a[2]], [b[0] + width, b[1], b[2]], [b[0] - width, b[1], b[2]]];
+            items.push([depth - 0.1, () => {
+                for (const side of [-1, 1]) {
+                    const lateral = side * (halfWidth + 0.2);
+                    this.poly([this.off(from, lateral, 1.1), this.off(from, lateral, 2), this.off(to, lateral, 2), this.off(to, lateral, 1.1)], rdRgb(rdMix(palette.build, palette.line, 0.3), 0.35));
+                    this.poly([this.off(from, lateral, 1.95), this.off(from, lateral, 2.1), this.off(to, lateral, 2.1), this.off(to, lateral, 1.95)], fenceColor);
+                    if (postDistance > startDistance) {
+                        const u = (postDistance - startDistance) / totalDistance;
+                        this.poly(bar(lerp(this.off(from, lateral, 0), this.off(to, lateral, 0), u), lerp(this.off(from, lateral, 2.1), this.off(to, lateral, 2.1), u), 0.06), fenceColor);
+                    }
+                    if (pierDistance > startDistance) {
+                        const u = (pierDistance - startDistance) / totalDistance;
+                        const pierLateral = side * (halfWidth - 1.5);
+                        this.poly(bar(lerp(this.off(from, pierLateral, 0), this.off(to, pierLateral, 0), u), lerp(this.gp(from, pierLateral, -drop), this.gp(to, pierLateral, -drop), u), 0.8), rdRgb(rdMix(palette.build, palette.hor, fog(depth))));
+                    }
+                }
+            }]);
+            return;
+        }
+        const segments = Math.max(1, Math.round(length / 180));
+        const segmentLength = length / segments;
+        const lateral = RD_W / 2 + 0.6;
+        const towerHeight = 36;
+        const cableHeight = distance => {
+            const segment = rdCl(Math.floor((distance - zoneStart) / segmentLength), 0, segments - 1);
+            const u = (distance - zoneStart) / segmentLength - segment;
+            return 3 + (towerHeight - 3) * (2 * u - 1) * (2 * u - 1);
+        };
+        const y0 = cableHeight(startDistance);
+        const y1 = cableHeight(endDistance - 1e-4);
+        const color = rdRgb(rdMix(rdMix(palette.line, palette.glow, intensity * 0.5), palette.hor, fog(depth)), 0.95);
+        const hangerDistance = Math.floor(endDistance / 9) * 9;
+        items.push([depth - 0.1, () => {
+            for (const side of [-1, 1]) {
+                const l = side * lateral;
+                this.poly([this.gp(from, l, y0 - 0.15), this.gp(from, l, y0 + 0.15), this.gp(to, l, y1 + 0.15), this.gp(to, l, y1 - 0.15)], color, 1);
+                if (hangerDistance > startDistance) {
+                    const u = (hangerDistance - startDistance) / totalDistance;
+                    const height = cableHeight(hangerDistance);
+                    if (height < 1) continue;
+                    const bottom = lerp(this.gp(from, l, 0), this.gp(to, l, 0), u);
+                    const top = lerp(this.gp(from, l, height), this.gp(to, l, height), u);
+                    this.poly([[bottom[0] - 0.07, bottom[1], bottom[2]], [bottom[0] + 0.07, bottom[1], bottom[2]], [top[0] + 0.07, top[1], top[2]], [top[0] - 0.07, top[1], top[2]]], color);
+                }
+            }
+        }]);
+        const startSegment = (startDistance - zoneStart) / segmentLength;
+        const endSegment = (endDistance - zoneStart) / segmentLength;
+        const towerSegment = Math.ceil(startSegment - 1e-6);
+        if (towerSegment <= segments && (towerSegment < endSegment || (towerSegment === segments && endSegment > segments - 1e-3))) {
+            const frame = this.fr(this.idxAt(zoneStart + towerSegment * segmentLength));
+            const drop = road.drop[index];
+            const color2 = rdRgb(rdMix(rdMix(palette.build, palette.line, 0.25), palette.hor, fog(depth)));
+            const towerDepth = this.gp(frame, 0, 0)[2];
+            items.push([towerDepth, () => {
+                for (const side of [-1, 1]) {
+                    this.poly([this.gp(frame, side * lateral - 0.9, -drop), this.gp(frame, side * lateral + 0.9, -drop), this.gp(frame, side * lateral + 0.9, towerHeight + 2), this.gp(frame, side * lateral - 0.9, towerHeight + 2)], color2, 1);
+                }
+                for (const [a, b] of [[towerHeight - 2, towerHeight + 0.5], [14, 16.5]]) {
+                    this.poly([this.gp(frame, -lateral, a), this.gp(frame, lateral, a), this.gp(frame, lateral, b), this.gp(frame, -lateral, b)], color2, 1);
+                }
+                this.ctx.globalCompositeOperation = "lighter";
+                for (const side of [-1, 1]) {
+                    const camera = this.gp(frame, side * lateral, towerHeight + 2.6);
+                    const screen = this.scr(camera);
+                    if (screen) this.glow(0, screen[0], screen[1], Math.min(200, this.Fl * 4 / camera[2]), 0.5 + 0.4 * Math.sin(this.time / 0.4));
+                }
+                this.ctx.globalCompositeOperation = "source-over";
+            }]);
+        }
+    },
+
+    over(items, road, index, distance, palette, intensity, fog, time) {
+        const interpolated = this.idxAt(distance);
+        const base = interpolated | 0;
+        if (road.LP[base] >= 0 || Math.abs(Math.sin(road.TH[base])) > 0.22 || Math.cos(road.TH[base]) <= 0) return;
+        const before = this.fr(this.idxAt(distance - 4.5));
+        const after = this.fr(this.idxAt(distance + 4.5));
+        const middle = this.fr(interpolated);
+        const halfWidth = RD_W / 2;
+        const overLength = halfWidth + 45;
+        const centerY = middle.p[1];
+        const drop = road.drop[index];
+        const ground = (frame, lateral, dy) => this.cs(frame.p[0] + frame.r[0] * lateral, centerY + dy, frame.p[2] + frame.r[2] * lateral);
+        const depth = ground(middle, 0, 8)[2];
+        if (depth < 1 || depth > RD_ZF) return;
+        const fogAmount = fog(depth);
+        const concrete = rdMix(rdMix(palette.build, palette.line, 0.18), palette.hor, fogAmount);
+        const dark = rdMix(concrete, [0, 0, 0], 0.35);
+        const rail = rdRgb(rdMix(palette.line, palette.hor, fogAmount), 0.9);
+        const mesh = rdRgb(rdMix(palette.build, palette.line, 0.3), 0.3);
+        items.push([depth, () => {
+            for (const side of [-1, 1]) {
+                const lateral = side * (halfWidth + 2.6);
+                const inner = lateral - side * 0.9;
+                this.poly([ground(before, lateral - 0.9, -drop), ground(before, lateral + 0.9, -drop), ground(before, lateral + 0.9, 8), ground(before, lateral - 0.9, 8)], rdRgb(concrete), 1);
+                this.poly([ground(before, inner, -drop), ground(after, inner, -drop), ground(after, inner, 8), ground(before, inner, 8)], rdRgb(dark), 1);
+            }
+            this.poly([ground(before, -overLength, 8), ground(after, -overLength, 8), ground(after, overLength, 8), ground(before, overLength, 8)], rdRgb(dark), 1);
+            this.poly([ground(before, -overLength, 8), ground(before, overLength, 8), ground(before, overLength, 9.6), ground(before, -overLength, 9.6)], rdRgb(concrete), 1);
+            this.poly([ground(before, -overLength, 9.6), ground(before, overLength, 9.6), ground(after, overLength, 9.6), ground(after, -overLength, 9.6)], rdRgb(rdMix(concrete, palette.road, 0.4)), 1);
+            for (const frame of [after, before]) {
+                this.poly([ground(frame, -overLength, 9.6), ground(frame, overLength, 9.6), ground(frame, overLength, 10.8), ground(frame, -overLength, 10.8)], mesh);
+                this.poly([ground(frame, -overLength, 10.7), ground(frame, overLength, 10.7), ground(frame, overLength, 10.85), ground(frame, -overLength, 10.85)], rail);
+                for (let x = -overLength + 2; x < overLength; x += 4) {
+                    this.poly([ground(frame, x - 0.05, 9.6), ground(frame, x + 0.05, 9.6), ground(frame, x + 0.05, 10.8), ground(frame, x - 0.05, 10.8)], rail);
+                }
+            }
+            this.ctx.globalCompositeOperation = "lighter";
+            for (let k = 0; k < 6; k++) {
+                const x = (((time * (k % 2 ? 16 : -16) + k * 37) % (2 * overLength)) + 2 * overLength) % (2 * overLength) - overLength;
+                const camera = ground(middle, x, 10.2);
+                const screen = this.scr(camera);
+                if (screen) this.glow(k % 2 ? 9 : 0, screen[0], screen[1], Math.min(120, this.Fl * 1.6 / camera[2]), 0.85 * (1 - fogAmount));
+            }
+            for (let x = -overLength + 8; x < overLength; x += 22) {
+                const camera = ground(middle, x, 13);
+                const screen = this.scr(camera);
+                if (screen) this.glow(intensity > 0.45 ? 1 : 10, screen[0], screen[1], Math.min(240, this.Fl * 5 / camera[2]), 0.8 * (1 - fogAmount));
+            }
+            this.ctx.globalCompositeOperation = "source-over";
+        }]);
+    },
+
+    pole(items, road, distance, spacing, palette, intensity, fog, side) {
+        const index = this.idxAt(distance) | 0;
+        if (road.LP[index] >= 0 || road.zone[index] === 2) return;
+        const lateral = side * (RD_W / 2 + 3.4);
+        const dy = -road.drop[index];
+        const frame = this.fr(this.idxAt(distance));
+        const depth = this.gp(frame, lateral, dy)[2];
+        if (depth < 0.4 || depth > RD_ZF) return;
+        const color = rdRgb(rdMix(rdMix(palette.build, palette.line, 0.18), palette.hor, fog(depth)));
+        const wire = rdRgb(rdMix(palette.build, palette.line, 0.35), 0.8 * (1 - fog(depth)) + 0.1);
+        items.push([depth, () => {
+            this.poly([this.gp(frame, lateral - 0.25, dy), this.gp(frame, lateral + 0.25, dy), this.gp(frame, lateral + 0.25, dy + 9.4), this.gp(frame, lateral - 0.25, dy + 9.4)], color, 1);
+            this.poly([this.gp(frame, lateral - 1.3, dy + 8.2), this.gp(frame, lateral + 1.3, dy + 8.2), this.gp(frame, lateral + 1.3, dy + 8.45), this.gp(frame, lateral - 1.3, dy + 8.45)], color, 1);
+        }]);
+        if (rdH(distance * 0.113 + 7.7) < 0.25) {
+            const frames = [-0.8, 0, 0.8].map(offset => this.fr(this.idxAt(distance + offset)));
+            const otherDepth = this.gp(frame, -lateral, dy)[2];
+            items.push([otherDepth, () => {
+                this.poly([this.gp(frame, -lateral - 0.25, dy), this.gp(frame, -lateral + 0.25, dy), this.gp(frame, -lateral + 0.25, dy + 9.4), this.gp(frame, -lateral - 0.25, dy + 9.4)], color, 1);
+                this.poly([this.gp(frame, -lateral - 1.3, dy + 8.2), this.gp(frame, -lateral + 1.3, dy + 8.2), this.gp(frame, -lateral + 1.3, dy + 8.45), this.gp(frame, -lateral - 1.3, dy + 8.45)], color, 1);
+            }]);
+            items.push([Math.min(depth, otherDepth) - 0.5, () => {
+                for (let w = 0; w < 3; w++) {
+                    for (let q = 0; q < 4; q++) {
+                        const u0 = q / 4;
+                        const u1 = (q + 1) / 4;
+                        const l0 = lateral * (1 - 2 * u0);
+                        const l1 = lateral * (1 - 2 * u1);
+                        const y0 = dy + 8.4 - 3.6 * u0 * (1 - u0);
+                        const y1 = dy + 8.4 - 3.6 * u1 * (1 - u1);
+                        this.poly([this.gp(frames[w], l0, y0 - 0.04), this.gp(frames[w], l0, y0 + 0.04), this.gp(frames[w], l1, y1 + 0.04), this.gp(frames[w], l1, y1 - 0.04)], wire);
+                    }
+                }
+            }]);
+        }
+    },
+
+    wires(items, road, index, from, to, depth, startDistance, endDistance, spacing, side, palette, fog) {
+        if (road.zone[index] === 2 || endDistance - startDistance < 1e-4) return;
+        const lateral = side * (RD_W / 2 + 3.4);
+        const dy = -road.drop[index];
+        const sag = 0.9 * spacing / 40;
+        const base = Math.floor(startDistance / spacing);
+        const color = rdRgb(rdMix(palette.build, palette.line, 0.35), 0.8 * (1 - fog(depth)) + 0.1);
+        const heightAt = distance => {
+            const u = rdCl((distance - base * spacing) / spacing, 0, 1);
+            return dy + 8.4 - 4 * sag * u * (1 - u);
+        };
+        const y0 = heightAt(startDistance);
+        const y1 = heightAt(endDistance);
+        items.push([depth - 0.4, () => {
+            for (const offset of [-1, 0, 1]) {
+                this.poly([this.gp(from, lateral + offset, y0 - 0.04), this.gp(from, lateral + offset, y0 + 0.04), this.gp(to, lateral + offset, y1 + 0.04), this.gp(to, lateral + offset, y1 - 0.04)], color, 1);
+            }
+        }]);
+    },
+
+    sign(items, road, distance, palette, fog) {
+        const index = this.idxAt(distance) | 0;
+        if (road.LP[index] >= 0 || road.zone[index] === 2) return;
+        const h1 = rdH(distance * 0.37);
+        const h2 = rdH(distance * 0.71);
+        const frame = this.fr(this.idxAt(distance));
+        const anchor = this.gp(frame, (h1 < 0.65 ? 1 : -1) * (RD_W / 2 + 2.4), 0);
+        const depth = anchor[2];
+        if (depth < 6 || depth > RD_ZF) return;
+        const right = this.hr;
+        const up = this.wu;
+        const mixColor = color => rdRgb(rdMix(color, palette.hor, Math.pow(rdCl(depth / RD_ZF, 0, 1), 1.2) * 0.9));
+        const kind = h2 < 0.45 ? 0 : h2 < 0.75 ? 1 : 2;
+        const white = [235, 240, 255];
+        const point = (x, y) => [anchor[0] + right[0] * x + up[0] * y, anchor[1] + right[1] * x + up[1] * y, anchor[2] + right[2] * x + up[2] * y];
+        items.push([depth, () => {
+            this.poly([point(-0.07, 0), point(0.07, 0), point(0.07, 3.2), point(-0.07, 3.2)], mixColor(rdMix(palette.build, palette.line, 0.3)));
+            if (kind === 0) {
+                this.poly([point(-1.7, 2.8), point(1.7, 2.8), point(1.7, 4.7), point(-1.7, 4.7)], mixColor(white), 1);
+                this.poly([point(-1.6, 2.9), point(1.6, 2.9), point(1.6, 4.6), point(-1.6, 4.6)], mixColor([14, 100, 74]), 1);
+                for (const [y, width] of [[4.05, 1.2], [3.5, 0.8], [3.15, 1]]) this.poly([point(-width, y), point(width, y), point(width, y + 0.18), point(-width, y + 0.18)], mixColor(white));
+            } else if (kind === 1) {
+                const ring = (radius, color) => {
+                    const points = [];
+                    for (let i = 0; i < 12; i++) points.push(point(Math.cos(i * 0.5236) * radius, 3.9 + Math.sin(i * 0.5236) * radius));
+                    this.poly(points, mixColor(color), 1);
+                };
+                ring(0.85, [200, 30, 40]);
+                ring(0.62, white);
+                this.poly([point(-0.3, 3.75), point(0.3, 3.75), point(0.3, 4.05), point(-0.3, 4.05)], mixColor([30, 30, 40]));
+            } else {
+                this.poly([point(-1, 3), point(1, 3), point(0, 4.75)], mixColor([240, 190, 40]), 1);
+                this.poly([point(-0.62, 3.2), point(0.62, 3.2), point(0, 4.25)], mixColor([252, 222, 110]), 1);
+                this.poly([point(-0.07, 3.45), point(0.07, 3.45), point(0.07, 3.95), point(-0.07, 3.95)], mixColor([30, 30, 40]));
+            }
+        }]);
+    },
+
+    gantry(items, road, distance, palette, intensity, fog) {
+        const interpolated = this.idxAt(distance);
+        const index = interpolated | 0;
+        if (road.LP[index] >= 0 || road.zone[index] === 2 || Math.abs(Math.sin(road.TH[index])) > 0.22 || Math.cos(road.TH[index]) <= 0) return;
+        const frame = this.fr(interpolated);
+        const halfWidth = RD_W / 2;
+        const length = halfWidth + 1.4;
+        const centerY = frame.p[1];
+        const ground = (lateral, dy) => this.cs(frame.p[0] + frame.r[0] * lateral, centerY + dy, frame.p[2] + frame.r[2] * lateral);
+        const depth = ground(0, 6)[2];
+        if (depth < 3 || depth > RD_ZF) return;
+        const fade = Math.pow(rdCl(depth / RD_ZF, 0, 1), 1.2) * 0.9;
+        const color = rdRgb(rdMix(rdMix(palette.build, palette.line, 0.2), palette.hor, fade));
+        const mixColor = value => rdRgb(rdMix(value, palette.hor, fade));
+        const white = [235, 240, 255];
+        items.push([depth, () => {
+            for (const side of [-1, 1]) {
+                this.poly([ground(side * length - 0.3, -1), ground(side * length + 0.3, -1), ground(side * length + 0.3, 7.2), ground(side * length - 0.3, 7.2)], color, 1);
+            }
+            this.poly([ground(-length, 6.3), ground(length, 6.3), ground(length, 7.2), ground(-length, 7.2)], color, 1);
+            for (const center of [-halfWidth * 0.5, halfWidth * 0.5]) {
+                this.poly([ground(center - 2.9, 4.5), ground(center + 2.9, 4.5), ground(center + 2.9, 6.3), ground(center - 2.9, 6.3)], mixColor(white), 1);
+                this.poly([ground(center - 2.8, 4.6), ground(center + 2.8, 4.6), ground(center + 2.8, 6.2), ground(center - 2.8, 6.2)], mixColor([14, 100, 74]), 1);
+                for (const [y, width] of [[5.55, 2], [4.95, 1.4]]) this.poly([ground(center - width, y), ground(center + width, y), ground(center + width, y + 0.22), ground(center - width, y + 0.22)], mixColor(white));
+            }
+        }]);
+    },
+
+    bld(items, road, index, frame, side, offset, width, height, dy, palette, intensity, h2, h3) {
+        const halfWidth = RD_W / 2;
+        const lateral = side * (halfWidth + offset);
+        const right = frame.r;
+        const forward = [-frame.r[2], 0, frame.r[0]];
+        const origin = [frame.p[0] + right[0] * lateral, frame.p[1] + dy, frame.p[2] + right[2] * lateral];
+        const depth = this.cs(origin[0], origin[1] + height / 2, origin[2])[2];
+        if (depth < 6 || depth > RD_ZF) return;
+        const footprint = rdCl(width * (0.5 + 0.6 * h2), 5, 16);
+        const fade = Math.pow(rdCl(depth / RD_ZF, 0, 1), 1.2) * 0.9;
+        const camera = this.cm.C;
+        const tower = h3 > 0.62 && height > 30;
+        const base = rdMix(rdMix(palette.build, palette.line, 0.05 * h3), palette.hor, 0.1 + fade);
+        const lit = road.zone[index] === 3 ? 0.15 + 0.6 * intensity :
+            road.zone[index] === 2 ? 0.1 + 0.4 * intensity :
+            road.zone[index] === 0 ? 0.04 : 0;
+        const windowColor = rdRgb(palette.win, 0.85 * (1 - fade));
+        items.push([depth, () => {
+            const box = (a, b, y0, y1, seed) => {
+                const point = (sa, sb, y) => [
+                    origin[0] + right[0] * sa * a + forward[0] * sb * b,
+                    origin[1] + y,
+                    origin[2] + right[2] * sa * a + forward[2] * sb * b
+                ];
+                const boxHeight = y1 - y0;
+                const faces = [
+                    [-1, -1, 1, -1, [-forward[0], 0, -forward[2]], 0],
+                    [1, 1, -1, 1, forward, 0.35],
+                    [-side, -1, -side, 1, [-side * right[0], 0, -side * right[2]], 0.2],
+                    [side, 1, side, -1, [side * right[0], 0, side * right[2]], 0.4]
+                ];
+                faces.forEach((face, faceIndex) => {
+                    const start = point(face[0], face[1], y0);
+                    const end = point(face[2], face[3], y0);
+                    const edge = [end[0] - start[0], 0, end[2] - start[2]];
+                    const normal = face[4];
+                    if (normal[0] * (camera[0] - start[0] - edge[0] / 2) +
+                        normal[1] * (camera[1] - start[1] - boxHeight / 2) +
+                        normal[2] * (camera[2] - start[2] - edge[2] / 2) <= 0) return;
+                    const quad = (u, v) => this.cs(start[0] + edge[0] * u, start[1] + boxHeight * v, start[2] + edge[2] * u);
+                    this.poly([quad(0, 0), quad(1, 0), quad(1, 1), quad(0, 1)], rdRgb(rdMix(base, [0, 0, 0], face[5])), 1);
+                    if (depth < 130) {
+                        const wallWidth = Math.hypot(edge[0], edge[2]);
+                        const rows = Math.min(12, boxHeight / 3.2 | 0);
+                        const columns = Math.min(6, wallWidth / 2.6 | 0);
+                        for (let row = 0; row < rows; row++) {
+                            for (let column = 0; column < columns; column++) {
+                                if (rdH(index * 7.3 + row * 3.1 + column * 1.3 + side + seed * 5 + faceIndex * 11) >= lit) continue;
+                                const u = (column + 0.2) / columns;
+                                const du = 0.6 / columns;
+                                const v = (row + 0.25) / (rows + 0.5);
+                                const dv = 0.5 / (rows + 0.5);
+                                this.poly([quad(u, v), quad(u + du, v), quad(u + du, v + dv), quad(u, v + dv)], windowColor);
+                            }
+                        }
+                    }
+                });
+                if (camera[1] > origin[1] + y1) {
+                    this.poly([
+                        point(-1, -1, y1), point(1, -1, y1), point(1, 1, y1), point(-1, 1, y1)
+                    ].map(point3 => this.cs(point3[0], point3[1], point3[2])), rdRgb(rdMix(base, palette.line, 0.12)), 1);
+                }
+            };
+            box(width / 2, footprint / 2, 0, tower ? height * 0.55 : height, 0);
+            if (tower) box(width * 0.3, footprint * 0.3, height * 0.55, height, 1);
+            if (height > 55) {
+                const cameraPoint = this.cs(origin[0], origin[1] + height + 1, origin[2]);
+                const screen = this.scr(cameraPoint);
+                if (screen) {
+                    this.ctx.globalCompositeOperation = "lighter";
+                    this.glow(0, screen[0], screen[1], Math.min(120, this.Fl * 3 / cameraPoint[2]), 0.7 * (1 - fade) * (0.6 + 0.4 * Math.sin(this.time / 0.5 + index)));
+                    this.ctx.globalCompositeOperation = "source-over";
+                }
+            }
+        }]);
+    },
+
+    prop(items, road, index, frame, side, palette, intensity) {
+        const zone = road.zone[index];
+        const h1 = rdH(index * 1.7 + side * 13.1);
+        const h2 = rdH(index * 2.9 + side * 5.3);
+        const h3 = rdH(index * 4.1 + side * 9.9);
+        const drop = road.drop[index];
+        let offset;
+        let width;
+        let height;
+        let kind;
+        const dy = -drop;
+        if (zone === 0) {
+            if (h1 < 0.5) { kind = 1; offset = 6 + h2 * 45; width = 3.5; height = 7 + h3 * 9; }
+            else if (h1 < 0.56) { kind = 2; offset = 80 + h2 * 60; width = 80 + h3 * 70; height = 16 + h3 * 24; }
+            else if (h1 < 0.6) { kind = 0; offset = 12 + h2 * 18; width = 7; height = 4.5; }
+            else return;
+        } else if (zone === 1) {
+            if (h1 < 0.45) { kind = 0; offset = 9 + h2 * 24; width = 7 + h3 * 8; height = 5 + h3 * 9; }
+            else if (h1 < 0.7) return;
+            else if (h1 < 0.85) { kind = 1; offset = 6 + h2 * 20; width = 3; height = 5 + h3 * 3; }
+            else return;
+        } else if (zone === 2) {
+            if (h1 < 0.3) { kind = 0; offset = 60 + h2 * 110; width = 10 + h3 * 16; height = 14 + h3 * h2 * 60; }
+            else return;
+        } else {
+            if (h1 < 0.75) { kind = 0; offset = 7 + h2 * 34; width = 9 + h3 * 14; height = 22 + h3 * h2 * 95; }
+            else return;
+        }
+        if (kind === 0) {
+            this.bld(items, road, index, frame, side, offset, width, height, dy, palette, intensity, h2, h3);
+            return;
+        }
+        const anchor = this.gp(frame, side * (RD_W / 2 + offset), dy);
+        const depth = anchor[2];
+        if (depth < 6 || depth > RD_ZF) return;
+        const right = this.hr;
+        const up = this.wu;
+        const fade = Math.pow(rdCl(depth / RD_ZF, 0, 1), 1.2) * 0.9;
+        items.push([depth, () => {
+            const point = (u, v) => [
+                anchor[0] + right[0] * width * (u - 0.5) + up[0] * height * v,
+                anchor[1] + right[1] * width * (u - 0.5) + up[1] * height * v,
+                anchor[2] + right[2] * width * (u - 0.5) + up[2] * height * v
+            ];
+            if (kind === 1) {
+                this.poly([point(0, 0), point(1, 0), point(0.5, 1)], rdRgb(rdMix(rdMix(palette.ground, palette.build, 0.5), palette.hor, fade)), 1);
+            } else {
+                this.poly([point(0, 0), point(1, 0), point(0.5, 1)], rdRgb(rdMix(rdMix(palette.ground, palette.build, 0.4), palette.hor, fade + 0.1)), 1);
+            }
+        }]);
+    },
+
+    draw(renderer, time, delta) {
+        const context = this.ctx = renderer.ctx;
+        const W = this.W = renderer.W;
+        const H = this.H = renderer.H;
+        const palette = this.paletteRgb = renderer.paletteRgb;
+        const road = this.rd;
+        const score = renderer.score;
+        this.renderer = renderer;
+        this.time = time;
+        context.globalCompositeOperation = "source-over";
+        if (!road) {
+            const background = context.createLinearGradient(0, 0, 0, H);
+            background.addColorStop(0, "#050a22");
+            background.addColorStop(1, "#14306a");
+            context.fillStyle = background;
+            context.fillRect(0, 0, W, H);
+            return;
+        }
+        const index = rdCl(time / RD_DT, 0, road.N - 60);
+        const intensity = this.at(road.I, index);
+        const fastIntensity = this.at(road.Lf, index);
+        const colors = this.pal(intensity);
+        const speed = this.at(road.VS, index);
+        const halfWidth = RD_W / 2;
+        const notes = score.notes;
+        let targetWeight = 0;
+        let targetLateral = 0;
+        for (let i = lb(notes, time - 0.12, note => note.start); i < notes.length && notes[i].start < time + 0.35; i++) {
+            const note = notes[i];
+            if (note.ch === 9 || note.end < time || this.isOpp(note)) continue;
+            const weight = note.vel * (0.4 + note.note / 127);
+            targetLateral += this.latOf(note) * weight;
+            targetWeight += weight;
+        }
+        if (targetWeight) this.tgt = targetLateral / targetWeight;
+        this.lat0 += (this.tgt - this.lat0) * Math.min(1, delta * 4.5);
+        const cameraDistance = this.at(road.SD, index);
+        const back = 11 + speed * 0.07;
+        const cameraFrame = this.fr(this.idxAt(cameraDistance - back));
+        const middleFrame = this.fr(this.idxAt(cameraDistance - back * 0.5));
+        const lateral = this.lat0;
+        const camera = [0, 1, 2].map(axis => cameraFrame.p[axis] + cameraFrame.u[axis] * 3.8 + cameraFrame.r[axis] * lateral * 0.6);
+        const normalize = vector => {
+            const length = Math.hypot(vector[0], vector[1], vector[2]) || 1;
+            return [vector[0] / length, vector[1] / length, vector[2] / length];
+        };
+        const cross = (a, b) => [
+            a[1] * b[2] - a[2] * b[1],
+            a[2] * b[0] - a[0] * b[2],
+            a[0] * b[1] - a[1] * b[0]
+        ];
+        const forward = normalize([0, 1, 2].map(axis => middleFrame.d[axis] * Math.cos(0.2) - middleFrame.u[axis] * Math.sin(0.2)));
+        const right = middleFrame.r;
+        const up = cross(forward, right);
+        this.Fl = H * (0.95 + 0.12 * fastIntensity + 0.08 * intensity);
+        this.sx0 = W / 2;
+        this.sy0 = H * 0.46;
+        this.cm = { C: camera, F: forward, Rt: right, U: up };
+        const yaw = Math.atan2(forward[0], forward[2]);
+        const cosYaw = Math.cos(yaw);
+        const sinYaw = Math.sin(yaw);
+        this.hr = [right[0] * cosYaw - right[2] * sinYaw, up[0] * cosYaw - up[2] * sinYaw, forward[0] * cosYaw - forward[2] * sinYaw];
+        this.wu = [right[1], up[1], forward[1]];
+        const horizon = rdCl(this.Fl * Math.tan(Math.asin(rdCl(forward[1], -0.999, 0.999))), -H * 8, H * 8);
+        const roll = Math.atan2(right[1], up[1]);
+        const skyLeft = -W * 1.6;
+        const skyWidth = W * 3.2;
+        const skyHeight = H * 1.15;
+        context.save();
+        context.translate(this.sx0, this.sy0);
+        context.rotate(roll);
+        let gradient = context.createLinearGradient(0, horizon - skyHeight, 0, horizon);
+        gradient.addColorStop(0, rdRgb(colors.top));
+        gradient.addColorStop(1, rdRgb(colors.hor));
+        context.fillStyle = rdRgb(colors.top);
+        context.fillRect(skyLeft, horizon - H * 3, skyWidth, H * 3);
+        context.fillStyle = gradient;
+        context.fillRect(skyLeft, horizon - skyHeight, skyWidth, skyHeight);
+        context.fillStyle = rdRgb(colors.ground);
+        context.fillRect(skyLeft, horizon, skyWidth, H * 3);
+        const starAlpha = Math.pow(1 - intensity, 1.6);
+        if (starAlpha > 0.02) {
+            for (const star of this.stars) {
+                context.fillStyle = `rgba(210,225,255,${starAlpha * (0.4 + 0.4 * Math.sin(time * 2 + star.p))})`;
+                context.fillRect(
+                    ((star.x * 2.4 * W - yaw * this.Fl * 0.6) % (2.4 * W) + 2.4 * W) % (2.4 * W) - 1.2 * W,
+                    horizon - 4 - star.y * H * 0.9,
+                    1.6,
+                    1.6
+                );
+            }
+        }
+        const skylineOffset = -yaw * this.Fl * 0.9;
+        const skylineBase = Math.floor(skylineOffset / 56);
+        context.fillStyle = rdRgb(rdMix(colors.build, colors.hor, 0.3));
+        for (let m = -30; m <= 30; m++) {
+            const height = (6 + 80 * Math.pow(rdH(m - skylineBase), 2.2)) * (0.25 + 0.9 * intensity);
+            context.fillRect(m * 56 + (skylineOffset - skylineBase * 56), horizon - height, 50, height + 3);
+        }
+        gradient = context.createLinearGradient(0, horizon - H * 0.55, 0, horizon + 4);
+        gradient.addColorStop(0, rdRgb(colors.glow, 0));
+        gradient.addColorStop(1, rdRgb(colors.glow, 0.15 + 0.6 * intensity));
+        context.fillStyle = gradient;
+        context.fillRect(skyLeft, horizon - H * 0.55, skyWidth, H * 0.55 + 4);
+        context.restore();
+
+        const items = [];
+        const step = speed * RD_DT >= 2.5 ? 1 : speed * RD_DT >= 1.25 ? 2 : 4;
+        const firstIndex = Math.max(0, Math.floor(this.idxAt(cameraDistance - back - 8))) & ~3;
+        const lastIndex = Math.min(road.N - 2, Math.ceil(this.idxAt(cameraDistance + 480)));
+        const indices = [];
+        for (let i = firstIndex; i <= lastIndex; i += step) indices.push(i);
+        const frames = indices.map(i => this.fr(i));
+        const fog = depth => Math.pow(rdCl(depth / RD_ZF, 0, 1), 1.2) * 0.9;
+        const mixFog = (color, depth) => rdRgb(rdMix(color, colors.hor, fog(depth)));
+        const lerp = (a, b, amount) => [a[0] + (b[0] - a[0]) * amount, a[1] + (b[1] - a[1]) * amount, a[2] + (b[2] - a[2]) * amount];
+        const lineColor = colors.line;
+        for (let k = 0; k + 1 < indices.length; k++) {
+            const i = indices[k];
+            const from = frames[k];
+            const to = frames[k + 1];
+            const inLoop = road.LP[i] >= 0;
+            const zone = road.zone[i];
+            const drop = road.drop[i];
+            const a = this.off(from, -halfWidth, 0);
+            const b = this.off(from, halfWidth, 0);
+            const c = this.off(to, halfWidth, 0);
+            const d = this.off(to, -halfWidth, 0);
+            const depth = (a[2] + b[2] + c[2] + d[2]) / 4;
+            if (Math.max(a[2], b[2], c[2], d[2]) < 0.4 || depth > RD_ZF) continue;
+            if (!inLoop) {
+                const groundColor = rdRgb(zone === 2 ? rdMix(colors.ground, [14, 44, 100], 0.55) : colors.ground);
+                items.push([depth + 0.3, () => {
+                    for (const side of [-1, 1]) this.poly([this.gp(from, side * halfWidth, -drop), this.gp(from, side * (halfWidth + 130), -drop), this.gp(to, side * (halfWidth + 130), -drop), this.gp(to, side * halfWidth, -drop)], groundColor, 1);
+                }]);
+                if (i % 4 === 0) {
+                    for (const side of [-1, 1]) this.prop(items, road, i, from, side, colors, intensity);
+                }
+                const startDistance = road.SD[i];
+                const endDistance = road.SD[indices[k + 1]];
+                const lampSpacing = zone === 1 ? 90 : 28;
+                const lampIndex = Math.floor(endDistance / lampSpacing);
+                if (zone > 0 && lampIndex > Math.floor(startDistance / lampSpacing)) {
+                    const lampFrame = this.fr(this.idxAt(lampIndex * lampSpacing));
+                    for (const side of (zone === 1 ? [lampIndex & 1 ? 1 : -1] : [-1, 1])) this.lamp(items, lampFrame, side, zone, colors, intensity);
+                }
+                if (zone <= 1) {
+                    const spacing = zone === 1 ? 40 : 90;
+                    const side = rdH(road.ZS[i] * 0.031) < 0.5 ? 1 : -1;
+                    const poleIndex = Math.floor(endDistance / spacing);
+                    if (poleIndex > Math.floor(startDistance / spacing)) this.pole(items, road, poleIndex * spacing, spacing, colors, intensity, fog, side);
+                    this.wires(items, road, i, from, to, depth, startDistance, endDistance, spacing, side, colors, fog);
+                }
+                if (zone !== 2) {
+                    const signIndex = Math.floor(endDistance / 150);
+                    if (signIndex > Math.floor(startDistance / 150) && rdH(signIndex * 4.7) < 0.75) this.sign(items, road, signIndex * 150, colors, fog);
+                    for (const m of new Set([Math.floor(startDistance / 330), Math.floor(endDistance / 330)])) {
+                        const position = m * 330 + 10;
+                        if (position >= startDistance && position < endDistance && rdH(m * 2.3) < 0.55) this.gantry(items, road, position, colors, intensity, fog);
+                    }
+                }
+                if (zone === 2) this.bridge(items, road, i, indices[k + 1], from, to, depth, colors, intensity, fog);
+                else {
+                    for (const m of new Set([Math.floor(startDistance / 400), Math.floor(endDistance / 400)])) {
+                        const position = m * 400 + 120 * rdH(m * 3.3);
+                        if (position >= startDistance && position < endDistance && rdH(m * 5.1) < (zone === 3 ? 0.8 : zone === 1 ? 0.6 : 0.35)) this.over(items, road, i, position, colors, intensity, fog, time);
+                    }
+                }
+            }
+            items.push([depth, () => {
+                this.poly([a, b, c, d], mixFog(rdMix(inLoop ? rdMix(colors.road, colors.glow, 0.15) : colors.road, [0, 0, 0], (((road.SD[i] / 8) | 0) & 1) * 0.15), depth), 1);
+                const laneColor = rdRgb(rdMix(lineColor, colors.hor, fog(depth)), 0.8);
+                const startDistance = road.SD[i];
+                const endDistance = road.SD[indices[k + 1]];
+                const span = endDistance - startDistance;
+                if (span > 1e-4) {
+                    for (let lane = 1; lane < RD_LN; lane++) {
+                        const l = (lane / RD_LN - 0.5) * RD_W;
+                        const q0 = this.off(from, l - 0.08, 0);
+                        const q1 = this.off(from, l + 0.08, 0);
+                        const q2 = this.off(to, l + 0.08, 0);
+                        const q3 = this.off(to, l - 0.08, 0);
+                        if (lane * 2 === RD_LN) {
+                            for (const edge of [-0.14, 0.14]) {
+                                this.poly([this.off(from, edge - 0.07, 0), this.off(from, edge + 0.07, 0), this.off(to, edge + 0.07, 0), this.off(to, edge - 0.07, 0)], rdRgb(rdMix([255, 205, 80], colors.hor, fog(depth)), 0.85));
+                            }
+                            continue;
+                        }
+                        for (let dash = Math.floor(startDistance / 9), dashEnd = Math.floor(endDistance / 9); dash <= dashEnd; dash++) {
+                            const da = Math.max(startDistance, dash * 9);
+                            const db = Math.min(endDistance, dash * 9 + 3);
+                            if (db <= da) continue;
+                            const u0 = (da - startDistance) / span;
+                            const u1 = (db - startDistance) / span;
+                            this.poly([lerp(q0, q3, u0), lerp(q1, q2, u0), lerp(q1, q2, u1), lerp(q0, q3, u1)], laneColor);
+                        }
+                    }
+                    for (let beat = 0; beat < road.beats.length; beat++) {
+                        const beatTime = road.beats[beat];
+                        if (beatTime < i * RD_DT || beatTime >= indices[k + 1] * RD_DT) continue;
+                        const bar = road.beatBars[beat] === 1;
+                        const beatDistance = this.at(road.SD, beatTime / RD_DT);
+                        const u0 = Math.max(0, (beatDistance - startDistance) / span);
+                        const u1 = Math.min(1, (beatDistance + (bar ? 1.2 : 0.4) - startDistance) / span);
+                        if (u1 <= u0) continue;
+                        this.poly([lerp(a, d, u0), lerp(b, c, u0), lerp(b, c, u1), lerp(a, d, u1)], bar ? rdRgb(rdMix([255, 255, 255], lineColor, 0.3), 0.85 * (1 - fog(depth))) : rdRgb(lineColor, 0.4 * (1 - fog(depth))));
+                    }
+                }
+                for (const side of [-1, 1]) {
+                    const l = side * (halfWidth - 0.3);
+                    this.poly([this.off(from, l - 0.12, 0), this.off(from, l + 0.12, 0), this.off(to, l + 0.12, 0), this.off(to, l - 0.12, 0)], rdRgb(rdMix(lineColor, colors.hor, fog(depth)), inLoop ? 1 : 0.9));
+                    if (zone === 2 && !inLoop) this.poly([this.off(from, side * (halfWidth + 0.2), 0), this.off(from, side * (halfWidth + 0.2), 1.1), this.off(to, side * (halfWidth + 0.2), 1.1), this.off(to, side * (halfWidth + 0.2), 0)], mixFog(rdMix(colors.build, lineColor, 0.25), depth));
+                }
+                if (inLoop && ((road.SD[i] / 6) | 0) !== ((road.SD[indices[k + 1]] / 6) | 0)) this.poly([a, b, lerp(b, c, 0.3), lerp(a, d, 0.3)], rdRgb(rdMix(colors.glow, [255, 255, 255], 0.3), 0.55));
+            }]);
+        }
+        for (let i = lb(notes, time - 3, note => note.start); i < notes.length && notes[i].start < time + 8.5; i++) {
+            const note = notes[i];
+            const noteIndex = note.start / RD_DT;
+            if (note.end < time) continue;
+            if (note.ch === 9) {
+                if (noteIndex < index || ![35, 36, 38, 40].includes(note.note)) continue;
+                const from = this.fr(noteIndex);
+                const to = this.fr(noteIndex + 2);
+                const p0 = this.off(from, -halfWidth, 0.05);
+                const p1 = this.off(from, halfWidth, 0.05);
+                const p2 = this.off(to, halfWidth, 0.05);
+                const p3 = this.off(to, -halfWidth, 0.05);
+                items.push([p0[2], () => this.poly([p0, p1, p2, p3], `rgba(${palette[note.note < 37 ? 0 : 7]},0.4)`)]);
+                continue;
+            }
+            const lateralPosition = this.latOf(note);
+            const noteIntensity = this.at(road.I, rdCl(noteIndex, 0, road.N - 2));
+            if (this.isOpp(note)) {
+                const frame = this.fr(this.idxAt(this.at(road.SD, rdCl(noteIndex, 0, road.N - 2)) + 24 * (note.start - time)));
+                const depth = this.off(frame, lateralPosition, 0)[2];
+                if (depth < 0.8 || depth > RD_ZF) continue;
+                const fade = fog(depth);
+                const channelColor = palette[note.ch].split(",").map(Number);
+                const dark = rdMix(colors.build, [0, 0, 0], 0.4);
+                const body = rdMix(rdMix(dark, channelColor, 0.3), colors.hor, fade);
+                const top = rdMix(rdMix(dark, channelColor, 0.45), colors.hor, fade);
+                const glass = rdMix(rdMix(dark, colors.glow, 0.3), colors.hor, fade);
+                items.push([depth, () => {
+                    this.car(frame, lateralPosition, body, top, glass);
+                    this.ctx.globalCompositeOperation = "lighter";
+                    for (const side of [-1, 1]) {
+                        const cameraPoint = this.cp(frame, lateralPosition + side * 0.7, 0.55, 0);
+                        const screen = this.scr(cameraPoint);
+                        if (screen) {
+                            this.glow(9, screen[0], screen[1], this.Fl * 1.5 / cameraPoint[2], (0.4 + 0.3 * noteIntensity) * (1 - fade));
+                            this.glow(10, screen[0], screen[1], this.Fl * 2.4 / cameraPoint[2], 0.15 * (1 - fade));
+                        }
+                    }
+                    if (time > note.start) {
+                        for (const side of [-1, 1]) {
+                            const cameraPoint = this.cp(frame, lateralPosition + side * 0.7, 0.55, 4.4);
+                            const screen = this.scr(cameraPoint);
+                            if (screen) this.glow(0, screen[0], screen[1], this.Fl * 1.1 / cameraPoint[2], 0.8 * (1 - fade));
+                        }
+                    }
+                    this.ctx.globalCompositeOperation = "source-over";
+                }]);
+                continue;
+            }
+            if (note.end - note.start > 0.3) {
+                const fromIndex = Math.max(noteIndex, index);
+                const toIndex = Math.min(note.end / RD_DT, fromIndex + 160);
+                const middleIndex = (fromIndex + toIndex) / 2;
+                if (toIndex > fromIndex + 1) {
+                    const noteFrames = [fromIndex, middleIndex, toIndex].map(i => this.fr(i));
+                    const left = noteFrames.map(frame => this.off(frame, lateralPosition - 0.6, 0.04));
+                    const right = noteFrames.map(frame => this.off(frame, lateralPosition + 0.6, 0.04));
+                    items.push([left[1][2], () => {
+                        for (let m = 0; m < 2; m++) this.poly([left[m], right[m], right[m + 1], left[m + 1]], `rgba(${palette[note.ch]},0.4)`);
+                    }]);
+                }
+            }
+            if (noteIndex < index - 1) continue;
+            const anchor = this.off(this.fr(noteIndex), lateralPosition, 0.55);
+            const depth = anchor[2];
+            if (depth < 0.6 || depth > RD_ZF) continue;
+            const fade = fog(depth);
+            const right = this.hr;
+            const up = this.wu;
+            const point = (u, v) => [
+                anchor[0] + right[0] * 1.7 * (u - 0.5) + up[0] * 0.9 * v,
+                anchor[1] + right[1] * 1.7 * (u - 0.5) + up[1] * 0.9 * v,
+                anchor[2] + right[2] * 1.7 * (u - 0.5) + up[2] * 0.9 * v
+            ];
+            items.push([depth, () => {
+                this.poly([point(0, 0), point(1, 0), point(1, 1), point(0, 1)], `rgba(${palette[note.ch]},${0.9 * (1 - fade)})`, 1);
+                const screen = this.scr(point(0.5, 0.5));
+                if (screen) {
+                    this.ctx.globalCompositeOperation = "lighter";
+                    this.glow(note.ch, screen[0], screen[1], Math.min(170, this.Fl * (1.8 + note.vel / 90) * (0.5 + 0.6 * noteIntensity) / depth), (0.22 + 0.33 * noteIntensity) * (1 - fade));
+                    this.ctx.globalCompositeOperation = "source-over";
+                }
+            }]);
+        }
+        items.sort((a, b) => b[0] - a[0]);
+        for (const item of items) item[1]();
+        context.save();
+        context.translate(this.sx0, this.sy0);
+        context.rotate(roll);
+        const horizonHaze = context.createLinearGradient(0, horizon - H * 0.18, 0, horizon + H * 0.22);
+        horizonHaze.addColorStop(0, rdRgb(colors.hor, 0));
+        horizonHaze.addColorStop(0.45, rdRgb(colors.hor, 0.3));
+        horizonHaze.addColorStop(1, rdRgb(colors.hor, 0));
+        context.fillStyle = horizonHaze;
+        context.fillRect(skyLeft, horizon - H * 0.18, skyWidth, H * 0.4);
+        context.restore();
+        const carFrame = this.fr(index);
+        const carPoint = (l, upAmount, forwardAmount) => this.cp(carFrame, lateral + l, upAmount, forwardAmount);
+        const body = rdMix(colors.build, [0, 0, 0], 0.6);
+        const top = rdMix(rdMix(colors.build, [0, 0, 0], 0.3), lineColor, 0.12);
+        this.car(carFrame, lateral, body, top, rdMix(body, colors.glow, 0.25));
+        const exhaust = (0.4 + 5 * intensity + 2 * fastIntensity) * (0.8 + 0.4 * rdH(time * 17));
+        const exhaustColor1 = rdMix([60, 140, 255], [255, 110, 30], rdCl(intensity * 1.4, 0, 1));
+        const exhaustColor2 = rdMix([200, 230, 255], [255, 240, 150], intensity);
+        context.globalCompositeOperation = "lighter";
+        for (const side of [-1, 1]) {
+            const e = side * 0.5;
+            const jitter = rand(-0.1, 0.1) * (0.3 + intensity);
+            this.poly([carPoint(e - 0.24, 0.36, 0), carPoint(e + 0.24, 0.36, 0), carPoint(e + jitter, 0.5, -exhaust)], rdRgb(exhaustColor1, 0.6));
+            this.poly([carPoint(e - 0.12, 0.36, 0), carPoint(e + 0.12, 0.36, 0), carPoint(e + jitter * 0.5, 0.42, -exhaust * 0.55)], rdRgb(exhaustColor2, 0.9));
+            const cameraPoint = carPoint(e, 0.4, -0.2);
+            const screen = this.scr(cameraPoint);
+            if (screen) this.glow(intensity > 0.5 ? 1 : 10, screen[0], screen[1], this.Fl * (0.8 + exhaust * 0.3) / cameraPoint[2], 0.5 + 0.4 * intensity);
+        }
+        context.globalCompositeOperation = "lighter";
+        for (const side of [-1, 1]) {
+            const cameraPoint = carPoint(side * 0.75, 0.6, 0);
+            const screen = this.scr(cameraPoint);
+            if (!screen) continue;
+            this.glow(9, screen[0], screen[1], this.Fl * (1.2 + 0.5 * fastIntensity) / cameraPoint[2], 0.55 + 0.4 * Math.min(1, fastIntensity));
+            this.glow(0, screen[0], screen[1], this.Fl * 0.7 / cameraPoint[2], 0.8);
+        }
+        context.globalCompositeOperation = "lighter";
+        for (let i = this.fx.length - 1; i >= 0; i--) {
+            const effect = this.fx[i];
+            effect.life -= delta;
+            if (effect.life <= 0) {
+                this.fx[i] = this.fx[this.fx.length - 1];
+                this.fx.pop();
+                continue;
+            }
+            effect.p[0] += effect.v[0] * delta;
+            effect.p[1] += effect.v[1] * delta;
+            effect.p[2] += effect.v[2] * delta;
+            effect.v[1] -= 9 * delta;
+            const cameraPoint = this.cs(effect.p[0], effect.p[1], effect.p[2]);
+            const screen = this.scr(cameraPoint);
+            if (screen) this.glow(effect.ch, screen[0], screen[1], Math.min(140, this.Fl * effect.size * 1.5 / cameraPoint[2]), effect.life / effect.max);
+        }
+        context.globalCompositeOperation = "source-over";
+        context.lineWidth = 1;
+    }
+};
+
+const MODES = {
+    cascade: Cascade,
+    orbit: Orbit,
+    warp: Warp,
+    trail: Trail,
+    meteor: Meteor,
+    road: Road
+};
 
 function createModeInstance(base) {
     const mode = Object.create(base);
