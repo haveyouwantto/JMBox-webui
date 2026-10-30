@@ -58,6 +58,7 @@ const defaultValue = {
     neoCascadeSpan: 3,
     neoTrailTilt: 60,
     neoTrailSingleArc: false,
+    neoTrailLinkMode: "legacy",
     neoMeteorZoom: 1,
     neoMeteorBurst: true,
 

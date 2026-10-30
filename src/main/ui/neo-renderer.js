@@ -19,6 +19,12 @@ const TRAIL_ENTER = 0.9;
 const TRAIL_STEP = 0.035;
 const TRAIL_BREAK = 8;
 const TRAIL_SPD = 0.55;
+const TRAIL_LINK_T = 4;
+const TRAIL_LINK_MAX = 20;
+const TRAIL_MAXLEAP = 14;
+const TRAIL_FORK_T = 3;
+const TRAIL_FORK_MAX = 12;
+const TRAIL_TIMEW = 60;
 
 const isBlack = note => BLACK_KEYS.includes(((note % 12) + 12) % 12);
 const clamp = (value, min, max) => Math.max(min, Math.min(max, value));
@@ -270,20 +276,98 @@ function trailPoly(arcs) {
     };
 }
 
-function buildTrail(score, singleArc = false) {
-    const byChannel = new Map();
-    const edges = [];
-    for (const note of score.notes) {
-        if (note.ch === 9) continue;
-        note.wx = trailX(note.note, score);
-        note.wy = note.start * TRAIL_SPD;
-        note.par = null;
-        note.kids = null;
-        let list = byChannel.get(note.ch);
-        if (!list) byChannel.set(note.ch, list = []);
-        list.push(note);
+function trailLink(notes) {
+    const count = notes.length;
+    const candidateStart = [];
+    const candidateEnd = [];
+    const candidateCost = [];
+    const maxGap = count > 20000 ? 1.5 : TRAIL_LINK_T;
+    const relativePitch = new Float32Array(count).fill(-1);
+    for (let i = 0; i < count;) {
+        let end = i + 1;
+        while (end < count && notes[end].start - notes[i].start <= TRAIL_STEP) end++;
+        if (end - i > 1) {
+            const order = [];
+            for (let k = i; k < end; k++) order.push(k);
+            order.sort((a, b) => notes[a].note - notes[b].note);
+            order.forEach((index, rank) => {
+                relativePitch[index] = rank / (order.length - 1);
+            });
+        }
+        i = end;
     }
+    for (let i = 0; i < count; i++) {
+        const from = notes[i];
+        let candidates = 0;
+        for (let j = i + 1; j < count && candidates < 48; j++) {
+            const to = notes[j];
+            const gap = to.start - from.start;
+            if (gap > maxGap) break;
+            if (gap <= TRAIL_STEP) continue;
+            const leap = Math.abs(to.note - from.note);
+            if (leap > TRAIL_MAXLEAP) continue;
+            const weightedLeap = leap + (leap > 5 ? (leap - 5) * 0.7 : 0);
+            if (weightedLeap + 1.2 * gap > TRAIL_LINK_MAX) continue;
+            const chordBias = relativePitch[i] >= 0 && relativePitch[j] >= 0
+                ? 12 * Math.abs(relativePitch[i] - relativePitch[j])
+                : 0;
+            candidateStart.push(i);
+            candidateEnd.push(j);
+            candidateCost.push(weightedLeap + TRAIL_TIMEW * gap + chordBias);
+            candidates++;
+        }
+    }
+    const order = Array.from({ length: candidateCost.length }, (_, index) => index)
+        .sort((a, b) =>
+            candidateCost[a] - candidateCost[b] ||
+            candidateStart[a] - candidateStart[b] ||
+            candidateEnd[a] - candidateEnd[b]
+        );
+    const previous = new Int32Array(count).fill(-1);
+    const next = new Int32Array(count).fill(-1);
+    const buckets = new Map();
+    const bucketWidth = 0.5;
+    for (const candidate of order) {
+        const fromIndex = candidateStart[candidate];
+        const toIndex = candidateEnd[candidate];
+        if (next[fromIndex] >= 0 || previous[toIndex] >= 0) continue;
+        const from = notes[fromIndex];
+        const to = notes[toIndex];
+        const start = from.start;
+        const end = to.start;
+        const duration = end - start;
+        let crosses = false;
+        for (let bucket = Math.floor(start / bucketWidth); bucket <= Math.floor(end / bucketWidth) && !crosses; bucket++) {
+            const links = buckets.get(bucket);
+            if (!links) continue;
+            for (const link of links) {
+                const low = Math.max(start, link[0]);
+                const high = Math.min(end, link[1]);
+                if (high <= low) continue;
+                const currentLow = from.note + (to.note - from.note) * (low - start) / duration;
+                const currentHigh = from.note + (to.note - from.note) * (high - start) / duration;
+                const otherLow = link[2] + (link[3] - link[2]) * (low - link[0]) / (link[1] - link[0]);
+                const otherHigh = link[2] + (link[3] - link[2]) * (high - link[0]) / (link[1] - link[0]);
+                if ((currentLow - otherLow) * (currentHigh - otherHigh) < -0.01) {
+                    crosses = true;
+                    break;
+                }
+            }
+        }
+        if (crosses) continue;
+        next[fromIndex] = toIndex;
+        previous[toIndex] = fromIndex;
+        const link = [start, end, from.note, to.note];
+        for (let bucket = Math.floor(start / bucketWidth); bucket <= Math.floor(end / bucketWidth); bucket++) {
+            let links = buckets.get(bucket);
+            if (!links) buckets.set(bucket, links = []);
+            links.push(link);
+        }
+    }
+    return previous;
+}
 
+function trailLinkLegacy(notes) {
     const nearest = (list, pitch) => {
         let best = list[0];
         let distance = Infinity;
@@ -346,35 +430,81 @@ function buildTrail(score, singleArc = false) {
         return result;
     };
 
+    let previous = null;
+    let current = null;
+    let groupStart = -1;
+    const flush = () => {
+        if (!current) return;
+        current.sort((a, b) => a.note - b.note);
+        if (previous && current[0].start - previous[0].start <= TRAIL_BREAK) {
+            const matches = match(previous, current);
+            current.forEach((child, index) => {
+                const parent = matches[index] >= 0 ? previous[matches[index]] : nearest(previous, child.note);
+                child.par = parent;
+                (parent.kids || (parent.kids = [])).push(child);
+                child.fork = matches[index] < 0;
+            });
+        }
+        previous = current;
+        current = null;
+    };
+    for (const note of notes) {
+        if (current && note.start - groupStart <= TRAIL_STEP) {
+            current.push(note);
+        } else {
+            flush();
+            current = [note];
+            groupStart = note.start;
+        }
+    }
+    flush();
+}
+
+function buildTrail(score, singleArc = false, linkMode = "legacy") {
+    const byChannel = new Map();
+    const edges = [];
+    for (const note of score.notes) {
+        if (note.ch === 9) continue;
+        note.wx = trailX(note.note, score);
+        note.wy = note.start * TRAIL_SPD;
+        note.par = null;
+        note.kids = null;
+        let list = byChannel.get(note.ch);
+        if (!list) byChannel.set(note.ch, list = []);
+        list.push(note);
+    }
+
     for (const notes of byChannel.values()) {
-        let previous = null;
-        let current = null;
-        let groupStart = -1;
-        const flush = () => {
-            if (!current) return;
-            current.sort((a, b) => a.note - b.note);
-            if (previous && current[0].start - previous[0].start <= TRAIL_BREAK) {
-                const matches = match(previous, current);
-                current.forEach((child, index) => {
-                    const parent = matches[index] >= 0 ? previous[matches[index]] : nearest(previous, child.note);
-                    child.par = parent;
-                    (parent.kids || (parent.kids = [])).push(child);
-                    child.fork = matches[index] < 0;
-                });
+        if (linkMode !== "extended") {
+            trailLinkLegacy(notes);
+            continue;
+        }
+        const previous = trailLink(notes);
+        for (let i = 0; i < notes.length; i++) {
+            const child = notes[i];
+            let parent = previous[i] >= 0 ? notes[previous[i]] : null;
+            if (!parent) {
+                let bestDistance = Infinity;
+                for (let k = i - 1, checked = 0; k >= 0 && checked < 96; k--, checked++) {
+                    const candidate = notes[k];
+                    const gap = child.start - candidate.start;
+                    if (gap > TRAIL_FORK_T) break;
+                    if (gap <= TRAIL_STEP) continue;
+                    const leap = Math.abs(candidate.note - child.note);
+                    if (leap > TRAIL_FORK_MAX) continue;
+                    const cost = leap + 2 * gap;
+                    if (cost < bestDistance) {
+                        bestDistance = cost;
+                        parent = candidate;
+                    }
+                }
+                child.fork = !!parent;
             }
-            previous = current;
-            current = null;
-        };
-        for (const note of notes) {
-            if (current && note.start - groupStart <= TRAIL_STEP) {
-                current.push(note);
-            } else {
-                flush();
-                current = [note];
-                groupStart = note.start;
+            if (parent) {
+                child.par = parent;
+                (parent.kids || (parent.kids = [])).push(child);
             }
         }
-        flush();
     }
 
     const unit = (dx, dy) => {
@@ -1201,8 +1331,9 @@ const Trail = {
         this.S0 = Math.min(renderer.W * 0.34, renderer.H * 0.85);
         this.D = (0.5 * renderer.H / Math.tan(this.FOV * Math.PI / 360)) / this.S0;
         const singleArc = !!renderer.settings.neoTrailSingleArc;
-        const trailKey = singleArc ? "trailSingleArc" : "trail";
-        if (!renderer.score[trailKey]) renderer.score[trailKey] = buildTrail(renderer.score, singleArc);
+        const linkMode = renderer.settings.neoTrailLinkMode === "extended" ? "extended" : "legacy";
+        const trailKey = `trail:${linkMode}:${singleArc ? "single" : "biarc"}`;
+        if (!renderer.score[trailKey]) renderer.score[trailKey] = buildTrail(renderer.score, singleArc, linkMode);
         this.tree = renderer.score[trailKey];
         let lastNote = null;
         const notes = renderer.score.notes;
@@ -2797,6 +2928,7 @@ const rdMix = (a, b, amount) => [
     a[2] + (b[2] - a[2]) * amount
 ];
 const rdRgb = (color, alpha = 1) => `rgba(${color[0] | 0},${color[1] | 0},${color[2] | 0},${alpha})`;
+const rdSide = (road, index) => rdH(road.ZS[index] * 0.031) < 0.5 ? 1 : -1;
 const rdCl = (value, min, max) => value < min ? min : value > max ? max : value;
 const rdSm = (source, amount) => {
     const output = Float32Array.from(source);
@@ -3375,53 +3507,87 @@ const Road = {
         const after = this.fr(this.idxAt(distance + 4.5));
         const middle = this.fr(interpolated);
         const halfWidth = RD_W / 2;
-        const overLength = halfWidth + 45;
         const centerY = middle.p[1];
         const drop = road.drop[index];
-        const ground = (frame, lateral, dy) => this.cs(frame.p[0] + frame.r[0] * lateral, centerY + dy, frame.p[2] + frame.r[2] * lateral);
-        const depth = ground(middle, 0, 8)[2];
+        const groundY = -drop;
+        const coreLength = halfWidth + 8;
+        const rampLength = 140;
+        const overLength = coreLength + rampLength;
+        const top = 9.6;
+        const thickness = 1.6;
+        const heightAt = lateral => {
+            const distance = Math.abs(lateral);
+            return distance <= coreLength
+                ? top
+                : top + (groundY - top) * Math.min(1, (distance - coreLength) / rampLength);
+        };
+        const breakpoints = [-overLength, -coreLength, coreLength, overLength];
+        const point = (frame, lateral, dy) => this.cs(frame.p[0] + frame.r[0] * lateral, centerY + dy, frame.p[2] + frame.r[2] * lateral);
+        const depth = point(middle, 0, 8)[2];
         if (depth < 1 || depth > RD_ZF) return;
         const fogAmount = fog(depth);
         const concrete = rdMix(rdMix(palette.build, palette.line, 0.18), palette.hor, fogAmount);
         const dark = rdMix(concrete, [0, 0, 0], 0.35);
         const rail = rdRgb(rdMix(palette.line, palette.hor, fogAmount), 0.9);
         const mesh = rdRgb(rdMix(palette.build, palette.line, 0.3), 0.3);
+        const asphalt = rdRgb(rdMix(rdMix(palette.road, palette.line, 0.06), palette.hor, fogAmount));
+        const yellow = rdRgb(rdMix([255, 205, 80], palette.hor, fogAmount), 0.7);
+        const concreteFill = rdRgb(concrete);
+        const darkFill = rdRgb(dark);
+        const piers = [];
+        for (const side of [-1, 1]) {
+            piers.push(side * (halfWidth + 2.6));
+            for (let distance = coreLength + 18; distance < overLength - 6; distance += 18) piers.push(side * distance);
+        }
         items.push([depth, () => {
-            for (const side of [-1, 1]) {
-                const lateral = side * (halfWidth + 2.6);
-                const inner = lateral - side * 0.9;
-                this.poly([ground(before, lateral - 0.9, -drop), ground(before, lateral + 0.9, -drop), ground(before, lateral + 0.9, 8), ground(before, lateral - 0.9, 8)], rdRgb(concrete), 1);
-                this.poly([ground(before, inner, -drop), ground(after, inner, -drop), ground(after, inner, 8), ground(before, inner, 8)], rdRgb(dark), 1);
+            const camera = this.cm.C;
+            const facing = ((camera[0] - middle.p[0]) * -middle.r[2] + (camera[2] - middle.p[2]) * middle.r[0]) < 0 ? before : after;
+            for (const lateral of piers) {
+                const pierTop = heightAt(lateral) - thickness;
+                const inner = lateral - Math.sign(lateral) * 0.7;
+                if (pierTop - groundY < 0.5) continue;
+                this.poly([point(facing, lateral - 0.7, groundY), point(facing, lateral + 0.7, groundY), point(facing, lateral + 0.7, pierTop), point(facing, lateral - 0.7, pierTop)], concreteFill, 1);
+                this.poly([point(before, inner, groundY), point(after, inner, groundY), point(after, inner, pierTop), point(before, inner, pierTop)], darkFill, 1);
             }
-            this.poly([ground(before, -overLength, 8), ground(after, -overLength, 8), ground(after, overLength, 8), ground(before, overLength, 8)], rdRgb(dark), 1);
-            this.poly([ground(before, -overLength, 8), ground(before, overLength, 8), ground(before, overLength, 9.6), ground(before, -overLength, 9.6)], rdRgb(concrete), 1);
-            this.poly([ground(before, -overLength, 9.6), ground(before, overLength, 9.6), ground(after, overLength, 9.6), ground(after, -overLength, 9.6)], rdRgb(rdMix(concrete, palette.road, 0.4)), 1);
+            for (let i = 0; i < 3; i++) {
+                const l0 = breakpoints[i];
+                const l1 = breakpoints[i + 1];
+                const h0 = heightAt(l0);
+                const h1 = heightAt(l1);
+                this.poly([point(before, l0, h0 - thickness), point(before, l1, h1 - thickness), point(after, l1, h1 - thickness), point(after, l0, h0 - thickness)], darkFill, 1);
+                this.poly([point(facing, l0, h0 - thickness), point(facing, l1, h1 - thickness), point(facing, l1, h1), point(facing, l0, h0)], concreteFill, 1);
+                this.poly([point(before, l0, h0), point(before, l1, h1), point(after, l1, h1), point(after, l0, h0)], asphalt, 1);
+                this.poly([point(middle, l0, h0 + 0.03), point(middle, l1, h1 + 0.03), point(middle, l1, h1 + 0.1), point(middle, l0, h0 + 0.1)], yellow);
+                for (const frame of [after, before]) {
+                    this.poly([point(frame, l0, h0), point(frame, l1, h1), point(frame, l1, h1 + 1.2), point(frame, l0, h0 + 1.2)], mesh);
+                    this.poly([point(frame, l0, h0 + 1.1), point(frame, l1, h1 + 1.1), point(frame, l1, h1 + 1.25), point(frame, l0, h0 + 1.25)], rail);
+                }
+            }
             for (const frame of [after, before]) {
-                this.poly([ground(frame, -overLength, 9.6), ground(frame, overLength, 9.6), ground(frame, overLength, 10.8), ground(frame, -overLength, 10.8)], mesh);
-                this.poly([ground(frame, -overLength, 10.7), ground(frame, overLength, 10.7), ground(frame, overLength, 10.85), ground(frame, -overLength, 10.85)], rail);
-                for (let x = -overLength + 2; x < overLength; x += 4) {
-                    this.poly([ground(frame, x - 0.05, 9.6), ground(frame, x + 0.05, 9.6), ground(frame, x + 0.05, 10.8), ground(frame, x - 0.05, 10.8)], rail);
+                for (let x = -overLength + 2; x < overLength; x += 5) {
+                    this.poly([point(frame, x - 0.05, heightAt(x)), point(frame, x + 0.05, heightAt(x)), point(frame, x + 0.05, heightAt(x) + 1.2), point(frame, x - 0.05, heightAt(x) + 1.2)], rail);
                 }
             }
             this.ctx.globalCompositeOperation = "lighter";
-            for (let k = 0; k < 6; k++) {
-                const x = (((time * (k % 2 ? 16 : -16) + k * 37) % (2 * overLength)) + 2 * overLength) % (2 * overLength) - overLength;
-                const camera = ground(middle, x, 10.2);
-                const screen = this.scr(camera);
-                if (screen) this.glow(k % 2 ? 9 : 0, screen[0], screen[1], Math.min(120, this.Fl * 1.6 / camera[2]), 0.85 * (1 - fogAmount));
+            for (let i = 0; i < 8; i++) {
+                const lateral = (((time * (i % 2 ? 16 : -16) + i * 41) % (2 * overLength)) + 2 * overLength) % (2 * overLength) - overLength;
+                const cameraPoint = point(middle, lateral, heightAt(lateral) + 0.6);
+                const screen = this.scr(cameraPoint);
+                if (screen) this.glow(i % 2 ? 9 : 0, screen[0], screen[1], Math.min(120, this.Fl * 1.6 / cameraPoint[2]), 0.85 * (1 - fogAmount));
             }
-            for (let x = -overLength + 8; x < overLength; x += 22) {
-                const camera = ground(middle, x, 13);
-                const screen = this.scr(camera);
-                if (screen) this.glow(intensity > 0.45 ? 1 : 10, screen[0], screen[1], Math.min(240, this.Fl * 5 / camera[2]), 0.8 * (1 - fogAmount));
+            for (let lateral = -coreLength + 4; lateral < coreLength; lateral += 22) {
+                const cameraPoint = point(middle, lateral, top + 3.6);
+                const screen = this.scr(cameraPoint);
+                if (screen) this.glow(intensity > 0.45 ? 1 : 10, screen[0], screen[1], Math.min(240, this.Fl * 5 / cameraPoint[2]), 0.8 * (1 - fogAmount));
             }
             this.ctx.globalCompositeOperation = "source-over";
         }]);
     },
 
-    pole(items, road, distance, spacing, palette, intensity, fog, side) {
+    pole(items, road, distance, spacing, palette, intensity, fog) {
         const index = this.idxAt(distance) | 0;
-        if (road.LP[index] >= 0 || road.zone[index] === 2) return;
+        if (road.LP[index] >= 0 || road.zone[index] === 2 || road.drop[index] > 3) return;
+        const side = rdSide(road, index);
         const lateral = side * (RD_W / 2 + 3.4);
         const dy = -road.drop[index];
         const frame = this.fr(this.idxAt(distance));
@@ -3456,24 +3622,36 @@ const Road = {
         }
     },
 
-    wires(items, road, index, from, to, depth, startDistance, endDistance, spacing, side, palette, fog) {
-        if (road.zone[index] === 2 || endDistance - startDistance < 1e-4) return;
-        const lateral = side * (RD_W / 2 + 3.4);
-        const dy = -road.drop[index];
-        const sag = 0.9 * spacing / 40;
-        const base = Math.floor(startDistance / spacing);
+    wires(items, road, index, startDistance, endDistance, spacing, zone, depth, palette, fog) {
+        if (endDistance - startDistance < 1e-4) return;
         const color = rdRgb(rdMix(palette.build, palette.line, 0.35), 0.8 * (1 - fog(depth)) + 0.1);
-        const heightAt = distance => {
-            const u = rdCl((distance - base * spacing) / spacing, 0, 1);
-            return dy + 8.4 - 4 * sag * u * (1 - u);
-        };
-        const y0 = heightAt(startDistance);
-        const y1 = heightAt(endDistance);
-        items.push([depth - 0.4, () => {
-            for (const offset of [-1, 0, 1]) {
-                this.poly([this.gp(from, lateral + offset, y0 - 0.04), this.gp(from, lateral + offset, y0 + 0.04), this.gp(to, lateral + offset, y1 + 0.04), this.gp(to, lateral + offset, y1 - 0.04)], color, 1);
-            }
-        }]);
+        const sag = 0.9 * spacing / 40;
+        for (const poleIndex of new Set([Math.floor(startDistance / spacing), Math.floor((endDistance - 1e-4) / spacing)])) {
+            const poleStart = poleIndex * spacing;
+            const poleEnd = poleStart + spacing;
+            const startIndex = this.idxAt(poleStart) | 0;
+            const endIndex = this.idxAt(poleEnd) | 0;
+            if (road.zone[startIndex] !== zone || road.zone[endIndex] !== zone ||
+                road.LP[startIndex] >= 0 || road.LP[endIndex] >= 0 ||
+                road.drop[startIndex] > 3 || road.drop[endIndex] > 3 ||
+                rdSide(road, startIndex) !== rdSide(road, endIndex)) continue;
+            const fromDistance = Math.max(startDistance, poleStart);
+            const toDistance = Math.min(endDistance, poleEnd);
+            if (toDistance <= fromDistance) continue;
+            const lateral = rdSide(road, startIndex) * (RD_W / 2 + 3.4);
+            const startDrop = -road.drop[startIndex];
+            const endDrop = -road.drop[endIndex];
+            const from = this.fr(this.idxAt(fromDistance));
+            const to = this.fr(this.idxAt(toDistance));
+            const heightAt = u => startDrop + (endDrop - startDrop) * u + 8.4 - 4 * sag * u * (1 - u);
+            const y0 = heightAt((fromDistance - poleStart) / spacing);
+            const y1 = heightAt((toDistance - poleStart) / spacing);
+            items.push([depth - 0.4, () => {
+                for (const offset of [-1, 0, 1]) {
+                    this.poly([this.gp(from, lateral + offset, y0 - 0.04), this.gp(from, lateral + offset, y0 + 0.04), this.gp(to, lateral + offset, y1 + 0.04), this.gp(to, lateral + offset, y1 - 0.04)], color, 1);
+                }
+            }]);
+        }
     },
 
     sign(items, road, distance, palette, fog) {
@@ -3819,10 +3997,9 @@ const Road = {
                 }
                 if (zone <= 1) {
                     const spacing = zone === 1 ? 40 : 90;
-                    const side = rdH(road.ZS[i] * 0.031) < 0.5 ? 1 : -1;
                     const poleIndex = Math.floor(endDistance / spacing);
-                    if (poleIndex > Math.floor(startDistance / spacing)) this.pole(items, road, poleIndex * spacing, spacing, colors, intensity, fog, side);
-                    this.wires(items, road, i, from, to, depth, startDistance, endDistance, spacing, side, colors, fog);
+                    if (poleIndex > Math.floor(startDistance / spacing)) this.pole(items, road, poleIndex * spacing, spacing, colors, intensity, fog);
+                    this.wires(items, road, i, startDistance, endDistance, spacing, zone, depth, colors, fog);
                 }
                 if (zone !== 2) {
                     const signIndex = Math.floor(endDistance / 150);
@@ -4071,6 +4248,7 @@ export class NeoRenderer {
             neoCascadeSpan: 3,
             neoTrailTilt: 60,
             neoTrailSingleArc: false,
+            neoTrailLinkMode: "legacy",
             neoMeteorZoom: 1,
             neoMeteorBurst: true,
             rendererMode: "neo-cascade"
