@@ -3037,8 +3037,7 @@ function buildRoad(renderer) {
             }
         } else {
             const target = rdCl(
-                rdCl((median - intensity[i]) * 1.9, -0.785, 0.785) +
-                rdCl((40 - y) * 0.012, -0.6, 0.6),
+                rdCl((median - intensity[i]) * 1.9, -0.785, 0.785),
                 -0.785,
                 0.785
             );
